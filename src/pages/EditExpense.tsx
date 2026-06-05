@@ -28,14 +28,20 @@ export function EditExpense() {
         members={members}
         memberUids={trip.memberUids}
         currentUserUid={user.uid}
+        tripRates={trip.lastRates}
         existing={expense}
         onSubmit={async (data) => {
-          await updateDoc(doc(db, 'trips', id!, 'expenses', eid!), data)
+          await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), data)
+          if (data.currency !== 'USD') {
+            await updateDoc(doc(db!, 'trips', id!), {
+              [`lastRates.${data.currency}`]: data.exchangeRate,
+            })
+          }
           navigate(`/trip/${id}`)
         }}
         onDelete={async () => {
           if (confirm('Delete this expense?')) {
-            await deleteDoc(doc(db, 'trips', id!, 'expenses', eid!))
+            await deleteDoc(doc(db!, 'trips', id!, 'expenses', eid!))
             navigate(`/trip/${id}`)
           }
         }}

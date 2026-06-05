@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
@@ -22,12 +22,18 @@ export function AddExpense() {
         members={members}
         memberUids={trip.memberUids}
         currentUserUid={user.uid}
+        tripRates={trip.lastRates}
         onSubmit={async (data) => {
-          await addDoc(collection(db, 'trips', id!, 'expenses'), {
+          await addDoc(collection(db!, 'trips', id!, 'expenses'), {
             ...data,
             createdBy: user.uid,
             createdAt: serverTimestamp(),
           })
+          if (data.currency !== 'USD') {
+            await updateDoc(doc(db!, 'trips', id!), {
+              [`lastRates.${data.currency}`]: data.exchangeRate,
+            })
+          }
           navigate(`/trip/${id}`)
         }}
       />

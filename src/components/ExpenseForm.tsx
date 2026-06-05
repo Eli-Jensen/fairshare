@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile } from '../lib/types'
-import { CURRENCIES } from '../lib/types'
+import { COMMON_CURRENCIES, ALL_CURRENCIES, getCurrency } from '../lib/currencies'
+import { fetchRates, getRate } from '../lib/rates'
 
 interface ExpenseFormData {
   description: string
   amount: number
   currency: string
   exchangeRate: number
+  rateIsCustom: boolean
   paidBy: string
   splitType: 'equal' | 'exact' | 'percentage' | 'shares'
   splitAmong: string[]
@@ -26,6 +28,7 @@ export function ExpenseForm({
   members,
   memberUids,
   currentUserUid,
+  tripRates,
   onSubmit,
   onDelete,
   existing,
@@ -33,6 +36,7 @@ export function ExpenseForm({
   members: Record<string, UserProfile>
   memberUids: string[]
   currentUserUid: string
+  tripRates?: Record<string, number>
   onSubmit: (data: {
     description: string
     amount: number
@@ -62,6 +66,7 @@ export function ExpenseForm({
         amount: existing.amount,
         currency: existing.currency,
         exchangeRate: existing.exchangeRate,
+        rateIsCustom: true,
         paidBy: existing.paidBy,
         splitType: existing.splitType,
         splitAmong: Object.keys(existing.splits),
@@ -80,6 +85,7 @@ export function ExpenseForm({
       amount: 0,
       currency: 'USD',
       exchangeRate: 1,
+      rateIsCustom: false,
       paidBy: currentUserUid,
       splitType: 'equal',
       splitAmong: [...memberUids],
@@ -92,12 +98,61 @@ export function ExpenseForm({
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [liveRates, setLiveRates] = useState<Record<string, number>>({})
+  const [rateSource, setRateSource] = useState<'live' | 'trip' | 'custom' | ''>('')
+  const initializedCurrency = useRef(existing?.currency ?? 'USD')
+
+  useEffect(() => {
+    fetchRates().then(setLiveRates)
+  }, [])
 
   useEffect(() => {
     if (form.currency === 'USD') {
-      setForm((f) => ({ ...f, exchangeRate: 1 }))
+      setForm((f) => ({ ...f, exchangeRate: 1, rateIsCustom: false }))
+      setRateSource('')
+      return
     }
-  }, [form.currency])
+    // Don't auto-set rate if user is editing an existing expense and hasn't changed currency
+    if (existing && form.currency === initializedCurrency.current) return
+    // Don't override a rate the user manually typed
+    if (form.rateIsCustom) return
+
+    autoFillRate(form.currency)
+  }, [form.currency, liveRates, tripRates])
+
+  function autoFillRate(currency: string) {
+    // Priority: trip's last-used rate > live API rate
+    if (tripRates?.[currency]) {
+      setForm((f) => ({ ...f, exchangeRate: tripRates[currency], rateIsCustom: false }))
+      setRateSource('trip')
+      return
+    }
+    const live = getRate(liveRates, currency)
+    if (live) {
+      setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000, rateIsCustom: false }))
+      setRateSource('live')
+      return
+    }
+  }
+
+  function handleCurrencyChange(currency: string) {
+    initializedCurrency.current = ''
+    setForm((f) => ({ ...f, currency, rateIsCustom: false }))
+  }
+
+  function handleRateChange(value: string) {
+    setForm((f) => ({
+      ...f,
+      exchangeRate: parseFloat(value) || 0,
+      rateIsCustom: true,
+    }))
+    setRateSource('custom')
+  }
+
+  function resetToAutoRate() {
+    setForm((f) => ({ ...f, rateIsCustom: false }))
+    autoFillRate(form.currency)
+  }
 
   const amountUSD = form.amount * form.exchangeRate
 
@@ -199,6 +254,8 @@ export function ExpenseForm({
   const input =
     'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
+  const currencyInfo = getCurrency(form.currency)
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -231,40 +288,66 @@ export function ExpenseForm({
           <select
             className={input}
             value={form.currency}
-            onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
           >
-            {CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code} ({c.symbol})
-              </option>
-            ))}
+            <optgroup label="Common">
+              {COMMON_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} - {c.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="All currencies">
+              {ALL_CURRENCIES.filter(
+                (c) => !COMMON_CURRENCIES.some((cc) => cc.code === c.code)
+              ).map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} - {c.name}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
       </div>
 
       {form.currency !== 'USD' && (
         <div>
-          <label className={label}>
-            Exchange Rate (1 {form.currency} = ? USD)
-          </label>
-          <input
-            type="number"
-            step="0.0001"
-            min="0"
-            className={input}
-            value={form.exchangeRate || ''}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                exchangeRate: parseFloat(e.target.value) || 0,
-              }))
-            }
-          />
-          {amountUSD > 0 && (
-            <p className="text-xs text-slate-500 mt-1">
-              = ${amountUSD.toFixed(2)} USD
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm font-medium text-slate-700">
+              Exchange Rate (1 {currencyInfo?.symbol ?? form.currency} = ? USD)
+            </label>
+            {rateSource === 'custom' && (
+              <button
+                type="button"
+                onClick={resetToAutoRate}
+                className="text-xs text-primary-600 hover:text-primary-700"
+              >
+                Reset to auto
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <input
+              type="number"
+              step="0.0001"
+              min="0"
+              className={input}
+              value={form.exchangeRate || ''}
+              onChange={(e) => handleRateChange(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            {amountUSD > 0 && (
+              <p className="text-xs text-slate-500">
+                {form.amount} {form.currency} = ${amountUSD.toFixed(2)} USD
+              </p>
+            )}
+            <p className="text-xs text-slate-400">
+              {rateSource === 'live' && 'Auto (live rate)'}
+              {rateSource === 'trip' && 'Auto (last used on this trip)'}
+              {rateSource === 'custom' && 'Custom rate'}
             </p>
-          )}
+          </div>
         </div>
       )}
 
