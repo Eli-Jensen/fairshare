@@ -1,0 +1,64 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../lib/firebase'
+import { useAuth } from '../hooks/useAuth'
+
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let code = ''
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return code
+}
+
+export function CreateTrip() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim() || !user) return
+
+    setSubmitting(true)
+    const ref = await addDoc(collection(db, 'trips'), {
+      name: name.trim(),
+      createdBy: user.uid,
+      memberUids: [user.uid],
+      inviteCode: generateInviteCode(),
+      createdAt: serverTimestamp(),
+    })
+    navigate(`/trip/${ref.id}`)
+  }
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">New Trip</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Trip name
+          </label>
+          <input
+            type="text"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="Italy 2026, Family Reunion, etc."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={!name.trim() || submitting}
+          className="w-full bg-primary-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Creating...' : 'Create Trip'}
+        </button>
+      </form>
+    </div>
+  )
+}
