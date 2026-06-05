@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
@@ -9,7 +9,8 @@ import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { SettlementView } from '../components/SettlementView'
 import { UndoToast } from '../components/UndoToast'
-import { ConfirmButton } from '../components/ConfirmButton'
+import { DeleteModal } from '../components/DeleteModal'
+import { tripToCsv, downloadCsv, openInGoogleSheets } from '../lib/export'
 
 type Tab = 'expenses' | 'settle'
 
@@ -22,6 +23,12 @@ export function TripDashboard() {
   const [tab, setTab] = useState<Tab>('expenses')
   const [copied, setCopied] = useState(false)
   const [undoInfo, setUndoInfo] = useState<{ id: string; description: string } | null>(null)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const state = location.state as { deletedExpenseId?: string; deletedExpenseDesc?: string } | null
@@ -42,6 +49,22 @@ export function TripDashboard() {
 
   const dismissUndo = useCallback(() => setUndoInfo(null), [])
 
+  function startEditing() {
+    if (!trip) return
+    setNameValue(trip.name)
+    setEditingName(true)
+  }
+
+  async function saveName() {
+    const trimmed = nameValue.trim()
+    if (!trimmed || !id) {
+      setEditingName(false)
+      return
+    }
+    await updateDoc(doc(db, 'trips', id), { name: trimmed })
+    setEditingName(false)
+  }
+
   if (loading || !trip) {
     return <div className="text-center py-10 text-slate-400">Loading...</div>
   }
@@ -59,18 +82,103 @@ export function TripDashboard() {
     <div>
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-bold text-slate-900">{trip.name}</h1>
+          {editingName ? (
+            <div className="flex items-center gap-2 flex-1 mr-3">
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveName()
+                  if (e.key === 'Escape') setEditingName(false)
+                }}
+                className="text-2xl font-bold text-slate-900 border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
+                autoFocus
+              />
+              <button
+                onClick={saveName}
+                className="text-primary-600 hover:text-primary-700 p-1"
+                title="Save"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                title="Delete trip"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">{trip.name}</h1>
+              <button
+                onClick={startEditing}
+                className="text-slate-300 hover:text-slate-500 p-1 transition-colors"
+                title="Edit trip name"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            </div>
+          )}
           <Link
             to={`/trip/${id}/expense/new`}
-            className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+            className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors shrink-0"
           >
             Add Expense
           </Link>
         </div>
-        <p className="text-sm text-slate-500">
-          Total: {formatUSD(totalUSD)} across {expenses.length} expense
-          {expenses.length !== 1 && 's'}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Total: {formatUSD(totalUSD)} across {expenses.length} expense
+            {expenses.length !== 1 && 's'}
+          </p>
+          {expenses.length > 0 && (
+            <div className="relative" ref={exportRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-20 w-48">
+                  <button
+                    onClick={() => {
+                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids)
+                      openInGoogleSheets(csv)
+                      setShowExportMenu(false)
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Export to Google Sheets
+                  </button>
+                  <button
+                    onClick={() => {
+                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids)
+                      downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
+                      setShowExportMenu(false)
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Download CSV
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Members */}
@@ -188,12 +296,13 @@ export function TripDashboard() {
         />
       )}
 
-      {/* Danger zone */}
-      <div className="mt-10 pt-6 border-t border-slate-200">
-        <ConfirmButton
-          label="Delete this trip"
-          confirmLabel="Tap again to confirm delete"
+      {showDeleteModal && (
+        <DeleteModal
+          title="Delete this trip?"
+          message={`"${trip.name}" and all its expenses will be moved to the trash. You have 24 hours to undo this.`}
+          onCancel={() => setShowDeleteModal(false)}
           onConfirm={async () => {
+            setShowDeleteModal(false)
             await updateDoc(doc(db, 'trips', id!), {
               deletedAt: serverTimestamp(),
             })
@@ -201,10 +310,8 @@ export function TripDashboard() {
               state: { deletedTripId: id, deletedTripName: trip.name },
             })
           }}
-          className="text-sm text-slate-400 hover:text-red-500 transition-colors"
-          confirmClassName="text-sm text-red-600 font-medium bg-red-50 rounded-lg px-3 py-1.5 transition-colors"
         />
-      </div>
+      )}
 
       {undoInfo && (
         <UndoToast
