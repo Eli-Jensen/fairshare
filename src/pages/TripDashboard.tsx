@@ -11,6 +11,8 @@ import { SettlementView } from '../components/SettlementView'
 import { UndoToast } from '../components/UndoToast'
 import { DeleteModal } from '../components/DeleteModal'
 import { tripToCsv, downloadCsv, openInGoogleSheets } from '../lib/export'
+import { arrayRemove } from 'firebase/firestore'
+import type { RemovedMember } from '../lib/types'
 
 type Tab = 'expenses' | 'settle'
 
@@ -27,6 +29,7 @@ export function TripDashboard() {
   const [nameValue, setNameValue] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -82,8 +85,8 @@ export function TripDashboard() {
     <div>
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
-          {editingName ? (
-            <div className="flex items-center gap-2 flex-1 mr-3">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
+            {editingName ? (
               <input
                 ref={nameInputRef}
                 type="text"
@@ -96,39 +99,38 @@ export function TripDashboard() {
                 className="text-2xl font-bold text-slate-900 border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
                 autoFocus
               />
-              <button
-                onClick={saveName}
-                className="text-primary-600 hover:text-primary-700 p-1"
-                title="Save"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            ) : (
+              <h1 className="text-2xl font-bold text-slate-900 truncate">{trip.name}</h1>
+            )}
+            <button
+              onClick={editingName ? saveName : startEditing}
+              className={`p-1 transition-colors shrink-0 ${
+                editingName
+                  ? 'text-primary-600 hover:text-primary-700'
+                  : 'text-slate-300 hover:text-slate-500'
+              }`}
+              title={editingName ? 'Save' : 'Edit trip name'}
+            >
+              {editingName ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-              </button>
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="text-slate-400 hover:text-red-500 p-1 transition-colors"
-                title="Delete trip"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">{trip.name}</h1>
-              <button
-                onClick={startEditing}
-                className="text-slate-300 hover:text-slate-500 p-1 transition-colors"
-                title="Edit trip name"
-              >
+              ) : (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-              </button>
-            </div>
-          )}
+              )}
+            </button>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0"
+              title="Delete trip"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
           <Link
             to={`/trip/${id}/expense/new`}
             className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors shrink-0"
@@ -200,20 +202,37 @@ export function TripDashboard() {
           </button>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {trip.memberUids.map((uid) => (
-            <div
-              key={uid}
-              className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1"
-            >
-              <MemberAvatar member={members[uid]} size="sm" />
-              <span className="text-xs text-slate-700">
-                {members[uid]?.displayName ?? 'Loading...'}
-                {uid === user?.uid && (
-                  <span className="text-slate-400"> (you)</span>
+          {trip.memberUids.map((uid) => {
+            const isCurrentUser = uid === user?.uid
+            const canRemove = editingName && !isCurrentUser
+            return (
+              <button
+                key={uid}
+                type="button"
+                onClick={() => {
+                  if (canRemove) setRemoveMemberUid(uid)
+                }}
+                className={`flex items-center gap-1.5 rounded-full px-2 py-1 transition-all ${
+                  canRemove
+                    ? 'bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100'
+                    : 'bg-white border border-slate-200 cursor-default'
+                }`}
+              >
+                <MemberAvatar member={members[uid]} size="sm" />
+                <span className={`text-xs ${canRemove ? 'text-red-700' : 'text-slate-700'}`}>
+                  {members[uid]?.displayName ?? 'Loading...'}
+                  {isCurrentUser && (
+                    <span className={canRemove ? 'text-red-400' : 'text-slate-400'}> (you)</span>
+                  )}
+                </span>
+                {canRemove && (
+                  <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 )}
-              </span>
-            </div>
-          ))}
+              </button>
+            )
+          })}
           {trip.invitedEmails && trip.invitedEmails.length > 0 && (
             <>
               {trip.invitedEmails.map((email) => (
@@ -308,6 +327,32 @@ export function TripDashboard() {
             })
             navigate('/', {
               state: { deletedTripId: id, deletedTripName: trip.name },
+            })
+          }}
+        />
+      )}
+
+      {removeMemberUid && members[removeMemberUid] && (
+        <DeleteModal
+          title="Remove member?"
+          message={`Do you want to remove ${members[removeMemberUid].displayName || members[removeMemberUid].email} from the trip?`}
+          onCancel={() => setRemoveMemberUid(null)}
+          onConfirm={async () => {
+            const uid = removeMemberUid
+            const member = members[uid]
+            setRemoveMemberUid(null)
+
+            const removedEntry: RemovedMember = {
+              uid,
+              email: member.email,
+              displayName: member.displayName,
+              removedAt: serverTimestamp() as unknown as import('firebase/firestore').Timestamp,
+            }
+            const updatedRemoved = [...(trip.removedMembers ?? []), removedEntry]
+
+            await updateDoc(doc(db, 'trips', id!), {
+              memberUids: arrayRemove(uid),
+              removedMembers: updatedRemoved,
             })
           }}
         />

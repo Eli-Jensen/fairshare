@@ -1,9 +1,28 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Close menu on navigation
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -13,29 +32,54 @@ export function Layout({ children }: { children: React.ReactNode }) {
             fairshare
           </Link>
           {user && (
-            <div className="flex items-center gap-3">
-              <Link
-                to="/trash"
-                className="text-sm text-slate-400 hover:text-slate-600"
-                title="Recently deleted"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </Link>
+            <div className="relative" ref={menuRef}>
               <button
-                onClick={signOut}
-                className="text-sm text-slate-500 hover:text-slate-700"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary-200 transition-all"
               >
-                Sign out
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt=""
+                    className="w-full h-full"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-medium">
+                    {user.displayName?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                )}
               </button>
-              {user.photoURL && (
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  className="w-8 h-8 rounded-full"
-                  referrerPolicy="no-referrer"
-                />
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up">
+                  <div className="px-3 py-2 border-b border-slate-100">
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      {user.displayName}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
+                      navigate('/trash')
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    Recently Deleted
+                  </button>
+                  <div className="border-t border-slate-100">
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false)
+                        signOut()
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -54,9 +98,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </NavLink>
             <NavLink to="/trip/new" current={location.pathname === '/trip/new'}>
               New Trip
-            </NavLink>
-            <NavLink to="/trash" current={location.pathname === '/trash'}>
-              Trash
             </NavLink>
           </div>
         </nav>
