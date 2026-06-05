@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile } from '../lib/types'
-import { COMMON_CURRENCIES, ALL_CURRENCIES, getCurrency } from '../lib/currencies'
+import { getCurrency } from '../lib/currencies'
+import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates, getRate } from '../lib/rates'
 
 interface ExpenseFormData {
@@ -285,28 +286,10 @@ export function ExpenseForm({
         </div>
         <div>
           <label className={label}>Currency</label>
-          <select
-            className={input}
+          <CurrencyPicker
             value={form.currency}
-            onChange={(e) => handleCurrencyChange(e.target.value)}
-          >
-            <optgroup label="Common">
-              {COMMON_CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} - {c.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="All currencies">
-              {ALL_CURRENCIES.filter(
-                (c) => !COMMON_CURRENCIES.some((cc) => cc.code === c.code)
-              ).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} - {c.name}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+            onChange={handleCurrencyChange}
+          />
         </div>
       </div>
 
