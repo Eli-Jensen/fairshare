@@ -14,12 +14,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           {user && (
             <div className="flex items-center gap-3">
-              <Link
-                to="/invite"
-                className="text-sm text-slate-500 hover:text-primary-600"
-              >
-                Invite
-              </Link>
               <button
                 onClick={signOut}
                 className="text-sm text-slate-500 hover:text-slate-700"
@@ -51,9 +45,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </NavLink>
             <NavLink to="/trip/new" current={location.pathname === '/trip/new'}>
               New Trip
-            </NavLink>
-            <NavLink to="/invite" current={location.pathname === '/invite'}>
-              Invite
             </NavLink>
           </div>
         </nav>

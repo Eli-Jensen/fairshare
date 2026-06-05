@@ -1,11 +1,84 @@
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  deleteField,
+  doc,
+} from 'firebase/firestore'
+import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
 import { TripCard } from '../components/TripCard'
+import { UndoToast } from '../components/UndoToast'
 
 export function Home() {
-  const { user, isAllowed, signIn, firebaseReady, loading: authLoading } = useAuth()
+  const { user, signIn, firebaseReady, loading: authLoading } = useAuth()
   const { trips, loading: tripsLoading } = useTrips()
+  const location = useLocation()
+  const [processingInvites, setProcessingInvites] = useState(false)
+  const [undoTrip, setUndoTrip] = useState<{ id: string; name: string } | null>(null)
+
+  // Handle undo toast for deleted trips
+  useEffect(() => {
+    const state = location.state as { deletedTripId?: string; deletedTripName?: string } | null
+    if (state?.deletedTripId) {
+      setUndoTrip({ id: state.deletedTripId, name: state.deletedTripName ?? 'Trip' })
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
+
+  const handleUndoTrip = useCallback(async () => {
+    if (!undoTrip) return
+    await updateDoc(doc(db, 'trips', undoTrip.id), {
+      deletedAt: deleteField(),
+    })
+    setUndoTrip(null)
+  }, [undoTrip])
+
+  const dismissUndoTrip = useCallback(() => setUndoTrip(null), [])
+
+  // Auto-join trips where the user's email was invited
+  useEffect(() => {
+    if (!user?.email) return
+
+    async function processInvites() {
+      setProcessingInvites(true)
+      try {
+        const q = query(
+          collection(db, 'trips'),
+          where('invitedEmails', 'array-contains', user!.email!.toLowerCase())
+        )
+        const snap = await getDocs(q)
+
+        for (const tripDoc of snap.docs) {
+          const data = tripDoc.data()
+          if (!data.memberUids?.includes(user!.uid)) {
+            await updateDoc(doc(db, 'trips', tripDoc.id), {
+              memberUids: arrayUnion(user!.uid),
+              invitedEmails: arrayRemove(user!.email!.toLowerCase()),
+            })
+          } else {
+            // Already a member, just clean up the invite
+            await updateDoc(doc(db, 'trips', tripDoc.id), {
+              invitedEmails: arrayRemove(user!.email!.toLowerCase()),
+            })
+          }
+        }
+      } catch {
+        // Silently ignore — invites will be processed next time
+      } finally {
+        setProcessingInvites(false)
+      }
+    }
+
+    processInvites()
+  }, [user?.email, user?.uid])
 
   if (!firebaseReady) {
     return (
@@ -19,7 +92,6 @@ export function Home() {
           <p>
             Create a <code className="bg-amber-100 px-1 rounded">.env</code> file
             in the project root with your Firebase config values.
-            See <code className="bg-amber-100 px-1 rounded">.env.example</code> for the required keys.
           </p>
         </div>
       </div>
@@ -69,21 +141,6 @@ export function Home() {
     )
   }
 
-  if (isAllowed === false) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-2xl">
-          🔒
-        </div>
-        <h2 className="text-xl font-semibold text-slate-900">Access Restricted</h2>
-        <p className="text-slate-500 max-w-sm">
-          This app is invite-only. Ask an existing member to invite{' '}
-          <strong>{user.email}</strong> to get access.
-        </p>
-      </div>
-    )
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -96,7 +153,7 @@ export function Home() {
         </Link>
       </div>
 
-      {tripsLoading ? (
+      {tripsLoading || processingInvites ? (
         <div className="text-center py-10 text-slate-400">Loading trips...</div>
       ) : trips.length === 0 ? (
         <div className="text-center py-16">
@@ -114,6 +171,14 @@ export function Home() {
             <TripCard key={trip.id} trip={trip} />
           ))}
         </div>
+      )}
+
+      {undoTrip && (
+        <UndoToast
+          message={`"${undoTrip.name}" deleted`}
+          onUndo={handleUndoTrip}
+          onDismiss={dismissUndoTrip}
+        />
       )}
     </div>
   )

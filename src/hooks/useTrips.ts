@@ -5,10 +5,15 @@ import {
   where,
   onSnapshot,
   orderBy,
+  deleteDoc,
+  getDocs,
+  doc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
 import type { Trip } from '../lib/types'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 export function useTrips() {
   const { user } = useAuth()
@@ -29,10 +34,41 @@ export function useTrips() {
     )
 
     return onSnapshot(q, (snap) => {
-      setTrips(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Trip))
+      const now = Date.now()
+      const active: Trip[] = []
+
+      for (const d of snap.docs) {
+        const data = d.data()
+
+        if (data.deletedAt) {
+          // Permanently delete trips soft-deleted more than 24h ago
+          const deletedTime = data.deletedAt.toDate?.()
+          if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+            purgeTrip(d.id)
+          }
+          continue // Skip soft-deleted trips
+        }
+
+        active.push({ id: d.id, ...data } as Trip)
+      }
+
+      setTrips(active)
       setLoading(false)
     })
   }, [user])
 
   return { trips, loading }
+}
+
+/** Permanently delete a trip and all its expenses */
+async function purgeTrip(tripId: string) {
+  try {
+    const expSnap = await getDocs(collection(db, 'trips', tripId, 'expenses'))
+    for (const expDoc of expSnap.docs) {
+      await deleteDoc(expDoc.ref)
+    }
+    await deleteDoc(doc(db, 'trips', tripId))
+  } catch {
+    // Silently fail — will retry next load
+  }
 }

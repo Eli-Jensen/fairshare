@@ -14,15 +14,19 @@ const firebaseConfig = {
 export const firebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
 
 let app: FirebaseApp | undefined
-let auth: Auth | undefined
-let db: Firestore | undefined
-let googleProvider: GoogleAuthProvider | undefined
+let _auth: Auth | undefined
+let _db: Firestore | undefined
+let _googleProvider: GoogleAuthProvider | undefined
 
 if (firebaseConfigured) {
   app = initializeApp(firebaseConfig)
-  auth = getAuth(app)
-  db = getFirestore(app)
-  googleProvider = new GoogleAuthProvider()
+  _auth = getAuth(app)
+  _db = getFirestore(app)
+  _googleProvider = new GoogleAuthProvider()
 }
 
-export { auth, db, googleProvider }
+// All protected routes require auth, which requires Firebase to be configured,
+// so these are safe to assert as non-null where used.
+export const auth = _auth as Auth
+export const db = _db as Firestore
+export const googleProvider = _googleProvider as GoogleAuthProvider

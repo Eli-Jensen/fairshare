@@ -7,12 +7,22 @@ export interface UserProfile {
   photoURL: string | null
 }
 
+export interface RemovedMember {
+  uid: string
+  email: string
+  displayName: string
+  removedAt: Timestamp
+}
+
 export interface Trip {
   id: string
   name: string
   createdBy: string
   memberUids: string[]
   inviteCode: string
+  invitedEmails?: string[]
+  removedMembers?: RemovedMember[]
+  deletedAt?: Timestamp | null
   lastRates?: Record<string, number>
   createdAt: Timestamp
 }
@@ -30,6 +40,7 @@ export interface Expense {
   date: Timestamp
   createdBy: string
   createdAt: Timestamp
+  deletedAt?: Timestamp | null
 }
 
 export interface Settlement {

@@ -6,6 +6,7 @@ import {
   query,
   orderBy,
   getDoc,
+  deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile } from '../lib/types'
@@ -37,9 +38,24 @@ export function useTrip(tripId: string | undefined) {
     )
 
     return onSnapshot(q, (snap) => {
-      setExpenses(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
-      )
+      const now = Date.now()
+      const DAY_MS = 24 * 60 * 60 * 1000
+
+      const active: Expense[] = []
+      for (const d of snap.docs) {
+        const data = d.data()
+        if (data.deletedAt) {
+          // Permanently delete expenses soft-deleted more than 24h ago
+          const deletedTime = data.deletedAt.toDate?.()
+          if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+            deleteDoc(d.ref)
+          }
+          continue // Skip soft-deleted expenses
+        }
+        active.push({ id: d.id, ...data } as Expense)
+      }
+
+      setExpenses(active)
       setLoading(false)
     })
   }, [tripId])

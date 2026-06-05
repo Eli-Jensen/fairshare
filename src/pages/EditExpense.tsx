@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
@@ -40,10 +40,16 @@ export function EditExpense() {
           navigate(`/trip/${id}`)
         }}
         onDelete={async () => {
-          if (confirm('Delete this expense?')) {
-            await deleteDoc(doc(db!, 'trips', id!, 'expenses', eid!))
-            navigate(`/trip/${id}`)
-          }
+          // Soft delete — mark with timestamp instead of removing
+          await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), {
+            deletedAt: serverTimestamp(),
+          })
+          navigate(`/trip/${id}`, {
+            state: {
+              deletedExpenseId: eid,
+              deletedExpenseDesc: expense.description,
+            },
+          })
         }}
       />
     </div>

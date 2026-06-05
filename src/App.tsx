@@ -7,10 +7,10 @@ import { TripDashboard } from './pages/TripDashboard'
 import { AddExpense } from './pages/AddExpense'
 import { EditExpense } from './pages/EditExpense'
 import { JoinTrip } from './pages/JoinTrip'
-import { InviteUsers } from './pages/InviteUsers'
+import { TripInvite } from './pages/TripInvite'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAllowed, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   if (loading) {
     return (
@@ -20,7 +20,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!user || !isAllowed) {
+  if (!user) {
     return <Navigate to="/" replace />
   }
 
@@ -51,6 +51,14 @@ export default function App() {
             }
           />
           <Route
+            path="/trip/:id/invite"
+            element={
+              <ProtectedRoute>
+                <TripInvite />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/trip/:id/expense/new"
             element={
               <ProtectedRoute>
@@ -63,14 +71,6 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <EditExpense />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/invite"
-            element={
-              <ProtectedRoute>
-                <InviteUsers />
               </ProtectedRoute>
             }
           />

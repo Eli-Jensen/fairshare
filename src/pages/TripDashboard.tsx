@@ -1,21 +1,46 @@
-import { useState } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
+import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore'
+import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
 import { formatUSD } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { SettlementView } from '../components/SettlementView'
+import { UndoToast } from '../components/UndoToast'
+import { ConfirmButton } from '../components/ConfirmButton'
 
 type Tab = 'expenses' | 'settle'
 
 export function TripDashboard() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
   const { trip, expenses, members, loading } = useTrip(id)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('expenses')
   const [copied, setCopied] = useState(false)
+  const [undoInfo, setUndoInfo] = useState<{ id: string; description: string } | null>(null)
+
+  useEffect(() => {
+    const state = location.state as { deletedExpenseId?: string; deletedExpenseDesc?: string } | null
+    if (state?.deletedExpenseId) {
+      setUndoInfo({ id: state.deletedExpenseId, description: state.deletedExpenseDesc ?? 'Expense' })
+      // Clear navigation state so refresh doesn't re-show
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
+
+  const handleUndo = useCallback(async () => {
+    if (!undoInfo || !id) return
+    await updateDoc(doc(db!, 'trips', id, 'expenses', undoInfo.id), {
+      deletedAt: deleteField(),
+    })
+    setUndoInfo(null)
+  }, [undoInfo, id])
+
+  const dismissUndo = useCallback(() => setUndoInfo(null), [])
 
   if (loading || !trip) {
     return <div className="text-center py-10 text-slate-400">Loading...</div>
@@ -52,11 +77,18 @@ export function TripDashboard() {
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-2">
           <h3 className="text-sm font-medium text-slate-500">Members</h3>
+          <Link
+            to={`/trip/${id}/invite`}
+            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+          >
+            + Invite people
+          </Link>
+          <span className="text-slate-300">|</span>
           <button
             onClick={copyInvite}
             className="text-xs text-primary-600 hover:text-primary-700"
           >
-            {copied ? 'Copied!' : 'Copy invite link'}
+            {copied ? 'Copied!' : 'Copy link'}
           </button>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -74,6 +106,24 @@ export function TripDashboard() {
               </span>
             </div>
           ))}
+          {trip.invitedEmails && trip.invitedEmails.length > 0 && (
+            <>
+              {trip.invitedEmails.map((email) => (
+                <div
+                  key={email}
+                  className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-2 py-1"
+                >
+                  <div className="w-5 h-5 rounded-full bg-amber-200 flex items-center justify-center text-[10px] text-amber-700 font-medium">
+                    {email[0].toUpperCase()}
+                  </div>
+                  <span className="text-xs text-amber-700">
+                    {email}
+                    <span className="text-amber-400 ml-1">(invited)</span>
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -135,6 +185,32 @@ export function TripDashboard() {
           expenses={expenses}
           members={members}
           memberUids={trip.memberUids}
+        />
+      )}
+
+      {/* Danger zone */}
+      <div className="mt-10 pt-6 border-t border-slate-200">
+        <ConfirmButton
+          label="Delete this trip"
+          confirmLabel="Tap again to confirm delete"
+          onConfirm={async () => {
+            await updateDoc(doc(db, 'trips', id!), {
+              deletedAt: serverTimestamp(),
+            })
+            navigate('/', {
+              state: { deletedTripId: id, deletedTripName: trip.name },
+            })
+          }}
+          className="text-sm text-slate-400 hover:text-red-500 transition-colors"
+          confirmClassName="text-sm text-red-600 font-medium bg-red-50 rounded-lg px-3 py-1.5 transition-colors"
+        />
+      </div>
+
+      {undoInfo && (
+        <UndoToast
+          message={`"${undoInfo.description}" deleted`}
+          onUndo={handleUndo}
+          onDismiss={dismissUndo}
         />
       )}
     </div>
