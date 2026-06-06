@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore'
+import {
+  doc,
+  updateDoc,
+  serverTimestamp,
+  getDoc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+} from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import type { Trip, UserProfile } from '../lib/types'
+import type { Trip, UserProfile, Expense } from '../lib/types'
+import { formatUSD } from '../lib/types'
 import { DeleteModal } from './DeleteModal'
 import { MemberAvatar } from './MemberAvatar'
 
@@ -11,6 +21,9 @@ export function TripCard({ trip }: { trip: Trip }) {
   const [nameValue, setNameValue] = useState(trip.name)
   const [showDelete, setShowDelete] = useState(false)
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
+  const [totalUSD, setTotalUSD] = useState(0)
+  const [latestExpense, setLatestExpense] = useState<Expense | null>(null)
+  const [expenseCount, setExpenseCount] = useState(0)
 
   const dateStr = trip.createdAt?.toDate
     ? trip.createdAt.toDate().toLocaleDateString()
@@ -27,6 +40,30 @@ export function TripCard({ trip }: { trip: Trip }) {
     }
     loadMembers()
   }, [trip.memberUids.join(',')])
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'trips', trip.id, 'expenses'),
+      orderBy('date', 'desc')
+    )
+    return onSnapshot(q, (snap) => {
+      let total = 0
+      let latest: Expense | null = null
+      let count = 0
+
+      for (const d of snap.docs) {
+        const data = d.data()
+        if (data.deletedAt) continue
+        total += data.amountUSD ?? 0
+        count++
+        if (!latest) latest = { id: d.id, ...data } as Expense
+      }
+
+      setTotalUSD(total)
+      setLatestExpense(latest)
+      setExpenseCount(count)
+    })
+  }, [trip.id])
 
   async function saveName() {
     const trimmed = nameValue.trim()
@@ -116,20 +153,45 @@ export function TripCard({ trip }: { trip: Trip }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
-            <span className="text-xs text-slate-400 ml-1">{dateStr}</span>
           </div>
         </div>
-        <Link to={`/trip/${trip.id}`} className="flex items-center gap-2 mt-1.5">
-          <div className="flex -space-x-1.5">
-            {trip.memberUids.map((uid) => (
-              <div key={uid} className="ring-2 ring-white rounded-full">
-                <MemberAvatar member={members[uid]} size="sm" />
-              </div>
-            ))}
+
+        <Link to={`/trip/${trip.id}`} className="block mt-2">
+          {/* Total and expense count */}
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="text-lg font-semibold text-slate-900">
+              {formatUSD(totalUSD)}
+            </span>
+            <span className="text-xs text-slate-400">
+              {expenseCount} expense{expenseCount !== 1 && 's'} · {dateStr}
+            </span>
           </div>
-          <span className="text-xs text-slate-400">
-            {trip.memberUids.length} member{trip.memberUids.length !== 1 && 's'}
-          </span>
+
+          {/* Latest expense */}
+          {latestExpense && (
+            <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 rounded-md px-2.5 py-1.5 mb-2">
+              <span className="truncate">
+                Latest: {latestExpense.description}
+              </span>
+              <span className="shrink-0 ml-2 font-medium">
+                {formatUSD(latestExpense.amountUSD)}
+              </span>
+            </div>
+          )}
+
+          {/* Members */}
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5">
+              {trip.memberUids.map((uid) => (
+                <div key={uid} className="ring-2 ring-white rounded-full">
+                  <MemberAvatar member={members[uid]} size="sm" />
+                </div>
+              ))}
+            </div>
+            <span className="text-xs text-slate-400">
+              {trip.memberUids.length} member{trip.memberUids.length !== 1 && 's'}
+            </span>
+          </div>
         </Link>
       </div>
 
