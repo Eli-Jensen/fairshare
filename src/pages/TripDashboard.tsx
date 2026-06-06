@@ -109,7 +109,7 @@ export function TripDashboard() {
               className={`p-1 transition-colors shrink-0 ${
                 editingName
                   ? 'text-accent-text hover:text-primary-700'
-                  : 'text-slate-300 hover:text-slate-500'
+                  : 'text-text-muted hover:text-text-secondary'
               }`}
               title={editingName ? 'Save' : 'Edit trip name'}
             >
@@ -126,7 +126,7 @@ export function TripDashboard() {
             {editingName && (
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                className="p-1 text-text-muted hover:text-red-500 transition-colors shrink-0"
                 title="Delete trip"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,7 +151,7 @@ export function TripDashboard() {
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="text-xs text-text-muted hover:text-slate-600 flex items-center gap-1 transition-colors"
+                className="text-xs text-text-muted hover:text-text-secondary flex items-center gap-1 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -197,7 +197,7 @@ export function TripDashboard() {
           >
             + Invite people
           </Link>
-          <span className="text-slate-300">|</span>
+          <span className="text-text-muted">|</span>
           <button
             onClick={copyInvite}
             className="text-xs text-accent-text hover:text-accent-hover"
@@ -228,11 +228,11 @@ export function TripDashboard() {
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
                 <span className={`text-xs ${
-                  canRemove ? 'text-red-700' : canLeave ? 'text-amber-700' : 'text-slate-700'
+                  canRemove ? 'text-red-700' : canLeave ? 'text-amber-700' : 'text-text-secondary'
                 }`}>
                   {getMemberName(uid, members)}
                   {isCurrentUser && (
-                    <span className={canLeave ? 'text-amber-500' : 'text-slate-400'}> (you)</span>
+                    <span className={canLeave ? 'text-amber-500' : 'text-text-muted'}> (you)</span>
                   )}
                 </span>
                 {canRemove && (
@@ -276,7 +276,7 @@ export function TripDashboard() {
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'expenses'
               ? 'bg-active font-medium text-text shadow-sm'
-              : 'text-text-secondary hover:text-slate-700'
+              : 'text-text-secondary hover:text-text-secondary'
           }`}
         >
           Expenses
@@ -286,7 +286,7 @@ export function TripDashboard() {
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'settle'
               ? 'bg-active font-medium text-text shadow-sm'
-              : 'text-text-secondary hover:text-slate-700'
+              : 'text-text-secondary hover:text-text-secondary'
           }`}
         >
           Settle Up

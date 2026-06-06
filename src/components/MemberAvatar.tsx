@@ -67,7 +67,7 @@ export function MemberAvatar({
           </div>
           {(hasCustomName || hasCustomPhoto) && (
             <p className="text-xs text-text-muted border-t border-line-light pt-2">
-              Goes by <span className="font-medium text-slate-600">{member.displayName}</span>
+              Goes by <span className="font-medium text-text-secondary">{member.displayName}</span>
             </p>
           )}
         </div>
@@ -79,7 +79,7 @@ export function MemberAvatar({
     if (!member) {
       return (
         <div
-          className={`${px} rounded-full bg-slate-200 flex items-center justify-center ${text} text-slate-500`}
+          className={`${px} rounded-full bg-muted flex items-center justify-center ${text} text-text-secondary`}
         >
           ?
         </div>

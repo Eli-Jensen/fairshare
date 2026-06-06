@@ -477,7 +477,7 @@ export function ExpenseForm({
               className={`text-sm py-1.5 rounded-md capitalize transition-all ${
                 form.splitType === t
                   ? 'bg-active text-accent-text font-medium shadow-sm'
-                  : 'text-text-secondary hover:text-slate-700'
+                  : 'text-text-secondary hover:text-text-secondary'
               }`}
             >
               {t === 'percentage' ? '%' : t}

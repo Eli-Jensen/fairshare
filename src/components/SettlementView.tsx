@@ -47,7 +47,7 @@ export function SettlementView({
                       ? 'text-emerald-600'
                       : rounded < 0
                         ? 'text-red-500'
-                        : 'text-slate-400'
+                        : 'text-text-muted'
                   }`}
                 >
                   {rounded > 0 ? '+' : ''}

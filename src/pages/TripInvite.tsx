@@ -196,7 +196,7 @@ export function TripInvite() {
       <div className="flex items-center gap-2 mb-6">
         <Link
           to={`/trip/${id}`}
-          className="text-text-muted hover:text-slate-600"
+          className="text-text-muted hover:text-text-secondary"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
