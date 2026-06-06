@@ -98,11 +98,11 @@ export function TripDashboard() {
                   if (e.key === 'Enter') saveName()
                   if (e.key === 'Escape') setEditingName(false)
                 }}
-                className="text-2xl font-bold text-slate-900 border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
+                className="text-2xl font-bold text-slate-900 dark:text-slate-100 border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
                 autoFocus
               />
             ) : (
-              <h1 className="text-2xl font-bold text-slate-900 truncate">{trip.name}</h1>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">{trip.name}</h1>
             )}
             <button
               onClick={editingName ? saveName : startEditing}
@@ -159,14 +159,14 @@ export function TripDashboard() {
                 Export
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-20 w-48">
+                <div className="absolute right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
                     onClick={() => {
                       const csv = tripToCsv(trip.name, expenses, members, trip.memberUids)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                   >
                     Export to Google Sheets
                   </button>
@@ -176,7 +176,7 @@ export function TripDashboard() {
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                   >
                     Download CSV
                   </button>
@@ -223,7 +223,7 @@ export function TripDashboard() {
                     ? 'bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100'
                     : canLeave
                       ? 'bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100'
-                      : 'bg-white border border-slate-200 cursor-default'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-default'
                 }`}
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
@@ -270,12 +270,12 @@ export function TripDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-4">
+      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mb-4">
         <button
           onClick={() => setTab('expenses')}
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'expenses'
-              ? 'bg-white font-medium text-slate-900 shadow-sm'
+              ? 'bg-white dark:bg-slate-700 font-medium text-slate-900 dark:text-slate-100 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -285,7 +285,7 @@ export function TripDashboard() {
           onClick={() => setTab('settle')}
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'settle'
-              ? 'bg-white font-medium text-slate-900 shadow-sm'
+              ? 'bg-white dark:bg-slate-700 font-medium text-slate-900 dark:text-slate-100 shadow-sm'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >

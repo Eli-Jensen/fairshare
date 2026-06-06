@@ -113,12 +113,12 @@ export function Home() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">fairshare</h1>
-          <p className="text-slate-500">Split trip expenses with friends and family</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">fairshare</h1>
+          <p className="text-slate-500 dark:text-slate-400">Split trip expenses with friends and family</p>
         </div>
         <button
           onClick={signIn}
-          className="flex items-center gap-3 bg-white border border-slate-300 rounded-lg px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
+          className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -144,7 +144,7 @@ export function Home() {
             {pendingInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="bg-primary-50 border border-primary-200 rounded-xl p-4"
+                className="bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700 rounded-xl p-4"
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-slate-900">{invite.name}</h3>
@@ -177,7 +177,7 @@ export function Home() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Your Trips</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Your Trips</h1>
         <Link
           to="/trip/new"
           className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"

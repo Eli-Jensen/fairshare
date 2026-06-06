@@ -19,8 +19,8 @@ export function ExpenseCard({
   return (
     <div
       onClick={onEdit}
-      className={`bg-white rounded-lg border border-slate-200 p-3 ${
-        onEdit ? 'cursor-pointer hover:border-primary-300 hover:shadow-sm transition-all' : ''
+      className={`bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 ${
+        onEdit ? 'cursor-pointer hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-sm transition-all' : ''
       }`}
     >
       <div className="flex items-start gap-3">

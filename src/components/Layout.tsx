@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useTheme } from '../hooks/useTheme'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -23,11 +25,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setMenuOpen(false)
   }, [location.pathname])
 
+  function cycleTheme() {
+    const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'
+    setTheme(next)
+  }
+
+  const themeLabel = theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark'
+  const themeIcon = theme === 'system' ? (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  ) : theme === 'light' ? (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  ) : (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
+  )
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-primary-600">
+          <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-primary-600 dark:text-primary-400">
             <svg className="w-6 h-6" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
               <rect width="32" height="32" rx="7" fill="currentColor"/>
               <circle cx="13" cy="16" r="7.5" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
@@ -39,7 +61,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary-200 transition-all"
+                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary-200 dark:hover:ring-primary-700 transition-all"
               >
                 {user.photoURL ? (
                   <img
@@ -49,26 +71,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-full h-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-medium">
+                  <div className="w-full h-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 flex items-center justify-center text-sm font-medium">
                     {user.displayName?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up">
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-sm font-medium text-slate-900 truncate">
+                <div className="absolute right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                       {user.displayName}
                     </p>
                     <p className="text-xs text-slate-400 truncate">{user.email}</p>
                   </div>
                   <button
+                    onClick={cycleTheme}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      {themeIcon}
+                      Theme
+                    </span>
+                    <span className="text-xs text-slate-400">{themeLabel}</span>
+                  </button>
+                  <button
                     onClick={() => {
                       setMenuOpen(false)
                       navigate('/profile')
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Edit Profile
                   </button>
@@ -77,17 +109,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       setMenuOpen(false)
                       navigate('/trash')
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     View Recently Deleted
                   </button>
-                  <div className="border-t border-slate-100">
+                  <div className="border-t border-slate-100 dark:border-slate-700">
                     <button
                       onClick={() => {
                         setMenuOpen(false)
                         signOut()
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                     >
                       Sign out
                     </button>
