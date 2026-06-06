@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from './types'
-import { formatUSD } from './types'
+import { formatUSD, getMemberName } from './types'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -28,7 +28,7 @@ export function tripToCsv(
 
   // Expenses table
   const memberNames = memberUids.map(
-    (uid) => members[uid]?.displayName ?? uid
+    (uid) => getMemberName(uid, members)
   )
   lines.push(
     [
@@ -46,7 +46,7 @@ export function tripToCsv(
   )
 
   for (const exp of expenses) {
-    const payer = members[exp.paidBy]?.displayName ?? exp.paidBy
+    const payer = getMemberName(exp.paidBy, members)
     const shares = memberUids.map((uid) =>
       exp.splits[uid] !== undefined ? formatUSD(exp.splits[uid]) : ''
     )
@@ -82,7 +82,7 @@ export function tripToCsv(
   lines.push(['Person', 'Balance'].map(escapeCsv).join(','))
   const balances = computeBalances(expenses, memberUids)
   for (const uid of memberUids) {
-    const name = members[uid]?.displayName ?? uid
+    const name = getMemberName(uid, members)
     const bal = balances[uid] ?? 0
     lines.push([name, formatUSD(bal)].map(escapeCsv).join(','))
   }
@@ -96,8 +96,8 @@ export function tripToCsv(
   for (const d of debts) {
     lines.push(
       [
-        members[d.from]?.displayName ?? d.from,
-        members[d.to]?.displayName ?? d.to,
+        getMemberName(d.from, members),
+        getMemberName(d.to, members),
         formatUSD(d.amount),
       ]
         .map(escapeCsv)

@@ -57,3 +57,22 @@ export function formatUSD(amount: number): string {
     currency: 'USD',
   }).format(amount)
 }
+
+/**
+ * Returns a display name for a member, appending their email in parentheses
+ * if another member in the same group shares the same display name.
+ */
+export function getMemberName(
+  uid: string,
+  members: Record<string, UserProfile>
+): string {
+  const member = members[uid]
+  if (!member) return uid
+  const name = member.displayName || member.email
+  const isDuplicate = Object.entries(members).some(
+    ([otherUid, other]) =>
+      otherUid !== uid && (other.displayName || other.email) === name
+  )
+  if (isDuplicate) return `${name} (${member.email})`
+  return name
+}

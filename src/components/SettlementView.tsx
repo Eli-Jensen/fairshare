@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from '../lib/types'
-import { formatUSD } from '../lib/types'
+import { formatUSD, getMemberName } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 
@@ -38,7 +38,7 @@ export function SettlementView({
                 <div className="flex items-center gap-2">
                   <MemberAvatar member={members[uid]} size="sm" />
                   <span className="text-sm text-slate-700">
-                    {members[uid]?.displayName ?? uid}
+                    {getMemberName(uid, members)}
                   </span>
                 </div>
                 <span
@@ -72,12 +72,12 @@ export function SettlementView({
               >
                 <MemberAvatar member={members[s.from]} size="sm" />
                 <span className="text-sm font-medium text-slate-700">
-                  {members[s.from]?.displayName ?? s.from}
+                  {getMemberName(s.from, members)}
                 </span>
                 <span className="text-slate-400 text-sm">pays</span>
                 <MemberAvatar member={members[s.to]} size="sm" />
                 <span className="text-sm font-medium text-slate-700">
-                  {members[s.to]?.displayName ?? s.to}
+                  {getMemberName(s.to, members)}
                 </span>
                 <span className="ml-auto font-bold text-primary-700">
                   {formatUSD(s.amount)}

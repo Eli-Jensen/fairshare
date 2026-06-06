@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile } from '../lib/types'
+import { getMemberName } from '../lib/types'
 import { getCurrency } from '../lib/currencies'
 import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates, getRate } from '../lib/rates'
@@ -343,7 +344,7 @@ export function ExpenseForm({
         >
           {memberUids.map((uid) => (
             <option key={uid} value={uid}>
-              {members[uid]?.displayName ?? uid}
+              {getMemberName(uid, members)}
             </option>
           ))}
         </select>
@@ -391,7 +392,7 @@ export function ExpenseForm({
                 className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
               />
               <span className="text-sm flex-1">
-                {members[uid]?.displayName ?? uid}
+                {getMemberName(uid, members)}
               </span>
 
               {form.splitType === 'exact' && form.splitAmong.includes(uid) && (

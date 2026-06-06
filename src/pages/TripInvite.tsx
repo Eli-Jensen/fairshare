@@ -15,7 +15,7 @@ import { useTrip } from '../hooks/useTrip'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
-import type { RemovedMember } from '../lib/types'
+import { getMemberName, type RemovedMember } from '../lib/types'
 
 interface RecentContact {
   email: string
@@ -307,7 +307,7 @@ export function TripInvite() {
                   <MemberAvatar member={member} size="sm" />
                   <div>
                     <span className="text-sm text-slate-700">
-                      {member?.displayName ?? 'Loading...'}
+                      {getMemberName(uid, members)}
                       {isCurrentUser && (
                         <span className="text-slate-400 ml-1">(you)</span>
                       )}

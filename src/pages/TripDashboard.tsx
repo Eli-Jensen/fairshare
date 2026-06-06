@@ -4,7 +4,7 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatUSD } from '../lib/types'
+import { formatUSD, getMemberName } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { SettlementView } from '../components/SettlementView'
@@ -220,7 +220,7 @@ export function TripDashboard() {
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
                 <span className={`text-xs ${canRemove ? 'text-red-700' : 'text-slate-700'}`}>
-                  {members[uid]?.displayName ?? 'Loading...'}
+                  {getMemberName(uid, members)}
                   {isCurrentUser && (
                     <span className={canRemove ? 'text-red-400' : 'text-slate-400'}> (you)</span>
                   )}
@@ -335,7 +335,7 @@ export function TripDashboard() {
       {removeMemberUid && members[removeMemberUid] && (
         <DeleteModal
           title="Remove member?"
-          message={`Do you want to remove ${members[removeMemberUid].displayName || members[removeMemberUid].email} from the trip?`}
+          message={`Do you want to remove ${getMemberName(removeMemberUid, members)} from the trip?`}
           onCancel={() => setRemoveMemberUid(null)}
           onConfirm={async () => {
             const uid = removeMemberUid

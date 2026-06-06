@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from '../lib/types'
-import { formatUSD } from '../lib/types'
+import { formatUSD, getMemberName } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
@@ -36,7 +36,7 @@ export function ExpenseCard({
           </div>
           <div className="flex items-center justify-between mt-0.5">
             <p className="text-sm text-slate-500">
-              {payer?.displayName ?? 'Unknown'} paid
+              {getMemberName(expense.paidBy, members)} paid
               {expense.currency !== 'USD' && (
                 <span className="ml-1 text-xs text-slate-400">
                   ({expense.amount} {expense.currency})
