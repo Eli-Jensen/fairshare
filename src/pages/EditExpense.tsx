@@ -14,16 +14,16 @@ export function EditExpense() {
   const expense = expenses.find((e) => e.id === eid)
 
   if (loading || !trip || !user) {
-    return <div className="text-center py-10 text-slate-400">Loading...</div>
+    return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
   if (!expense) {
-    return <div className="text-center py-10 text-slate-500">Expense not found</div>
+    return <div className="text-center py-10 text-text-secondary">Expense not found</div>
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Edit Expense</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">Edit Expense</h1>
       <ExpenseForm
         members={members}
         memberUids={trip.memberUids}

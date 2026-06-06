@@ -87,7 +87,7 @@ export function TripCard({ trip }: { trip: Trip }) {
 
   return (
     <>
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-sm transition-all">
+      <div className="bg-card rounded-xl border border-line p-4 hover:border-primary-300 hover:shadow-sm transition-all">
         <div className="flex items-center justify-between gap-2">
           {editing ? (
             <input
@@ -102,12 +102,12 @@ export function TripCard({ trip }: { trip: Trip }) {
                 }
               }}
               onBlur={saveName}
-              className="font-semibold text-slate-900 dark:text-slate-100 border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
+              className="font-semibold text-text border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
               autoFocus
             />
           ) : (
             <Link to={`/trip/${trip.id}`} className="flex-1 min-w-0">
-              <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+              <h3 className="font-semibold text-text truncate">
                 {trip.name}
               </h3>
             </Link>
@@ -161,17 +161,17 @@ export function TripCard({ trip }: { trip: Trip }) {
         <Link to={`/trip/${trip.id}`} className="block mt-2">
           {/* Total and expense count */}
           <div className="flex items-baseline justify-between mb-1.5">
-            <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <span className="text-lg font-semibold text-text">
               {formatUSD(totalUSD)}
             </span>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-text-muted">
               {expenseCount} expense{expenseCount !== 1 && 's'} · {dateStr}
             </span>
           </div>
 
           {/* Latest expense */}
           {latestExpense && (
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 rounded-md px-2.5 py-1.5 mb-2">
+            <div className="flex items-center justify-between text-xs text-text-secondary bg-muted bg-muted/50 rounded-md px-2.5 py-1.5 mb-2">
               <span className="truncate">
                 Latest: {latestExpense.description}
               </span>
@@ -190,7 +190,7 @@ export function TripCard({ trip }: { trip: Trip }) {
                 </div>
               ))}
             </div>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-text-muted">
               {trip.memberUids.length} member{trip.memberUids.length !== 1 && 's'}
             </span>
           </div>

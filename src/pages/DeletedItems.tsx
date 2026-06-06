@@ -150,45 +150,45 @@ export function DeletedItems() {
   }
 
   if (loading) {
-    return <div className="text-center py-10 text-slate-400">Loading...</div>
+    return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
   const isEmpty = deletedTrips.length === 0 && deletedExpenses.length === 0
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-2">Recently Deleted</h1>
-      <p className="text-sm text-slate-500 mb-6">
+      <h1 className="text-2xl font-bold text-text mb-2">Recently Deleted</h1>
+      <p className="text-sm text-text-secondary mb-6">
         Items are permanently removed after 24 hours.
       </p>
 
       {isEmpty ? (
         <div className="text-center py-16">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </div>
-          <p className="text-slate-500">Nothing in the trash</p>
+          <p className="text-text-secondary">Nothing in the trash</p>
         </div>
       ) : (
         <>
           {deletedTrips.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
+              <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
                 Deleted Trips ({deletedTrips.length})
               </h2>
               <div className="space-y-2">
                 {deletedTrips.map((trip) => (
                   <div
                     key={trip.id}
-                    className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3"
+                    className="flex items-center justify-between bg-card border border-line rounded-lg px-4 py-3"
                   >
                     <div>
-                      <p className="text-sm font-medium text-slate-700 line-through">
+                      <p className="text-sm font-medium text-text-secondary line-through">
                         {trip.name}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-text-muted">
                         {trip.memberUids.length} members
                         {trip.deletedAt && ` · ${timeRemaining(trip.deletedAt)}`}
                       </p>
@@ -208,20 +208,20 @@ export function DeletedItems() {
 
           {deletedExpenses.length > 0 && (
             <div>
-              <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
+              <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
                 Deleted Expenses ({deletedExpenses.length})
               </h2>
               <div className="space-y-2">
                 {deletedExpenses.map((exp) => (
                   <div
                     key={exp.id}
-                    className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3"
+                    className="flex items-center justify-between bg-card border border-line rounded-lg px-4 py-3"
                   >
                     <div>
-                      <p className="text-sm font-medium text-slate-700 line-through">
+                      <p className="text-sm font-medium text-text-secondary line-through">
                         {exp.description}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-text-muted">
                         {formatUSD(exp.amountUSD)} in {exp.tripName}
                         {exp.deletedAt && ` · ${timeRemaining(exp.deletedAt)}`}
                       </p>

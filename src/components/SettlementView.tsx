@@ -17,7 +17,7 @@ export function SettlementView({
 
   if (expenses.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-400">
+      <div className="text-center py-8 text-text-muted">
         No expenses yet — add one to get started.
       </div>
     )
@@ -26,7 +26,7 @@ export function SettlementView({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-2">
+        <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
           Balances
         </h3>
         <div className="space-y-1">
@@ -37,7 +37,7 @@ export function SettlementView({
               <div key={uid} className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-2">
                   <MemberAvatar member={members[uid]} size="sm" />
-                  <span className="text-sm text-slate-700">
+                  <span className="text-sm text-text-secondary">
                     {getMemberName(uid, members)}
                   </span>
                 </div>
@@ -61,7 +61,7 @@ export function SettlementView({
 
       {settlements.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-2">
+          <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
             Settle Up
           </h3>
           <div className="space-y-2">
@@ -71,12 +71,12 @@ export function SettlementView({
                 className="bg-primary-50 rounded-lg p-3 flex items-center gap-2"
               >
                 <MemberAvatar member={members[s.from]} size="sm" />
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-text-secondary">
                   {getMemberName(s.from, members)}
                 </span>
-                <span className="text-slate-400 text-sm">pays</span>
+                <span className="text-text-muted text-sm">pays</span>
                 <MemberAvatar member={members[s.to]} size="sm" />
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-text-secondary">
                   {getMemberName(s.to, members)}
                 </span>
                 <span className="ml-auto font-bold text-primary-700">

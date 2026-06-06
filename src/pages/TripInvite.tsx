@@ -78,7 +78,7 @@ export function TripInvite() {
   const dismissUndoMember = useCallback(() => setUndoMember(null), [])
 
   if (loading || !trip || !user) {
-    return <div className="text-center py-10 text-slate-400">Loading...</div>
+    return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
@@ -189,20 +189,20 @@ export function TripInvite() {
     (c) => !isAlreadyInTrip(c.email) && !justInvited.includes(c.email)
   )
 
-  const label = 'block text-sm font-medium text-slate-700 mb-1'
+  const label = 'block text-sm font-medium text-text-secondary mb-1'
 
   return (
     <div>
       <div className="flex items-center gap-2 mb-6">
         <Link
           to={`/trip/${id}`}
-          className="text-slate-400 hover:text-slate-600"
+          className="text-text-muted hover:text-slate-600"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-2xl font-bold text-text">
           Invite to {trip.name}
         </h1>
       </div>
@@ -213,7 +213,7 @@ export function TripInvite() {
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="email"
-            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             placeholder="friend@gmail.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -227,7 +227,7 @@ export function TripInvite() {
             {submitting ? '...' : 'Invite'}
           </button>
         </form>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-text-muted mt-1">
           They'll see this trip when they sign in to fairshare
         </p>
       </div>
@@ -241,7 +241,7 @@ export function TripInvite() {
       {/* Just invited */}
       {justInvited.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-slate-500 mb-2">Just invited</h3>
+          <h3 className="text-sm font-medium text-text-secondary mb-2">Just invited</h3>
           <div className="space-y-1">
             {justInvited.map((e) => (
               <div
@@ -261,14 +261,14 @@ export function TripInvite() {
       {/* Recent contacts */}
       {suggestableContacts.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-slate-500 mb-2">Recently added</h3>
+          <h3 className="text-sm font-medium text-text-secondary mb-2">Recently added</h3>
           <div className="space-y-1">
             {suggestableContacts.map((contact) => (
               <div
                 key={contact.email}
-                className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2"
+                className="flex items-center justify-between bg-card border border-line rounded-lg px-3 py-2"
               >
-                <span className="text-sm text-slate-700">{contact.email}</span>
+                <span className="text-sm text-text-secondary">{contact.email}</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => inviteEmail(contact.email)}
@@ -278,7 +278,7 @@ export function TripInvite() {
                   </button>
                   <button
                     onClick={() => forgetContact(contact.email)}
-                    className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                    className="text-xs text-text-muted hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
                   >
                     Forget
                   </button>
@@ -290,8 +290,8 @@ export function TripInvite() {
       )}
 
       {/* Current members */}
-      <div className="border-t border-slate-200 pt-4 mb-6">
-        <h3 className="text-sm font-medium text-slate-700 mb-2">
+      <div className="border-t border-line pt-4 mb-6">
+        <h3 className="text-sm font-medium text-text-secondary mb-2">
           Current members ({trip.memberUids.length})
         </h3>
         <div className="space-y-1">
@@ -301,19 +301,19 @@ export function TripInvite() {
             return (
               <div
                 key={uid}
-                className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2"
+                className="flex items-center justify-between bg-card border border-line rounded-lg px-3 py-2"
               >
                 <div className="flex items-center gap-2">
                   <MemberAvatar member={member} size="sm" />
                   <div>
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-text-secondary">
                       {getMemberName(uid, members)}
                       {isCurrentUser && (
-                        <span className="text-slate-400 ml-1">(you)</span>
+                        <span className="text-text-muted ml-1">(you)</span>
                       )}
                     </span>
                     {member?.email && (
-                      <p className="text-xs text-slate-400">{member.email}</p>
+                      <p className="text-xs text-text-muted">{member.email}</p>
                     )}
                   </div>
                 </div>
@@ -322,7 +322,7 @@ export function TripInvite() {
                     label="Remove"
                     confirmLabel="Confirm?"
                     onConfirm={() => removeMember(uid)}
-                    className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                    className="text-xs text-text-muted hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
                     confirmClassName="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded transition-colors"
                   />
                 )}
@@ -333,31 +333,31 @@ export function TripInvite() {
       </div>
 
       {/* Invite link */}
-      <div className="border-t border-slate-200 pt-4">
+      <div className="border-t border-line pt-4">
         <label className={label}>Or share invite link</label>
         <div className="flex gap-2">
           <input
             type="text"
             readOnly
             value={inviteUrl}
-            className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-500 bg-slate-50"
+            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm text-text-secondary bg-muted"
           />
           <button
             onClick={copyInviteLink}
-            className="border border-slate-300 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shrink-0"
+            className="border border-line rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-card-hover transition-colors shrink-0"
           >
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-text-muted mt-1">
           Anyone with this link can join the trip after signing in
         </p>
       </div>
 
       {/* Pending invites */}
       {trip.invitedEmails && trip.invitedEmails.length > 0 && (
-        <div className="mt-6 border-t border-slate-200 pt-4">
-          <h3 className="text-sm font-medium text-slate-500 mb-2">
+        <div className="mt-6 border-t border-line pt-4">
+          <h3 className="text-sm font-medium text-text-secondary mb-2">
             Pending invites ({trip.invitedEmails.length})
           </h3>
           <div className="space-y-1">

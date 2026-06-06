@@ -303,9 +303,9 @@ export function ExpenseForm({
     setForm((f) => ({ ...f, multiPayer: !f.multiPayer }))
   }
 
-  const label = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1'
+  const label = 'block text-sm font-medium text-text-secondary mb-1'
   const input =
-    'w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
+    'w-full border border-line rounded-lg px-3 py-2 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
   const currencyInfo = getCurrency(form.currency)
 
@@ -354,7 +354,7 @@ export function ExpenseForm({
       {form.currency !== 'USD' && (
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="text-sm font-medium text-text-secondary">
               Exchange Rate (1 {currencyInfo?.symbol ?? form.currency} = ? USD)
             </label>
             {rateSource === 'custom' && (
@@ -379,11 +379,11 @@ export function ExpenseForm({
           </div>
           <div className="flex items-center justify-between mt-1">
             {amountUSD > 0 && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-secondary">
                 {form.amount} {form.currency} = ${amountUSD.toFixed(2)} USD
               </p>
             )}
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-text-muted">
               {rateSource === 'live' && 'Auto (live rate)'}
               {rateSource === 'trip' && 'Auto (last used on this trip)'}
               {rateSource === 'custom' && 'Custom rate'}
@@ -395,7 +395,7 @@ export function ExpenseForm({
       {/* Paid by section */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Paid by</label>
+          <label className="text-sm font-medium text-text-secondary">Paid by</label>
           <button
             type="button"
             onClick={toggleMultiPayer}
@@ -409,16 +409,16 @@ export function ExpenseForm({
           <div className="space-y-2">
             {memberUids.map((uid) => (
               <div key={uid} className="flex items-center gap-3">
-                <span className="text-sm flex-1 text-slate-700 dark:text-slate-300">
+                <span className="text-sm flex-1 text-text-secondary">
                   {getMemberName(uid, members)}
                 </span>
                 <div className="flex items-center gap-1">
-                  <span className="text-sm text-slate-400">$</span>
+                  <span className="text-sm text-text-muted">$</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-28 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-28 border border-line rounded px-2 py-1 text-sm bg-card text-text"
                     placeholder="0.00"
                     value={form.paidByAmounts[uid] ?? ''}
                     onChange={(e) =>
@@ -468,7 +468,7 @@ export function ExpenseForm({
 
       <div>
         <label className={label}>Split type</label>
-        <div className="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+        <div className="grid grid-cols-4 gap-1 bg-muted rounded-lg p-1">
           {(['equal', 'exact', 'percentage', 'shares'] as const).map((t) => (
             <button
               key={t}
@@ -476,8 +476,8 @@ export function ExpenseForm({
               onClick={() => setForm((f) => ({ ...f, splitType: t }))}
               className={`text-sm py-1.5 rounded-md capitalize transition-all ${
                 form.splitType === t
-                  ? 'bg-white dark:bg-slate-700 text-primary-700 dark:text-primary-300 font-medium shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-card bg-muted text-primary-700  font-medium shadow-sm'
+                  : 'text-text-secondary hover:text-slate-700'
               }`}
             >
               {t === 'percentage' ? '%' : t}
@@ -495,20 +495,20 @@ export function ExpenseForm({
                 type="checkbox"
                 checked={form.splitAmong.includes(uid)}
                 onChange={() => toggleMember(uid)}
-                className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                className="rounded border-line text-primary-600 focus:ring-primary-500"
               />
-              <span className="text-sm flex-1 text-slate-700 dark:text-slate-300">
+              <span className="text-sm flex-1 text-text-secondary">
                 {getMemberName(uid, members)}
               </span>
 
               {form.splitType === 'exact' && form.splitAmong.includes(uid) && (
                 <div className="flex items-center gap-1">
-                  <span className="text-sm text-slate-400">$</span>
+                  <span className="text-sm text-text-muted">$</span>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-24 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-24 border border-line rounded px-2 py-1 text-sm bg-card text-text"
                     value={form.exactAmounts[uid] ?? ''}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -527,7 +527,7 @@ export function ExpenseForm({
                     step="0.1"
                     min="0"
                     max="100"
-                    className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-20 border border-line rounded px-2 py-1 text-sm bg-card text-text"
                     value={form.percentages[uid] ?? ''}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -536,7 +536,7 @@ export function ExpenseForm({
                       }))
                     }
                   />
-                  <span className="text-sm text-slate-400">%</span>
+                  <span className="text-sm text-text-muted">%</span>
                 </div>
               )}
 
@@ -545,7 +545,7 @@ export function ExpenseForm({
                   type="number"
                   step="1"
                   min="0"
-                  className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  className="w-20 border border-line rounded px-2 py-1 text-sm bg-card text-text"
                   value={form.shares[uid] ?? ''}
                   onChange={(e) =>
                     setForm((f) => ({
@@ -557,7 +557,7 @@ export function ExpenseForm({
               )}
 
               {form.splitType === 'equal' && form.splitAmong.includes(uid) && (
-                <span className="text-sm text-slate-400">
+                <span className="text-sm text-text-muted">
                   ${(amountUSD / form.splitAmong.length).toFixed(2)}
                 </span>
               )}
@@ -567,7 +567,7 @@ export function ExpenseForm({
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-danger-bg rounded-lg px-3 py-2">
           {error}
         </p>
       )}
@@ -584,7 +584,7 @@ export function ExpenseForm({
           <button
             type="button"
             onClick={onDelete}
-            className="px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+            className="px-4 py-2.5 text-sm text-red-600 hover:bg-danger-bg rounded-lg transition-colors"
           >
             Delete
           </button>

@@ -82,13 +82,13 @@ export function JoinTrip() {
   if (authLoading || status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
-        <h2 className="text-xl font-semibold text-slate-900">Join Trip</h2>
+        <h2 className="text-xl font-semibold text-text">Join Trip</h2>
         {!user ? (
           <>
-            <p className="text-slate-500">Sign in to join this trip</p>
+            <p className="text-text-secondary">Sign in to join this trip</p>
             <button
               onClick={signIn}
-              className="flex items-center gap-3 bg-white border border-slate-300 rounded-lg px-6 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
+              className="flex items-center gap-3 bg-card border border-line rounded-lg px-6 py-3 text-sm font-medium text-text-secondary hover:bg-card-hover shadow-sm transition-colors"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -100,7 +100,7 @@ export function JoinTrip() {
             </button>
           </>
         ) : (
-          <p className="text-slate-400">Loading...</p>
+          <p className="text-text-muted">Loading...</p>
         )}
       </div>
     )
@@ -122,7 +122,7 @@ export function JoinTrip() {
 
   return (
     <div className="flex items-center justify-center py-20">
-      <p className="text-slate-400">Joining trip...</p>
+      <p className="text-text-muted">Joining trip...</p>
     </div>
   )
 }

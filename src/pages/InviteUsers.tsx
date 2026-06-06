@@ -39,15 +39,15 @@ export function InviteUsers() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-2">Invite People</h1>
-      <p className="text-sm text-slate-500 mb-6">
+      <h1 className="text-2xl font-bold text-text mb-2">Invite People</h1>
+      <p className="text-sm text-text-secondary mb-6">
         Add someone's Google email so they can sign in and use the app.
       </p>
 
       <form onSubmit={handleInvite} className="flex gap-2 mb-6">
         <input
           type="email"
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          className="flex-1 border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           placeholder="friend@gmail.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -69,14 +69,14 @@ export function InviteUsers() {
 
       {invited.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-slate-500 mb-2">
+          <h3 className="text-sm font-medium text-text-secondary mb-2">
             Just invited
           </h3>
           <div className="space-y-1">
             {invited.map((e) => (
               <div
                 key={e}
-                className="text-sm text-slate-700 bg-emerald-50 rounded-lg px-3 py-2"
+                className="text-sm text-text-secondary bg-emerald-50 rounded-lg px-3 py-2"
               >
                 {e}
               </div>

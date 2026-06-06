@@ -48,7 +48,7 @@ export function MemberAvatar({
         {avatar}
       </button>
       {showInfo && (
-        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50 w-56 animate-slide-up">
+        <div className="absolute left-0 top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-3 z-50 w-56 animate-slide-up">
           <div className="flex items-center gap-2 mb-2">
             {googlePhoto && (
               <img
@@ -59,14 +59,14 @@ export function MemberAvatar({
               />
             )}
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">
+              <p className="text-sm font-medium text-text truncate">
                 {googleName}
               </p>
-              <p className="text-xs text-slate-400 truncate">{member.email}</p>
+              <p className="text-xs text-text-muted truncate">{member.email}</p>
             </div>
           </div>
           {(hasCustomName || hasCustomPhoto) && (
-            <p className="text-xs text-slate-400 border-t border-slate-100 pt-2">
+            <p className="text-xs text-text-muted border-t border-line-light pt-2">
               Goes by <span className="font-medium text-slate-600">{member.displayName}</span>
             </p>
           )}

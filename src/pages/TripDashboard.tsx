@@ -71,7 +71,7 @@ export function TripDashboard() {
   }
 
   if (loading || !trip) {
-    return <div className="text-center py-10 text-slate-400">Loading...</div>
+    return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
   const totalUSD = expenses.reduce((sum, e) => sum + e.amountUSD, 0)
@@ -98,11 +98,11 @@ export function TripDashboard() {
                   if (e.key === 'Enter') saveName()
                   if (e.key === 'Escape') setEditingName(false)
                 }}
-                className="text-2xl font-bold text-slate-900 dark:text-slate-100 border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
+                className="text-2xl font-bold text-text border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
                 autoFocus
               />
             ) : (
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">{trip.name}</h1>
+              <h1 className="text-2xl font-bold text-text truncate">{trip.name}</h1>
             )}
             <button
               onClick={editingName ? saveName : startEditing}
@@ -143,7 +143,7 @@ export function TripDashboard() {
           </Link>
         </div>
         <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-text-secondary">
             Total: {formatUSD(totalUSD)} across {expenses.length} expense
             {expenses.length !== 1 && 's'}
           </p>
@@ -151,7 +151,7 @@ export function TripDashboard() {
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
+                className="text-xs text-text-muted hover:text-slate-600 flex items-center gap-1 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -159,14 +159,14 @@ export function TripDashboard() {
                 Export
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 z-20 w-48">
+                <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
                     onClick={() => {
                       const csv = tripToCsv(trip.name, expenses, members, trip.memberUids)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover"
                   >
                     Export to Google Sheets
                   </button>
@@ -176,7 +176,7 @@ export function TripDashboard() {
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover"
                   >
                     Download CSV
                   </button>
@@ -190,7 +190,7 @@ export function TripDashboard() {
       {/* Members */}
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-2">
-          <h3 className="text-sm font-medium text-slate-500">Members</h3>
+          <h3 className="text-sm font-medium text-text-secondary">Members</h3>
           <Link
             to={`/trip/${id}/invite`}
             className="text-xs text-primary-600 hover:text-primary-700 font-medium"
@@ -223,7 +223,7 @@ export function TripDashboard() {
                     ? 'bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100'
                     : canLeave
                       ? 'bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100'
-                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-default'
+                      : 'bg-card border border-line cursor-default'
                 }`}
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
@@ -270,13 +270,13 @@ export function TripDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mb-4">
+      <div className="flex gap-1 bg-muted rounded-lg p-1 mb-4">
         <button
           onClick={() => setTab('expenses')}
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'expenses'
-              ? 'bg-white dark:bg-slate-700 font-medium text-slate-900 dark:text-slate-100 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
+              ? 'bg-card bg-muted font-medium text-text shadow-sm'
+              : 'text-text-secondary hover:text-slate-700'
           }`}
         >
           Expenses
@@ -285,8 +285,8 @@ export function TripDashboard() {
           onClick={() => setTab('settle')}
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'settle'
-              ? 'bg-white dark:bg-slate-700 font-medium text-slate-900 dark:text-slate-100 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700'
+              ? 'bg-card bg-muted font-medium text-text shadow-sm'
+              : 'text-text-secondary hover:text-slate-700'
           }`}
         >
           Settle Up
@@ -297,7 +297,7 @@ export function TripDashboard() {
         <div>
           {expenses.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-slate-500 mb-3">No expenses yet</p>
+              <p className="text-text-secondary mb-3">No expenses yet</p>
               <Link
                 to={`/trip/${id}/expense/new`}
                 className="text-primary-600 font-medium hover:text-primary-700"

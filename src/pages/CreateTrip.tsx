@@ -43,7 +43,7 @@ export function CreateTrip() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">New Trip</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">New Trip</h1>
 
       {atLimit && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
@@ -53,12 +53,12 @@ export function CreateTrip() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             Trip name
           </label>
           <input
             type="text"
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             placeholder="Italy 2026, Family Reunion, etc."
             value={name}
             onChange={(e) => setName(e.target.value)}

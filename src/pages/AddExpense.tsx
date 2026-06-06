@@ -12,12 +12,12 @@ export function AddExpense() {
   const navigate = useNavigate()
 
   if (loading || !trip || !user) {
-    return <div className="text-center py-10 text-slate-400">Loading...</div>
+    return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Add Expense</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">Add Expense</h1>
       <ExpenseForm
         members={members}
         memberUids={trip.memberUids}

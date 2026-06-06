@@ -32,7 +32,7 @@ export function Profile() {
   }, [user])
 
   if (loading || !profile || !user) {
-    return <div className="text-center py-10 text-slate-400">Loading...</div>
+    return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
   const googleName = profile.googleDisplayName ?? profile.displayName
@@ -81,18 +81,18 @@ export function Profile() {
     setCropperSrc(null)
   }
 
-  const inputClasses = 'w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
+  const inputClasses = 'w-full border border-line rounded-lg px-3 py-2 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">Edit Profile</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">Edit Profile</h1>
 
       {/* Current avatar preview */}
-      <div className="flex items-center gap-4 mb-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+      <div className="flex items-center gap-4 mb-6 p-4 bg-card rounded-lg border border-line">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-700 group"
+          className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-muted bg-muted group"
         >
           {photoURL ? (
             <img
@@ -105,7 +105,7 @@ export function Profile() {
               }}
             />
           ) : (
-            <div className="w-full h-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 flex items-center justify-center text-2xl font-medium">
+            <div className="w-full h-full bg-primary-100 text-primary-700  flex items-center justify-center text-2xl font-medium">
               {displayName?.charAt(0)?.toUpperCase() || '?'}
             </div>
           )}
@@ -118,10 +118,10 @@ export function Profile() {
           </div>
         </button>
         <div>
-          <p className="font-medium text-slate-900 dark:text-slate-100">{displayName || 'No name set'}</p>
-          <p className="text-sm text-slate-400">{profile.email}</p>
+          <p className="font-medium text-text">{displayName || 'No name set'}</p>
+          <p className="text-sm text-text-muted">{profile.email}</p>
           {(hasCustomName || hasCustomPhoto) && (
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               Google name: {googleName}
             </p>
           )}
@@ -139,7 +139,7 @@ export function Profile() {
 
       <form onSubmit={handleSave} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             Display Name
           </label>
           <input
@@ -149,20 +149,20 @@ export function Profile() {
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder={googleName}
           />
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-text-muted mt-1">
             This is how other trip members will see you.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             Profile Photo
           </label>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              className="flex items-center gap-2 border border-line rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -173,19 +173,19 @@ export function Profile() {
               <button
                 type="button"
                 onClick={() => setPhotoURL(googlePhoto ?? '')}
-                className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-3 py-2 transition-colors"
+                className="text-sm text-text-muted hover:text-text-secondary px-3 py-2 transition-colors"
               >
                 Remove
               </button>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-text-muted mt-1">
             Upload a photo and crop it to fit. Click your avatar above to upload.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             Or paste a photo URL
           </label>
           <input
@@ -201,7 +201,7 @@ export function Profile() {
           <button
             type="button"
             onClick={resetToGoogle}
-            className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            className="text-sm text-text-secondary hover:text-text-secondary transition-colors"
           >
             Reset to Google defaults
           </button>

@@ -46,10 +46,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors">
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+    <div className="min-h-screen flex flex-col bg-page text-text transition-colors">
+      <header className="bg-card border-b border-line sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-primary-600 dark:text-primary-400">
+          <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-primary-600 ">
             <svg className="w-6 h-6" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
               <rect width="32" height="32" rx="7" fill="currentColor"/>
               <circle cx="13" cy="16" r="7.5" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
@@ -61,7 +61,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary-200 dark:hover:ring-primary-700 transition-all"
+                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary-200 transition-all"
               >
                 {user.photoURL ? (
                   <img
@@ -71,36 +71,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-full h-full bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 flex items-center justify-center text-sm font-medium">
+                  <div className="w-full h-full bg-primary-100 text-primary-700  flex items-center justify-center text-sm font-medium">
                     {user.displayName?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up">
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                <div className="absolute right-0 mt-2 bg-card border border-line rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up">
+                  <div className="px-3 py-2 border-b border-line-light">
+                    <p className="text-sm font-medium text-text truncate">
                       {user.displayName}
                     </p>
-                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                    <p className="text-xs text-text-muted truncate">{user.email}</p>
                   </div>
                   <button
                     onClick={cycleTheme}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-between"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors flex items-center justify-between"
                   >
                     <span className="flex items-center gap-2">
                       {themeIcon}
                       Theme
                     </span>
-                    <span className="text-xs text-slate-400">{themeLabel}</span>
+                    <span className="text-xs text-text-muted">{themeLabel}</span>
                   </button>
                   <button
                     onClick={() => {
                       setMenuOpen(false)
                       navigate('/profile')
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
                   >
                     Edit Profile
                   </button>
@@ -109,17 +109,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       setMenuOpen(false)
                       navigate('/trash')
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
                   >
                     View Recently Deleted
                   </button>
-                  <div className="border-t border-slate-100 dark:border-slate-700">
+                  <div className="border-t border-line-light">
                     <button
                       onClick={() => {
                         setMenuOpen(false)
                         signOut()
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
                     >
                       Sign out
                     </button>

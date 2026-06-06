@@ -87,8 +87,8 @@ export function Home() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">fairshare</h1>
-          <p className="text-slate-500 mb-4">Split trip expenses with friends and family</p>
+          <h1 className="text-3xl font-bold text-text mb-2">fairshare</h1>
+          <p className="text-text-secondary mb-4">Split trip expenses with friends and family</p>
         </div>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md text-sm text-amber-800">
           <p className="font-medium mb-1">Firebase not configured</p>
@@ -104,7 +104,7 @@ export function Home() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-text-muted">Loading...</div>
       </div>
     )
   }
@@ -113,12 +113,12 @@ export function Home() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">fairshare</h1>
-          <p className="text-slate-500 dark:text-slate-400">Split trip expenses with friends and family</p>
+          <h1 className="text-3xl font-bold text-text mb-2">fairshare</h1>
+          <p className="text-text-secondary">Split trip expenses with friends and family</p>
         </div>
         <button
           onClick={signIn}
-          className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors"
+          className="flex items-center gap-3 bg-card border border-line rounded-lg px-6 py-3 text-sm font-medium text-text-secondary hover:bg-card-hover shadow-sm transition-colors"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -137,22 +137,22 @@ export function Home() {
       {/* Pending invites */}
       {pendingInvites.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
+          <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
             Trip Invites ({pendingInvites.length})
           </h2>
           <div className="space-y-2">
             {pendingInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-700 rounded-xl p-4"
+                className="bg-primary-50 border border-primary-200 rounded-xl p-4"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-slate-900">{invite.name}</h3>
-                  <span className="text-xs text-slate-400">
+                  <h3 className="font-semibold text-text">{invite.name}</h3>
+                  <span className="text-xs text-text-muted">
                     {invite.memberUids.length} member{invite.memberUids.length !== 1 && 's'}
                   </span>
                 </div>
-                <p className="text-sm text-slate-500 mb-3">
+                <p className="text-sm text-text-secondary mb-3">
                   You've been invited to join this trip.
                 </p>
                 <div className="flex gap-2">
@@ -165,7 +165,7 @@ export function Home() {
                   </button>
                   <button
                     onClick={() => declineInvite(invite.id)}
-                    className="text-sm text-slate-500 hover:text-slate-700 px-3 py-1.5 transition-colors"
+                    className="text-sm text-text-secondary hover:text-text-secondary px-3 py-1.5 transition-colors"
                   >
                     Decline
                   </button>
@@ -177,7 +177,7 @@ export function Home() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Your Trips</h1>
+        <h1 className="text-2xl font-bold text-text">Your Trips</h1>
         <Link
           to="/trip/new"
           className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
@@ -187,10 +187,10 @@ export function Home() {
       </div>
 
       {tripsLoading ? (
-        <div className="text-center py-10 text-slate-400">Loading trips...</div>
+        <div className="text-center py-10 text-text-muted">Loading trips...</div>
       ) : trips.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-slate-500 mb-4">No trips yet</p>
+          <p className="text-text-secondary mb-4">No trips yet</p>
           <Link
             to="/trip/new"
             className="text-primary-600 font-medium hover:text-primary-700"
