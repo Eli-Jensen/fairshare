@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from './types'
-import { formatUSD, getMemberName } from './types'
+import { formatUSD, getMemberName, EXPENSE_CATEGORIES } from './types'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -27,13 +27,14 @@ export function tripToCsv(
   lines.push('')
 
   // Expenses table
-  const memberNames = memberUids.map(
-    (uid) => getMemberName(uid, members)
-  )
+  const memberNames = memberUids.map((uid) => getMemberName(uid, members))
   lines.push(
     [
       'Date',
+      'Type',
+      'Category',
       'Description',
+      'Notes',
       'Amount (USD)',
       'Currency',
       'Original Amount',
@@ -54,10 +55,16 @@ export function tripToCsv(
     const shares = memberUids.map((uid) =>
       exp.splits[uid] !== undefined ? formatUSD(exp.splits[uid]) : ''
     )
+    const catInfo = exp.category
+      ? EXPENSE_CATEGORIES.find((c) => c.value === exp.category)
+      : null
     lines.push(
       [
         formatDate(exp.date),
+        exp.isSettlement ? 'Settlement' : 'Expense',
+        catInfo ? catInfo.label : '',
         exp.description,
+        exp.notes ?? '',
         formatUSD(exp.amountUSD),
         exp.currency,
         exp.currency !== 'USD' ? `${exp.amount}` : '',
@@ -70,15 +77,34 @@ export function tripToCsv(
     )
   }
 
-  // Total row
-  const total = expenses.reduce((s, e) => s + e.amountUSD, 0)
+  // Total row (expenses only, exclude settlements)
+  const expensesOnly = expenses.filter((e) => !e.isSettlement)
+  const total = expensesOnly.reduce((s, e) => s + e.amountUSD, 0)
+  const pad = memberUids.map(() => '')
   lines.push(
-    ['', 'TOTAL', formatUSD(total), '', '', '', '', ...memberUids.map(() => '')]
+    ['', '', '', 'TOTAL (expenses)', '', formatUSD(total), '', '', '', '', ...pad]
       .map(escapeCsv)
       .join(',')
   )
 
   lines.push('')
+  lines.push('')
+
+  // Per-person spending
+  lines.push('Per-Person Spending')
+  lines.push(['Person', 'Total Paid'].map(escapeCsv).join(','))
+  for (const uid of memberUids) {
+    let spent = 0
+    for (const exp of expensesOnly) {
+      if (exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 0) {
+        spent += exp.paidByAmounts[uid] ?? 0
+      } else if (exp.paidBy === uid) {
+        spent += exp.amountUSD
+      }
+    }
+    lines.push([getMemberName(uid, members), formatUSD(spent)].map(escapeCsv).join(','))
+  }
+
   lines.push('')
 
   // Balances
@@ -93,8 +119,8 @@ export function tripToCsv(
 
   lines.push('')
 
-  // Settlements
-  lines.push('Settlements')
+  // Remaining settlements
+  lines.push('Remaining Settlements')
   lines.push(['From', 'To', 'Amount'].map(escapeCsv).join(','))
   const debts = simplifyDebts(balances)
   for (const d of debts) {
@@ -123,8 +149,6 @@ export function downloadCsv(csv: string, filename: string) {
 }
 
 export function openInGoogleSheets(csv: string) {
-  // Google Sheets can import CSV via a data URI passed through the import URL
-  // The simplest cross-browser approach: download CSV, then open Sheets import
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -133,7 +157,6 @@ export function openInGoogleSheets(csv: string) {
   link.click()
   URL.revokeObjectURL(url)
 
-  // Open Google Sheets (user can import the downloaded CSV)
   setTimeout(() => {
     window.open('https://sheets.google.com/create', '_blank')
   }, 500)

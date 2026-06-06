@@ -41,15 +41,38 @@ export interface Expense {
   splitType: 'equal' | 'exact' | 'percentage' | 'shares'
   splits: Record<string, number>
   date: Timestamp
+  notes?: string
+  category?: ExpenseCategory
+  isSettlement?: boolean
   createdBy: string
   createdAt: Timestamp
   deletedAt?: Timestamp | null
 }
 
+export type ExpenseCategory = 'food' | 'transport' | 'accommodation' | 'activities' | 'shopping' | 'other'
+
+export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; emoji: string }[] = [
+  { value: 'food', label: 'Food', emoji: '🍽️' },
+  { value: 'transport', label: 'Transport', emoji: '🚗' },
+  { value: 'accommodation', label: 'Accommodation', emoji: '🏨' },
+  { value: 'activities', label: 'Activities', emoji: '🎯' },
+  { value: 'shopping', label: 'Shopping', emoji: '🛍️' },
+  { value: 'other', label: 'Other', emoji: '📦' },
+]
+
 export interface Settlement {
   from: string
   to: string
   amount: number
+}
+
+export interface ActivityLogEntry {
+  id: string
+  action: 'expense_added' | 'expense_edited' | 'expense_deleted' | 'settlement_recorded' | 'member_joined' | 'member_left' | 'member_removed' | 'trip_created'
+  actorUid: string
+  targetDescription?: string
+  targetAmount?: number
+  createdAt: Timestamp
 }
 
 export function formatUSD(amount: number): string {

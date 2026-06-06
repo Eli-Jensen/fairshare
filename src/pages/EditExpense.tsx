@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
+import { writeActivity } from '../lib/activity'
 
 export function EditExpense() {
   const { id, eid } = useParams<{ id: string; eid: string }>()
@@ -37,12 +38,23 @@ export function EditExpense() {
               [`lastRates.${data.currency}`]: data.exchangeRate,
             })
           }
+          await writeActivity(id!, {
+            action: 'expense_edited',
+            actorUid: user.uid,
+            targetDescription: data.description,
+            targetAmount: data.amountUSD,
+          })
           navigate(`/trip/${id}`)
         }}
         onDelete={async () => {
-          // Soft delete — mark with timestamp instead of removing
           await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), {
             deletedAt: serverTimestamp(),
+          })
+          await writeActivity(id!, {
+            action: 'expense_deleted',
+            actorUid: user.uid,
+            targetDescription: expense.description,
+            targetAmount: expense.amountUSD,
           })
           navigate(`/trip/${id}`, {
             state: {

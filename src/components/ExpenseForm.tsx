@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
-import type { Expense, UserProfile } from '../lib/types'
-import { getMemberName } from '../lib/types'
+import type { Expense, UserProfile, ExpenseCategory } from '../lib/types'
+import { getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
 import { getCurrency } from '../lib/currencies'
 import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates, getRate } from '../lib/rates'
@@ -21,6 +21,8 @@ interface ExpenseFormData {
   percentages: Record<string, string>
   shares: Record<string, string>
   date: string
+  notes: string
+  category: ExpenseCategory | ''
 }
 
 function toDateString(ts?: Timestamp): string {
@@ -52,6 +54,8 @@ export function ExpenseForm({
     splitType: 'equal' | 'exact' | 'percentage' | 'shares'
     splits: Record<string, number>
     date: Timestamp
+    notes?: string
+    category?: ExpenseCategory
   }) => Promise<void>
   onDelete?: () => Promise<void>
   existing?: Expense
@@ -98,6 +102,8 @@ export function ExpenseForm({
         percentages,
         shares,
         date: toDateString(existing.date),
+        notes: existing.notes ?? '',
+        category: existing.category ?? '',
       }
     }
 
@@ -116,6 +122,8 @@ export function ExpenseForm({
       percentages: { ...initAmounts },
       shares: Object.fromEntries(memberUids.map((uid) => [uid, '1'])),
       date: new Date().toISOString().slice(0, 10),
+      notes: '',
+      category: '',
     }
   })
 
@@ -283,10 +291,10 @@ export function ExpenseForm({
         splits,
         date: Timestamp.fromDate(new Date(form.date)),
       }
-      // Only include paidByAmounts when using multi-payer (Firestore rejects undefined)
-      if (paidByAmounts) {
-        submitData.paidByAmounts = paidByAmounts
-      }
+      // Only include optional fields when set (Firestore rejects undefined)
+      if (paidByAmounts) submitData.paidByAmounts = paidByAmounts
+      if (form.notes.trim()) submitData.notes = form.notes.trim()
+      if (form.category) submitData.category = form.category as ExpenseCategory
       await onSubmit(submitData)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -467,6 +475,42 @@ export function ExpenseForm({
           className={input}
           value={form.date}
           onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+        />
+      </div>
+
+      <div>
+        <label className={label}>Category</label>
+        <div className="flex flex-wrap gap-1.5">
+          {EXPENSE_CATEGORIES.map((cat) => (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  category: f.category === cat.value ? '' : cat.value,
+                }))
+              }
+              className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
+                form.category === cat.value
+                  ? 'bg-accent-soft border-accent text-accent-text font-medium'
+                  : 'bg-card border-line text-text-secondary hover:border-accent'
+              }`}
+            >
+              {cat.emoji} {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className={label}>Notes <span className="font-normal text-text-muted">(optional)</span></label>
+        <textarea
+          className={input}
+          rows={2}
+          placeholder="Add a note..."
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
         />
       </div>
 

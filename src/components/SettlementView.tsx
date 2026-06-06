@@ -7,13 +7,33 @@ export function SettlementView({
   expenses,
   members,
   memberUids,
+  onRecordSettlement,
 }: {
   expenses: Expense[]
   members: Record<string, UserProfile>
   memberUids: string[]
+  onRecordSettlement?: (from: string, to: string, amount: number) => Promise<void>
 }) {
   const balances = computeBalances(expenses, memberUids)
   const settlements = simplifyDebts(balances)
+
+  // Per-person spending (exclude settlements)
+  const spending: Record<string, number> = {}
+  for (const uid of memberUids) spending[uid] = 0
+  for (const exp of expenses) {
+    if (exp.isSettlement) continue
+    if (exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 0) {
+      for (const [uid, amt] of Object.entries(exp.paidByAmounts)) {
+        spending[uid] = (spending[uid] ?? 0) + amt
+      }
+    } else {
+      spending[exp.paidBy] = (spending[exp.paidBy] ?? 0) + exp.amountUSD
+    }
+  }
+  const sortedSpending = memberUids
+    .map((uid) => ({ uid, amount: spending[uid] ?? 0 }))
+    .sort((a, b) => b.amount - a.amount)
+  const totalSpent = sortedSpending.reduce((s, e) => s + e.amount, 0)
 
   if (expenses.length === 0) {
     return (
@@ -24,7 +44,34 @@ export function SettlementView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Per-person spending */}
+      <div>
+        <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
+          Total Spent
+        </h3>
+        <div className="space-y-1">
+          {sortedSpending.map(({ uid, amount }) => (
+            <div key={uid} className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <MemberAvatar member={members[uid]} size="sm" />
+                <span className="text-sm text-text-secondary">
+                  {getMemberName(uid, members)}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-text">
+                {formatUSD(amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between pt-2 mt-1 border-t border-line-light">
+          <span className="text-xs text-text-muted">Trip total</span>
+          <span className="text-sm font-semibold text-text">{formatUSD(totalSpent)}</span>
+        </div>
+      </div>
+
+      {/* Balances */}
       <div>
         <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
           Balances
@@ -44,9 +91,9 @@ export function SettlementView({
                 <span
                   className={`text-sm font-medium ${
                     rounded > 0
-                      ? 'text-emerald-600'
+                      ? 'text-success-text'
                       : rounded < 0
-                        ? 'text-red-500'
+                        ? 'text-danger-text'
                         : 'text-text-muted'
                   }`}
                 >
@@ -59,6 +106,7 @@ export function SettlementView({
         </div>
       </div>
 
+      {/* Settle Up */}
       {settlements.length > 0 && (
         <div>
           <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
@@ -68,7 +116,7 @@ export function SettlementView({
             {settlements.map((s, i) => (
               <div
                 key={i}
-                className="bg-accent-soft rounded-lg p-3 flex items-center gap-2"
+                className="bg-accent-soft rounded-lg p-3 flex items-center gap-2 flex-wrap"
               >
                 <MemberAvatar member={members[s.from]} size="sm" />
                 <span className="text-sm font-medium text-text-secondary">
@@ -79,9 +127,17 @@ export function SettlementView({
                 <span className="text-sm font-medium text-text-secondary">
                   {getMemberName(s.to, members)}
                 </span>
-                <span className="ml-auto font-bold text-accent-text">
+                <span className="font-bold text-accent-text">
                   {formatUSD(s.amount)}
                 </span>
+                {onRecordSettlement && (
+                  <button
+                    onClick={() => onRecordSettlement(s.from, s.to, s.amount)}
+                    className="ml-auto text-xs font-medium text-accent-text bg-accent/20 hover:bg-accent/30 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Record payment
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -89,7 +145,7 @@ export function SettlementView({
       )}
 
       {settlements.length === 0 && expenses.length > 0 && (
-        <div className="text-center py-4 text-emerald-600 font-medium">
+        <div className="text-center py-4 text-success-text font-medium">
           All settled up!
         </div>
       )}

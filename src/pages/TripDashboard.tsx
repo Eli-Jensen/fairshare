@@ -4,22 +4,24 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatUSD, getMemberName } from '../lib/types'
+import { formatUSD, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import type { RemovedMember, ExpenseCategory } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { SettlementView } from '../components/SettlementView'
+import { ActivityLog } from '../components/ActivityLog'
 import { UndoToast } from '../components/UndoToast'
 import { DeleteModal } from '../components/DeleteModal'
 import { tripToCsv, downloadCsv, openInGoogleSheets } from '../lib/export'
-import { arrayRemove } from 'firebase/firestore'
-import type { RemovedMember } from '../lib/types'
+import { writeActivity } from '../lib/activity'
+import { arrayRemove, addDoc, collection, Timestamp } from 'firebase/firestore'
 
-type Tab = 'expenses' | 'settle'
+type Tab = 'expenses' | 'settle' | 'activity'
 
 export function TripDashboard() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const { trip, expenses, members, loading } = useTrip(id)
+  const { trip, expenses, members, activityLog, loading } = useTrip(id)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('expenses')
@@ -32,6 +34,7 @@ export function TripDashboard() {
   const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | ''>('')
   const nameInputRef = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -271,30 +274,52 @@ export function TripDashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-muted rounded-lg p-1 mb-4">
-        <button
-          onClick={() => setTab('expenses')}
-          className={`flex-1 text-sm py-2 rounded-md transition-all ${
-            tab === 'expenses'
-              ? 'bg-active font-medium text-text shadow-sm'
-              : 'text-text-secondary hover:text-text-secondary'
-          }`}
-        >
-          Expenses
-        </button>
-        <button
-          onClick={() => setTab('settle')}
-          className={`flex-1 text-sm py-2 rounded-md transition-all ${
-            tab === 'settle'
-              ? 'bg-active font-medium text-text shadow-sm'
-              : 'text-text-secondary hover:text-text-secondary'
-          }`}
-        >
-          Settle Up
-        </button>
+        {(['expenses', 'settle', 'activity'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 text-sm py-2 rounded-md transition-all ${
+              tab === t
+                ? 'bg-active font-medium text-text shadow-sm'
+                : 'text-text-secondary hover:text-text'
+            }`}
+          >
+            {t === 'expenses' ? 'Expenses' : t === 'settle' ? 'Settle Up' : 'Activity'}
+          </button>
+        ))}
       </div>
 
       {tab === 'expenses' && (
         <div>
+          {/* Category filter */}
+          {expenses.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-3 mb-2 -mx-1 px-1">
+              <button
+                onClick={() => setCategoryFilter('')}
+                className={`text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-all ${
+                  categoryFilter === ''
+                    ? 'bg-accent-soft border-accent text-accent-text font-medium'
+                    : 'bg-card border-line text-text-secondary'
+                }`}
+              >
+                All
+              </button>
+              {EXPENSE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setCategoryFilter(cat.value)}
+                  className={`text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-all ${
+                    categoryFilter === cat.value
+                      ? 'bg-accent-soft border-accent text-accent-text font-medium'
+                      : 'bg-card border-line text-text-secondary'
+                  }`}
+                >
+                  {cat.emoji} {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {expenses.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-text-secondary mb-3">No expenses yet</p>
@@ -307,16 +332,18 @@ export function TripDashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {expenses.map((exp) => (
-                <ExpenseCard
-                  key={exp.id}
-                  expense={exp}
-                  members={members}
-                  onEdit={() =>
-                    navigate(`/trip/${id}/expense/${exp.id}`)
-                  }
-                />
-              ))}
+              {expenses
+                .filter((exp) => !categoryFilter || exp.category === categoryFilter)
+                .map((exp) => (
+                  <ExpenseCard
+                    key={exp.id}
+                    expense={exp}
+                    members={members}
+                    onEdit={() =>
+                      navigate(`/trip/${id}/expense/${exp.id}`)
+                    }
+                  />
+                ))}
             </div>
           )}
         </div>
@@ -327,7 +354,35 @@ export function TripDashboard() {
           expenses={expenses}
           members={members}
           memberUids={trip.memberUids}
+          onRecordSettlement={async (from, to, amount) => {
+            const fromName = getMemberName(from, members)
+            const toName = getMemberName(to, members)
+            await addDoc(collection(db, 'trips', id!, 'expenses'), {
+              description: `${fromName} paid ${toName}`,
+              amount,
+              currency: 'USD',
+              exchangeRate: 1,
+              amountUSD: amount,
+              paidBy: from,
+              splitType: 'exact' as const,
+              splits: { [to]: amount },
+              date: Timestamp.now(),
+              isSettlement: true,
+              createdBy: user!.uid,
+              createdAt: serverTimestamp(),
+            })
+            await writeActivity(id!, {
+              action: 'settlement_recorded',
+              actorUid: user!.uid,
+              targetDescription: `${fromName} → ${toName}`,
+              targetAmount: amount,
+            })
+          }}
         />
+      )}
+
+      {tab === 'activity' && (
+        <ActivityLog entries={activityLog} members={members} />
       )}
 
       {showDeleteModal && (

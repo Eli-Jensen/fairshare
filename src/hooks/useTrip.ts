@@ -5,16 +5,18 @@ import {
   onSnapshot,
   query,
   orderBy,
+  limit,
   getDoc,
   deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import type { Trip, Expense, UserProfile } from '../lib/types'
+import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
 
 export function useTrip(tripId: string | undefined) {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -75,5 +77,22 @@ export function useTrip(tripId: string | undefined) {
     load()
   }, [trip?.memberUids?.join(',')])
 
-  return { trip, expenses, members, loading }
+  // Activity log subscription
+  useEffect(() => {
+    if (!tripId) return
+
+    const q = query(
+      collection(db, 'trips', tripId, 'activity'),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    )
+
+    return onSnapshot(q, (snap) => {
+      setActivityLog(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ActivityLogEntry)
+      )
+    })
+  }, [tripId])
+
+  return { trip, expenses, members, activityLog, loading }
 }

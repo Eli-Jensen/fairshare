@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
+import { writeActivity } from '../lib/activity'
 
 export function AddExpense() {
   const { id } = useParams<{ id: string }>()
@@ -34,6 +35,12 @@ export function AddExpense() {
               [`lastRates.${data.currency}`]: data.exchangeRate,
             })
           }
+          await writeActivity(id!, {
+            action: 'expense_added',
+            actorUid: user.uid,
+            targetDescription: data.description,
+            targetAmount: data.amountUSD,
+          })
           navigate(`/trip/${id}`)
         }}
       />
