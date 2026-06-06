@@ -1,18 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import type { Trip } from '../lib/types'
+import type { Trip, UserProfile } from '../lib/types'
 import { DeleteModal } from './DeleteModal'
+import { MemberAvatar } from './MemberAvatar'
 
 export function TripCard({ trip }: { trip: Trip }) {
   const [editing, setEditing] = useState(false)
   const [nameValue, setNameValue] = useState(trip.name)
   const [showDelete, setShowDelete] = useState(false)
+  const [members, setMembers] = useState<Record<string, UserProfile>>({})
 
   const dateStr = trip.createdAt?.toDate
     ? trip.createdAt.toDate().toLocaleDateString()
     : ''
+
+  useEffect(() => {
+    async function loadMembers() {
+      const profiles: Record<string, UserProfile> = {}
+      for (const uid of trip.memberUids) {
+        const snap = await getDoc(doc(db, 'users', uid))
+        if (snap.exists()) profiles[uid] = snap.data() as UserProfile
+      }
+      setMembers(profiles)
+    }
+    loadMembers()
+  }, [trip.memberUids.join(',')])
 
   async function saveName() {
     const trimmed = nameValue.trim()
@@ -105,10 +119,17 @@ export function TripCard({ trip }: { trip: Trip }) {
             <span className="text-xs text-slate-400 ml-1">{dateStr}</span>
           </div>
         </div>
-        <Link to={`/trip/${trip.id}`}>
-          <p className="text-sm text-slate-500 mt-1">
+        <Link to={`/trip/${trip.id}`} className="flex items-center gap-2 mt-1.5">
+          <div className="flex -space-x-1.5">
+            {trip.memberUids.map((uid) => (
+              <div key={uid} className="ring-2 ring-white rounded-full">
+                <MemberAvatar member={members[uid]} size="sm" />
+              </div>
+            ))}
+          </div>
+          <span className="text-xs text-slate-400">
             {trip.memberUids.length} member{trip.memberUids.length !== 1 && 's'}
-          </p>
+          </span>
         </Link>
       </div>
 
