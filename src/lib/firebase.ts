@@ -1,6 +1,11 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -21,7 +26,12 @@ let _googleProvider: GoogleAuthProvider | undefined
 if (firebaseConfigured) {
   app = initializeApp(firebaseConfig)
   _auth = getAuth(app)
-  _db = getFirestore(app)
+  // Enable offline persistence so the app works on spotty wifi/planes
+  _db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  })
   _googleProvider = new GoogleAuthProvider()
 }
 

@@ -1,15 +1,19 @@
 {
   "name": "fairshare",
   "short_name": "fairshare",
+  "description": "Split trip expenses with friends and family",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#4f46e5",
+  "orientation": "any",
   "icons": [
     {
       "src": "/favicon.svg",
       "type": "image/svg+xml",
-      "sizes": "any"
+      "sizes": "any",
+      "purpose": "any"
     }
   ]
 }
