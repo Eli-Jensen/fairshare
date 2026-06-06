@@ -87,7 +87,7 @@ export function DeletedItems() {
 
         const expQ = query(
           collection(db, 'trips', tripDoc.id, 'expenses'),
-          orderBy('date', 'desc')
+          orderBy('createdAt', 'desc')
         )
 
         const unsub = onSnapshot(expQ, (expSnap) => {

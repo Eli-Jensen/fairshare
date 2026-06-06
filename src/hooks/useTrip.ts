@@ -34,7 +34,7 @@ export function useTrip(tripId: string | undefined) {
 
     const q = query(
       collection(db, 'trips', tripId, 'expenses'),
-      orderBy('date', 'desc')
+      orderBy('createdAt', 'desc')
     )
 
     return onSnapshot(q, (snap) => {

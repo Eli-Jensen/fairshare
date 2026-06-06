@@ -38,7 +38,7 @@ export function TripCard({ trip }: { trip: Trip }) {
   useEffect(() => {
     const q = query(
       collection(db, 'trips', trip.id, 'expenses'),
-      orderBy('date', 'desc')
+      orderBy('createdAt', 'desc')
     )
     return onSnapshot(q, (snap) => {
       let total = 0
