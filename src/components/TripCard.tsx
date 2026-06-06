@@ -141,18 +141,20 @@ export function TripCard({ trip }: { trip: Trip }) {
                 </svg>
               )}
             </button>
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                setShowDelete(true)
-              }}
-              className="p-1.5 rounded text-slate-300 hover:text-red-500 transition-colors"
-              title="Delete trip"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            {editing && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  setShowDelete(true)
+                }}
+                className="p-1.5 rounded text-slate-300 hover:text-red-500 transition-colors"
+                title="Delete trip"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
@@ -197,8 +199,8 @@ export function TripCard({ trip }: { trip: Trip }) {
 
       {showDelete && (
         <DeleteModal
-          title="Delete this trip?"
-          message={`"${trip.name}" and all its expenses will be moved to the trash. You have 24 hours to undo this.`}
+          title="Delete this trip for everyone?"
+          message={`This will delete "${trip.name}" and all its expenses for every member of this trip, not just you. It will be moved to the trash for 24 hours before being permanently removed.`}
           onCancel={() => setShowDelete(false)}
           onConfirm={deleteTrip}
         />

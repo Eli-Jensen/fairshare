@@ -30,6 +30,8 @@ export function TripDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null)
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -121,15 +123,17 @@ export function TripDashboard() {
                 </svg>
               )}
             </button>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0"
-              title="Delete trip"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            {editingName && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                title="Delete trip"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
           </div>
           <Link
             to={`/trip/${id}/expense/new`}
@@ -205,29 +209,40 @@ export function TripDashboard() {
           {trip.memberUids.map((uid) => {
             const isCurrentUser = uid === user?.uid
             const canRemove = editingName && !isCurrentUser
+            const canLeave = editingName && isCurrentUser
             return (
               <button
                 key={uid}
                 type="button"
                 onClick={() => {
                   if (canRemove) setRemoveMemberUid(uid)
+                  if (canLeave) setShowLeaveModal(true)
                 }}
                 className={`flex items-center gap-1.5 rounded-full px-2 py-1 transition-all ${
                   canRemove
                     ? 'bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100'
-                    : 'bg-white border border-slate-200 cursor-default'
+                    : canLeave
+                      ? 'bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100'
+                      : 'bg-white border border-slate-200 cursor-default'
                 }`}
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
-                <span className={`text-xs ${canRemove ? 'text-red-700' : 'text-slate-700'}`}>
+                <span className={`text-xs ${
+                  canRemove ? 'text-red-700' : canLeave ? 'text-amber-700' : 'text-slate-700'
+                }`}>
                   {getMemberName(uid, members)}
                   {isCurrentUser && (
-                    <span className={canRemove ? 'text-red-400' : 'text-slate-400'}> (you)</span>
+                    <span className={canLeave ? 'text-amber-500' : 'text-slate-400'}> (you)</span>
                   )}
                 </span>
                 {canRemove && (
                   <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                {canLeave && (
+                  <svg className="w-3 h-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                 )}
               </button>
@@ -317,8 +332,8 @@ export function TripDashboard() {
 
       {showDeleteModal && (
         <DeleteModal
-          title="Delete this trip?"
-          message={`"${trip.name}" and all its expenses will be moved to the trash. You have 24 hours to undo this.`}
+          title="Delete this trip for everyone?"
+          message={`This will permanently delete "${trip.name}" and all its expenses for every member of this trip, not just you. This action is moved to the trash for 24 hours before being permanently removed.`}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={async () => {
             setShowDeleteModal(false)
@@ -328,6 +343,35 @@ export function TripDashboard() {
             navigate('/', {
               state: { deletedTripId: id, deletedTripName: trip.name },
             })
+          }}
+        />
+      )}
+
+      {showLeaveModal && (
+        <DeleteModal
+          title="Leave this trip?"
+          message="You'll no longer see this trip or its expenses. Your past expenses will remain for other members."
+          onCancel={() => setShowLeaveModal(false)}
+          onConfirm={() => {
+            setShowLeaveModal(false)
+            setShowLeaveConfirm(true)
+          }}
+        />
+      )}
+
+      {showLeaveConfirm && (
+        <DeleteModal
+          title="Are you sure?"
+          message="This cannot be undone. You will need to be re-invited to rejoin this trip."
+          onCancel={() => setShowLeaveConfirm(false)}
+          onConfirm={async () => {
+            setShowLeaveConfirm(false)
+            if (user) {
+              await updateDoc(doc(db, 'trips', id!), {
+                memberUids: arrayRemove(user.uid),
+              })
+              navigate('/')
+            }
           }}
         />
       )}
