@@ -270,7 +270,7 @@ export function ExpenseForm({
     setSubmitting(true)
     try {
       const paidByAmounts = computePaidByAmounts()
-      await onSubmit({
+      const submitData: Parameters<typeof onSubmit>[0] = {
         description: form.description.trim(),
         amount: form.amount,
         currency: form.currency,
@@ -279,11 +279,15 @@ export function ExpenseForm({
         paidBy: form.multiPayer
           ? Object.entries(paidByAmounts ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? currentUserUid
           : form.paidBy,
-        paidByAmounts,
         splitType: form.splitType,
         splits,
         date: Timestamp.fromDate(new Date(form.date)),
-      })
+      }
+      // Only include paidByAmounts when using multi-payer (Firestore rejects undefined)
+      if (paidByAmounts) {
+        submitData.paidByAmounts = paidByAmounts
+      }
+      await onSubmit(submitData)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
       setSubmitting(false)
