@@ -196,7 +196,7 @@ export function DeletedItems() {
                     <button
                       onClick={() => restoreTrip(trip.id)}
                       disabled={restoring === trip.id}
-                      className="text-sm font-medium text-primary-600 hover:text-primary-700 px-3 py-1.5 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-50"
+                      className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors disabled:opacity-50"
                     >
                       {restoring === trip.id ? 'Restoring...' : 'Restore'}
                     </button>
@@ -229,7 +229,7 @@ export function DeletedItems() {
                     <button
                       onClick={() => restoreExpense(exp.tripId, exp.id)}
                       disabled={restoring === exp.id}
-                      className="text-sm font-medium text-primary-600 hover:text-primary-700 px-3 py-1.5 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-50"
+                      className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors disabled:opacity-50"
                     >
                       {restoring === exp.id ? 'Restoring...' : 'Restore'}
                     </button>

@@ -105,7 +105,7 @@ export function Profile() {
               }}
             />
           ) : (
-            <div className="w-full h-full bg-primary-100 text-primary-700  flex items-center justify-center text-2xl font-medium">
+            <div className="w-full h-full bg-primary-100 text-accent-text  flex items-center justify-center text-2xl font-medium">
               {displayName?.charAt(0)?.toUpperCase() || '?'}
             </div>
           )}
@@ -210,7 +210,7 @@ export function Profile() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full bg-primary-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+          className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
           {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
         </button>

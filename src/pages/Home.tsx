@@ -144,7 +144,7 @@ export function Home() {
             {pendingInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="bg-primary-50 border border-primary-200 rounded-xl p-4"
+                className="bg-accent-soft border border-primary-200 rounded-xl p-4"
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-text">{invite.name}</h3>
@@ -159,7 +159,7 @@ export function Home() {
                   <button
                     onClick={() => joinTrip(invite.id)}
                     disabled={joiningTrip === invite.id}
-                    className="bg-primary-600 text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                    className="bg-accent text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
                   >
                     {joiningTrip === invite.id ? 'Joining...' : 'Join Trip'}
                   </button>
@@ -180,7 +180,7 @@ export function Home() {
         <h1 className="text-2xl font-bold text-text">Your Trips</h1>
         <Link
           to="/trip/new"
-          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors"
+          className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
         >
           New Trip
         </Link>
@@ -193,7 +193,7 @@ export function Home() {
           <p className="text-text-secondary mb-4">No trips yet</p>
           <Link
             to="/trip/new"
-            className="text-primary-600 font-medium hover:text-primary-700"
+            className="text-accent-text font-medium hover:text-accent-hover"
           >
             Create your first trip
           </Link>

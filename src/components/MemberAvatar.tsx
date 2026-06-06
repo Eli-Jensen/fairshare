@@ -101,7 +101,7 @@ export function MemberAvatar({
     const initial = member.displayName?.charAt(0)?.toUpperCase() || '?'
     return (
       <div
-        className={`${px} rounded-full bg-primary-100 text-primary-700 flex items-center justify-center ${text} font-medium`}
+        className={`${px} rounded-full bg-primary-100 text-accent-text flex items-center justify-center ${text} font-medium`}
         title={member.displayName}
       >
         {initial}

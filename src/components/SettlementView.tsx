@@ -68,7 +68,7 @@ export function SettlementView({
             {settlements.map((s, i) => (
               <div
                 key={i}
-                className="bg-primary-50 rounded-lg p-3 flex items-center gap-2"
+                className="bg-accent-soft rounded-lg p-3 flex items-center gap-2"
               >
                 <MemberAvatar member={members[s.from]} size="sm" />
                 <span className="text-sm font-medium text-text-secondary">
@@ -79,7 +79,7 @@ export function SettlementView({
                 <span className="text-sm font-medium text-text-secondary">
                   {getMemberName(s.to, members)}
                 </span>
-                <span className="ml-auto font-bold text-primary-700">
+                <span className="ml-auto font-bold text-accent-text">
                   {formatUSD(s.amount)}
                 </span>
               </div>

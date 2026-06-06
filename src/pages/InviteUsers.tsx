@@ -55,7 +55,7 @@ export function InviteUsers() {
         <button
           type="submit"
           disabled={submitting}
-          className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors shrink-0"
+          className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors shrink-0"
         >
           {submitting ? '...' : 'Invite'}
         </button>

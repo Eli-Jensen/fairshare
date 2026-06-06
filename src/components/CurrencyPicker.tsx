@@ -133,8 +133,8 @@ function CurrencyOption({
     <button
       type="button"
       onClick={() => onSelect(currency)}
-      className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex items-center justify-between ${
-        isSelected ? 'bg-primary-50 text-primary-700' : 'text-slate-700'
+      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent-soft flex items-center justify-between ${
+        isSelected ? 'bg-accent-soft text-primary-700' : 'text-slate-700'
       }`}
     >
       <span>

@@ -361,7 +361,7 @@ export function ExpenseForm({
               <button
                 type="button"
                 onClick={resetToAutoRate}
-                className="text-xs text-primary-600 hover:text-primary-700"
+                className="text-xs text-accent-text hover:text-accent-hover"
               >
                 Reset to auto
               </button>
@@ -399,7 +399,7 @@ export function ExpenseForm({
           <button
             type="button"
             onClick={toggleMultiPayer}
-            className="text-xs text-primary-600 hover:text-primary-700"
+            className="text-xs text-accent-text hover:text-accent-hover"
           >
             {form.multiPayer ? 'Single payer' : 'Multiple payers'}
           </button>
@@ -476,7 +476,7 @@ export function ExpenseForm({
               onClick={() => setForm((f) => ({ ...f, splitType: t }))}
               className={`text-sm py-1.5 rounded-md capitalize transition-all ${
                 form.splitType === t
-                  ? 'bg-card bg-muted text-primary-700  font-medium shadow-sm'
+                  ? 'bg-active text-accent-text font-medium shadow-sm'
                   : 'text-text-secondary hover:text-slate-700'
               }`}
             >
@@ -495,7 +495,7 @@ export function ExpenseForm({
                 type="checkbox"
                 checked={form.splitAmong.includes(uid)}
                 onChange={() => toggleMember(uid)}
-                className="rounded border-line text-primary-600 focus:ring-primary-500"
+                className="rounded border-line text-accent-text focus:ring-primary-500"
               />
               <span className="text-sm flex-1 text-text-secondary">
                 {getMemberName(uid, members)}
@@ -576,7 +576,7 @@ export function ExpenseForm({
         <button
           type="submit"
           disabled={submitting}
-          className="flex-1 bg-primary-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors"
+          className="flex-1 bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
           {submitting ? 'Saving...' : existing ? 'Update Expense' : 'Add Expense'}
         </button>

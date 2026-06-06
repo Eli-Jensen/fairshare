@@ -110,7 +110,7 @@ export function ImageCropper({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+            className="px-6 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving...' : 'Save Photo'}
           </button>

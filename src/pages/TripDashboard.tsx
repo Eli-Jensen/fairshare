@@ -108,7 +108,7 @@ export function TripDashboard() {
               onClick={editingName ? saveName : startEditing}
               className={`p-1 transition-colors shrink-0 ${
                 editingName
-                  ? 'text-primary-600 hover:text-primary-700'
+                  ? 'text-accent-text hover:text-primary-700'
                   : 'text-slate-300 hover:text-slate-500'
               }`}
               title={editingName ? 'Save' : 'Edit trip name'}
@@ -137,7 +137,7 @@ export function TripDashboard() {
           </div>
           <Link
             to={`/trip/${id}/expense/new`}
-            className="bg-primary-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary-700 transition-colors shrink-0"
+            className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors shrink-0"
           >
             Add Expense
           </Link>
@@ -193,14 +193,14 @@ export function TripDashboard() {
           <h3 className="text-sm font-medium text-text-secondary">Members</h3>
           <Link
             to={`/trip/${id}/invite`}
-            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+            className="text-xs text-accent-text hover:text-accent-hover font-medium"
           >
             + Invite people
           </Link>
           <span className="text-slate-300">|</span>
           <button
             onClick={copyInvite}
-            className="text-xs text-primary-600 hover:text-primary-700"
+            className="text-xs text-accent-text hover:text-accent-hover"
           >
             {copied ? 'Copied!' : 'Copy link'}
           </button>
@@ -275,7 +275,7 @@ export function TripDashboard() {
           onClick={() => setTab('expenses')}
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'expenses'
-              ? 'bg-card bg-muted font-medium text-text shadow-sm'
+              ? 'bg-active font-medium text-text shadow-sm'
               : 'text-text-secondary hover:text-slate-700'
           }`}
         >
@@ -285,7 +285,7 @@ export function TripDashboard() {
           onClick={() => setTab('settle')}
           className={`flex-1 text-sm py-2 rounded-md transition-all ${
             tab === 'settle'
-              ? 'bg-card bg-muted font-medium text-text shadow-sm'
+              ? 'bg-active font-medium text-text shadow-sm'
               : 'text-text-secondary hover:text-slate-700'
           }`}
         >
@@ -300,7 +300,7 @@ export function TripDashboard() {
               <p className="text-text-secondary mb-3">No expenses yet</p>
               <Link
                 to={`/trip/${id}/expense/new`}
-                className="text-primary-600 font-medium hover:text-primary-700"
+                className="text-accent-text font-medium hover:text-accent-hover"
               >
                 Add the first expense
               </Link>

@@ -126,7 +126,7 @@ export function TripCard({ trip }: { trip: Trip }) {
               }}
               className={`p-1.5 rounded transition-colors ${
                 editing
-                  ? 'text-primary-600 hover:text-primary-700'
+                  ? 'text-accent-text hover:text-primary-700'
                   : 'text-slate-300 hover:text-slate-500'
               }`}
               title={editing ? 'Save' : 'Edit trip name'}

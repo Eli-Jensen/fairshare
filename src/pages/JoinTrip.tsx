@@ -112,7 +112,7 @@ export function JoinTrip() {
         <p className="text-red-600">{error}</p>
         <button
           onClick={() => navigate('/')}
-          className="text-primary-600 font-medium hover:text-primary-700"
+          className="text-accent-text font-medium hover:text-accent-hover"
         >
           Go to home
         </button>
