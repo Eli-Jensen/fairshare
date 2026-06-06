@@ -35,6 +35,7 @@ export function TripDashboard() {
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | ''>('')
+  const [undoSettlement, setUndoSettlement] = useState<{ id: string; description: string } | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
@@ -357,8 +358,9 @@ export function TripDashboard() {
           onRecordSettlement={async (from, to, amount) => {
             const fromName = getMemberName(from, members)
             const toName = getMemberName(to, members)
-            await addDoc(collection(db, 'trips', id!, 'expenses'), {
-              description: `${fromName} paid ${toName}`,
+            const desc = `${fromName} paid ${toName}`
+            const ref = await addDoc(collection(db, 'trips', id!, 'expenses'), {
+              description: desc,
               amount,
               currency: 'USD',
               exchangeRate: 1,
@@ -377,6 +379,7 @@ export function TripDashboard() {
               targetDescription: `${fromName} → ${toName}`,
               targetAmount: amount,
             })
+            setUndoSettlement({ id: ref.id, description: desc })
           }}
         />
       )}
@@ -462,6 +465,19 @@ export function TripDashboard() {
           message={`"${undoInfo.description}" deleted`}
           onUndo={handleUndo}
           onDismiss={dismissUndo}
+        />
+      )}
+
+      {undoSettlement && (
+        <UndoToast
+          message={`Payment recorded: ${undoSettlement.description}`}
+          onUndo={async () => {
+            await updateDoc(doc(db, 'trips', id!, 'expenses', undoSettlement.id), {
+              deletedAt: serverTimestamp(),
+            })
+            setUndoSettlement(null)
+          }}
+          onDismiss={() => setUndoSettlement(null)}
         />
       )}
     </div>
