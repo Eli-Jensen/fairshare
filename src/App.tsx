@@ -9,6 +9,7 @@ import { EditExpense } from './pages/EditExpense'
 import { JoinTrip } from './pages/JoinTrip'
 import { TripInvite } from './pages/TripInvite'
 import { DeletedItems } from './pages/DeletedItems'
+import { Profile } from './pages/Profile'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -35,6 +36,14 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/join/:inviteCode" element={<JoinTrip />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/trash"
             element={

@@ -218,7 +218,7 @@ export function TripDashboard() {
                     : 'bg-white border border-slate-200 cursor-default'
                 }`}
               >
-                <MemberAvatar member={members[uid]} size="sm" />
+                <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
                 <span className={`text-xs ${canRemove ? 'text-red-700' : 'text-slate-700'}`}>
                   {members[uid]?.displayName ?? 'Loading...'}
                   {isCurrentUser && (

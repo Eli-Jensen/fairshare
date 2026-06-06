@@ -5,6 +5,8 @@ export interface UserProfile {
   displayName: string
   email: string
   photoURL: string | null
+  googleDisplayName?: string
+  googlePhotoURL?: string | null
 }
 
 export interface RemovedMember {

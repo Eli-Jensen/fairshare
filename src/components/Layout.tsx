@@ -61,6 +61,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => {
                       setMenuOpen(false)
+                      navigate('/profile')
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
                       navigate('/trash')
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"

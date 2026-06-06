@@ -11,7 +11,7 @@ import {
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, firebaseConfigured } from '../lib/firebase'
 
 interface AuthState {
@@ -40,17 +40,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
       if (firebaseUser?.email && db) {
-        // Upsert user profile on every sign-in
-        await setDoc(
-          doc(db, 'users', firebaseUser.uid),
-          {
+        const userRef = doc(db, 'users', firebaseUser.uid)
+        const existing = await getDoc(userRef)
+        const googleName = firebaseUser.displayName ?? ''
+        const googlePhoto = firebaseUser.photoURL ?? null
+
+        if (existing.exists()) {
+          // Update Google-provided fields, keep custom display values
+          await setDoc(
+            userRef,
+            {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              googleDisplayName: googleName,
+              googlePhotoURL: googlePhoto,
+            },
+            { merge: true }
+          )
+        } else {
+          // First sign-in: set display values from Google
+          await setDoc(userRef, {
             uid: firebaseUser.uid,
-            displayName: firebaseUser.displayName ?? '',
+            displayName: googleName,
             email: firebaseUser.email,
-            photoURL: firebaseUser.photoURL ?? null,
-          },
-          { merge: true }
-        )
+            photoURL: googlePhoto,
+            googleDisplayName: googleName,
+            googlePhotoURL: googlePhoto,
+          })
+        }
       }
       setLoading(false)
     })
