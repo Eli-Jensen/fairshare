@@ -10,8 +10,16 @@ export function computeBalances(
   }
 
   for (const expense of expenses) {
-    balances[expense.paidBy] = (balances[expense.paidBy] ?? 0) + expense.amountUSD
+    // Credit payers: use paidByAmounts if available, otherwise single payer
+    if (expense.paidByAmounts && Object.keys(expense.paidByAmounts).length > 0) {
+      for (const [uid, amount] of Object.entries(expense.paidByAmounts)) {
+        balances[uid] = (balances[uid] ?? 0) + amount
+      }
+    } else {
+      balances[expense.paidBy] = (balances[expense.paidBy] ?? 0) + expense.amountUSD
+    }
 
+    // Debit everyone's share
     for (const [uid, share] of Object.entries(expense.splits)) {
       balances[uid] = (balances[uid] ?? 0) - share
     }

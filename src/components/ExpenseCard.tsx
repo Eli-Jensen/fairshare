@@ -35,8 +35,12 @@ export function ExpenseCard({
             </p>
           </div>
           <div className="flex items-center justify-between mt-0.5">
-            <p className="text-sm text-slate-500">
-              {getMemberName(expense.paidBy, members)} paid
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {expense.paidByAmounts && Object.keys(expense.paidByAmounts).length > 1
+                ? Object.entries(expense.paidByAmounts)
+                    .map(([uid, amt]) => `${getMemberName(uid, members)} $${amt.toFixed(2)}`)
+                    .join(', ')
+                : `${getMemberName(expense.paidBy, members)} paid`}
               {expense.currency !== 'USD' && (
                 <span className="ml-1 text-xs text-slate-400">
                   ({expense.amount} {expense.currency})

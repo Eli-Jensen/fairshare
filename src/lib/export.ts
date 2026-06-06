@@ -46,7 +46,11 @@ export function tripToCsv(
   )
 
   for (const exp of expenses) {
-    const payer = getMemberName(exp.paidBy, members)
+    const payer = exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 1
+      ? Object.entries(exp.paidByAmounts)
+          .map(([uid, amt]) => `${getMemberName(uid, members)} ${formatUSD(amt)}`)
+          .join(' + ')
+      : getMemberName(exp.paidBy, members)
     const shares = memberUids.map((uid) =>
       exp.splits[uid] !== undefined ? formatUSD(exp.splits[uid]) : ''
     )

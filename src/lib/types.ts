@@ -37,6 +37,7 @@ export interface Expense {
   exchangeRate: number
   amountUSD: number
   paidBy: string
+  paidByAmounts?: Record<string, number>
   splitType: 'equal' | 'exact' | 'percentage' | 'shares'
   splits: Record<string, number>
   date: Timestamp
