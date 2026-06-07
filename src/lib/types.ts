@@ -55,14 +55,19 @@ export interface Expense {
   deletedAt?: Timestamp | null
 }
 
-export type ExpenseCategory = 'food' | 'transport' | 'accommodation' | 'activities' | 'shopping' | 'other'
+export type ExpenseCategory = 'food' | 'groceries' | 'transport' | 'accommodation' | 'activities' | 'entertainment' | 'shopping' | 'health' | 'tips' | 'services' | 'other'
 
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; emoji: string }[] = [
-  { value: 'food', label: 'Food', emoji: '🍽️' },
+  { value: 'food', label: 'Dining', emoji: '🍽️' },
+  { value: 'groceries', label: 'Groceries', emoji: '🛒' },
   { value: 'transport', label: 'Transport', emoji: '🚗' },
   { value: 'accommodation', label: 'Accommodation', emoji: '🏨' },
   { value: 'activities', label: 'Activities', emoji: '🎯' },
+  { value: 'entertainment', label: 'Entertainment', emoji: '🎭' },
   { value: 'shopping', label: 'Shopping', emoji: '🛍️' },
+  { value: 'health', label: 'Health', emoji: '💊' },
+  { value: 'tips', label: 'Tips', emoji: '💰' },
+  { value: 'services', label: 'Services', emoji: '🔧' },
   { value: 'other', label: 'Other', emoji: '📦' },
 ]
 
@@ -78,6 +83,7 @@ export interface ActivityLogEntry {
   actorUid: string
   targetDescription?: string
   targetAmount?: number
+  editDetails?: string[]  // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]
   createdAt: Timestamp
 }
 

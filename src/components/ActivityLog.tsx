@@ -71,8 +71,17 @@ export function ActivityLog({
               <p className="text-sm text-text-secondary">
                 {describeAction(entry, members, settlementCurrency ?? 'USD')}
               </p>
+              {entry.editDetails && entry.editDetails.length > 0 && (
+                <div className="mt-0.5 space-y-0.5">
+                  {entry.editDetails.map((detail, j) => (
+                    <p key={j} className="text-xs text-text-muted">
+                      {detail}
+                    </p>
+                  ))}
+                </div>
+              )}
               {time && (
-                <p className="text-xs text-text-muted">{relativeTime(time)}</p>
+                <p className="text-xs text-text-muted mt-0.5">{relativeTime(time)}</p>
               )}
             </div>
           </div>

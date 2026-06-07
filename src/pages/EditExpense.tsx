@@ -7,7 +7,7 @@ import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { writeActivity } from '../lib/activity'
-import { getMemberName } from '../lib/types'
+import { getMemberName, formatMoney } from '../lib/types'
 
 function relativeTime(date: Date): string {
   const diff = Date.now() - date.getTime()
@@ -72,11 +72,32 @@ export function EditExpense() {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           await updateDoc(doc(db!, 'trips', id!), tripUpdate)
+
+          // Compute what changed for the activity log
+          const sc = trip.settlementCurrency ?? 'USD'
+          const changes: string[] = []
+          if (expense.description !== data.description) {
+            changes.push(`description: "${expense.description}" → "${data.description}"`)
+          }
+          if (Math.abs(expense.amountUSD - data.amountUSD) > 0.01) {
+            changes.push(`amount: ${formatMoney(expense.amountUSD, sc)} → ${formatMoney(data.amountUSD, sc)}`)
+          }
+          if (expense.currency !== data.currency) {
+            changes.push(`currency: ${expense.currency} → ${data.currency}`)
+          }
+          if (expense.paidBy !== data.paidBy) {
+            changes.push(`payer: ${getMemberName(expense.paidBy, members)} → ${getMemberName(data.paidBy, members)}`)
+          }
+          if (expense.splitType !== data.splitType) {
+            changes.push(`split: ${expense.splitType} → ${data.splitType}`)
+          }
+
           await writeActivity(id!, {
             action: 'expense_edited',
             actorUid: user.uid,
             targetDescription: data.description,
             targetAmount: data.amountUSD,
+            editDetails: changes.length > 0 ? changes : undefined,
           })
           navigate(`/trip/${id}`)
         }}
