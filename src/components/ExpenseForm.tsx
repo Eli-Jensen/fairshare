@@ -191,10 +191,7 @@ export function ExpenseForm({
     setRateSource('custom')
   }
 
-  function resetToAutoRate() {
-    setForm((f) => ({ ...f, rateIsCustom: false }))
-    autoFillRate(form.currency)
-  }
+  // resetToAutoRate kept for reference — inline version used in JSX
 
   const amountUSD = form.amount * form.exchangeRate
 
@@ -433,9 +430,19 @@ export function ExpenseForm({
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              {rateSource === 'custom' && (
-                <button type="button" onClick={resetToAutoRate} className="text-xs text-accent-text hover:text-accent-hover">
-                  Reset
+              {(rateSource === 'custom' || rateSource === 'trip') && (
+                <button type="button" onClick={() => {
+                  setForm((f) => ({ ...f, rateIsCustom: false }))
+                  // Force fetch from live API, bypassing trip saved rate
+                  const live = getRate(liveRates, form.currency)
+                  if (live) {
+                    setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000 }))
+                    setRateSource('live')
+                  } else {
+                    autoFillRate(form.currency)
+                  }
+                }} className="text-xs text-accent-text hover:text-accent-hover">
+                  {rateSource === 'custom' ? 'Reset to auto' : 'Use live rate'}
                 </button>
               )}
               <button
