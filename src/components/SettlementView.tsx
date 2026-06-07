@@ -37,11 +37,13 @@ export function SettlementView({
   memberUids: string[]
   settlementCurrency?: string
   simplifyDebtsDefault?: boolean
-  onRecordSettlement?: (from: string, to: string, amount: number) => Promise<void>
+  onRecordSettlement?: (from: string, to: string, amount: number, method?: string) => Promise<void>
   onToggleSimplify?: (value: boolean) => void
 }) {
   const sc = settlementCurrency ?? 'USD'
   const [simplify, setSimplify] = useState(simplifyDebtsDefault)
+  const [recordingIdx, setRecordingIdx] = useState<number | null>(null)
+  const [payMethod, setPayMethod] = useState('')
   const balances = computeBalances(expenses, memberUids)
   const settlements = simplifyDebts(balances)
 
@@ -174,13 +176,45 @@ export function SettlementView({
                 <span className="font-bold text-accent-text">
                   {formatMoney(s.amount, sc)}
                 </span>
-                {onRecordSettlement && (
+                {onRecordSettlement && recordingIdx !== i && (
                   <button
-                    onClick={() => onRecordSettlement(s.from, s.to, s.amount)}
+                    onClick={() => { setRecordingIdx(i); setPayMethod('') }}
                     className="ml-auto text-xs font-medium text-accent-text bg-accent/20 hover:bg-accent/30 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     Record payment
                   </button>
+                )}
+                {onRecordSettlement && recordingIdx === i && (
+                  <div className="w-full mt-2 flex flex-wrap gap-1.5 items-center">
+                    {['Cash', 'Venmo', 'Zelle', 'Bank', 'PayPal', 'Other'].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setPayMethod(m)}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition-all ${
+                          payMethod === m
+                            ? 'bg-accent-soft border-accent text-accent-text'
+                            : 'bg-card border-line text-text-secondary'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                    <button
+                      onClick={async () => {
+                        await onRecordSettlement(s.from, s.to, s.amount, payMethod || undefined)
+                        setRecordingIdx(null)
+                      }}
+                      className="ml-auto text-xs font-medium text-white bg-accent hover:bg-accent-hover px-3 py-1 rounded-lg transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setRecordingIdx(null)}
+                      className="text-xs text-text-muted hover:text-text-secondary px-2 py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

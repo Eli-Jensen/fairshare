@@ -407,6 +407,11 @@ export function ExpenseForm({
             )}
           </div>
         </div>
+        {form.currency !== sc && form.amount > 0 && form.exchangeRate > 0 && (
+          <p className="text-xs text-accent-text mt-1 font-medium">
+            = {formatMoney(amountUSD, sc)}
+          </p>
+        )}
       </div>
 
       {form.currency !== sc && (

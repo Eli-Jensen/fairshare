@@ -357,10 +357,10 @@ export function TripDashboard() {
           members={members}
           memberUids={trip.memberUids}
           settlementCurrency={sc}
-          onRecordSettlement={async (from, to, amount) => {
+          onRecordSettlement={async (from, to, amount, method) => {
             const fromName = getMemberName(from, members)
             const toName = getMemberName(to, members)
-            const desc = `${fromName} paid ${toName}`
+            const desc = `${fromName} paid ${toName}${method ? ` via ${method}` : ''}`
             const ref = await addDoc(collection(db, 'trips', id!, 'expenses'), {
               description: desc,
               amount,
