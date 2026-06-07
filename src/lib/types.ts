@@ -18,6 +18,11 @@ export interface RemovedMember {
 
 export type TripType = 'trip' | 'group'
 
+/** Returns "trip" or "group" label for display text */
+export function tripLabel(type?: TripType): string {
+  return type === 'group' ? 'group' : 'trip'
+}
+
 export interface Trip {
   id: string
   name: string

@@ -28,7 +28,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-page text-text transition-colors">
       <header className="bg-card border-b border-line sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-accent-text ">
             <svg className="w-6 h-6" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
               <rect width="32" height="32" rx="7" fill="currentColor"/>
@@ -136,7 +136,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
         {children}
       </main>
     </div>

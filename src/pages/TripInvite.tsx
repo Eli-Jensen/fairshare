@@ -15,7 +15,7 @@ import { useTrip } from '../hooks/useTrip'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
-import { getMemberName, type RemovedMember } from '../lib/types'
+import { getMemberName, tripLabel, type RemovedMember } from '../lib/types'
 import { useTrips } from '../hooks/useTrips'
 import { useProfileCache } from '../hooks/useProfileCache'
 
@@ -88,6 +88,7 @@ export function TripInvite() {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
+  const tl = tripLabel(trip.type)
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
 
   // Emails already in the trip (members + pending invites)
@@ -138,7 +139,7 @@ export function TripInvite() {
     }
 
     if (isAlreadyInTrip(normalized)) {
-      setError('This person is already in the trip')
+      setError('This person is already in the ${tl}')
       return
     }
 
@@ -235,7 +236,7 @@ export function TripInvite() {
           </button>
         </form>
         <p className="text-xs text-text-muted mt-1">
-          They'll see this trip when they sign in to fairshare
+          They'll see this ${tl} when they sign in
         </p>
       </div>
 
@@ -296,7 +297,7 @@ export function TripInvite() {
                       }
                     }
                     if (added === 0) {
-                      setError('All members from this group are already in the trip')
+                      setError('All members from this group are already in the ${tl}')
                     }
                   }}
                   className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors"

@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
+import { tripLabel } from '../lib/types'
+import type { TripType } from '../lib/types'
 
 export function JoinTrip() {
   const { inviteCode } = useParams<{ inviteCode: string }>()
@@ -19,6 +21,7 @@ export function JoinTrip() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<'loading' | 'joining' | 'error'>('loading')
   const [error, setError] = useState('')
+  const [joinType, setJoinType] = useState<TripType>('trip')
 
   useEffect(() => {
     if (authLoading) return
@@ -62,6 +65,7 @@ export function JoinTrip() {
 
       const tripDoc = snap.docs[0]
       const tripData = tripDoc.data()
+      setJoinType(tripData.type ?? 'trip')
 
       if (tripData.memberUids.includes(user.uid)) {
         navigate(`/trip/${tripDoc.id}`, { replace: true })
@@ -82,10 +86,10 @@ export function JoinTrip() {
   if (authLoading || status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
-        <h2 className="text-xl font-semibold text-text">Join Trip</h2>
+        <h2 className="text-xl font-semibold text-text">Join {joinType === 'group' ? 'Group' : 'Trip'}</h2>
         {!user ? (
           <>
-            <p className="text-text-secondary">Sign in to join this trip</p>
+            <p className="text-text-secondary">Sign in to join this {tripLabel(joinType)}</p>
             <button
               onClick={signIn}
               className="flex items-center gap-3 bg-card border border-line rounded-lg px-6 py-3 text-sm font-medium text-text-secondary hover:bg-card-hover shadow-sm transition-colors"
@@ -122,7 +126,7 @@ export function JoinTrip() {
 
   return (
     <div className="flex items-center justify-center py-20">
-      <p className="text-text-muted">Joining trip...</p>
+      <p className="text-text-muted">Joining {tripLabel(joinType)}...</p>
     </div>
   )
 }
