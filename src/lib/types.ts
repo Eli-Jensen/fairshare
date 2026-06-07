@@ -26,6 +26,7 @@ export interface Trip {
   removedMembers?: RemovedMember[]
   deletedAt?: Timestamp | null
   lastRates?: Record<string, number>
+  lastCurrency?: string
   createdAt: Timestamp
 }
 

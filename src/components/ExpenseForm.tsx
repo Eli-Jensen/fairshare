@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory } from '../lib/types'
 import { getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
-import { getCurrency } from '../lib/currencies'
 import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates, getRate } from '../lib/rates'
 
@@ -23,6 +22,10 @@ interface ExpenseFormData {
   date: string
   notes: string
   category: ExpenseCategory | ''
+  rateDirection: 'foreign-to-usd' | 'usd-to-foreign'
+  calcGaveUSD: string
+  calcGotForeign: string
+  showCalc: boolean
 }
 
 function toDateString(ts?: Timestamp): string {
@@ -35,6 +38,7 @@ export function ExpenseForm({
   memberUids,
   currentUserUid,
   tripRates,
+  tripLastCurrency,
   onSubmit,
   onDelete,
   existing,
@@ -43,6 +47,7 @@ export function ExpenseForm({
   memberUids: string[]
   currentUserUid: string
   tripRates?: Record<string, number>
+  tripLastCurrency?: string
   onSubmit: (data: {
     description: string
     amount: number
@@ -104,13 +109,17 @@ export function ExpenseForm({
         date: toDateString(existing.date),
         notes: existing.notes ?? '',
         category: existing.category ?? '',
+        rateDirection: 'foreign-to-usd',
+        calcGaveUSD: '',
+        calcGotForeign: '',
+        showCalc: false,
       }
     }
 
     return {
       description: '',
       amount: 0,
-      currency: 'USD',
+      currency: tripLastCurrency || 'USD',
       exchangeRate: 1,
       rateIsCustom: false,
       paidBy: currentUserUid,
@@ -124,6 +133,10 @@ export function ExpenseForm({
       date: new Date().toISOString().slice(0, 10),
       notes: '',
       category: '',
+      rateDirection: 'foreign-to-usd',
+      calcGaveUSD: '',
+      calcGotForeign: '',
+      showCalc: false,
     }
   })
 
@@ -319,7 +332,19 @@ export function ExpenseForm({
   const input =
     'w-full border border-line rounded-lg px-3 py-2 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
-  const currencyInfo = getCurrency(form.currency)
+  // Quick currency switcher: USD + currencies that have been used on this trip
+  const quickCurrencies = (() => {
+    const codes = new Set<string>(['USD'])
+    if (tripLastCurrency && tripLastCurrency !== 'USD') codes.add(tripLastCurrency)
+    if (tripRates) {
+      for (const code of Object.keys(tripRates)) {
+        if (code !== 'USD') codes.add(code)
+      }
+    }
+    // If current currency isn't in the set, add it
+    if (form.currency !== 'USD') codes.add(form.currency)
+    return Array.from(codes).slice(0, 4)
+  })()
 
   // Compute paid total for multi-payer display
   const paidTotal = form.multiPayer
@@ -340,65 +365,162 @@ export function ExpenseForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={label}>Amount</label>
+      <div>
+        <label className={label}>Amount</label>
+        <div className="grid grid-cols-2 gap-3">
           <input
             type="number"
             step="0.01"
             min="0"
             className={input}
             value={form.amount || ''}
+            placeholder="0.00"
             onChange={(e) =>
               setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
             }
           />
-        </div>
-        <div>
-          <label className={label}>Currency</label>
-          <CurrencyPicker
-            value={form.currency}
-            onChange={handleCurrencyChange}
-          />
+          {/* Quick currency switcher */}
+          <div className="flex gap-1">
+            {quickCurrencies.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => handleCurrencyChange(code)}
+                className={`flex-1 text-xs py-2 rounded-lg border transition-all font-medium ${
+                  form.currency === code
+                    ? 'bg-accent-soft border-accent text-accent-text'
+                    : 'bg-card border-line text-text-secondary hover:border-accent'
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+            {quickCurrencies.length < 4 && (
+              <div className="flex-1">
+                <CurrencyPicker
+                  value={form.currency}
+                  onChange={handleCurrencyChange}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {form.currency !== 'USD' && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-sm font-medium text-text-secondary">
-              Exchange Rate (1 {currencyInfo?.symbol ?? form.currency} = ? USD)
-            </label>
-            {rateSource === 'custom' && (
+        <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({
+                ...f,
+                rateDirection: f.rateDirection === 'foreign-to-usd' ? 'usd-to-foreign' : 'foreign-to-usd',
+              }))}
+              className="text-sm font-medium text-text-secondary flex items-center gap-1"
+            >
+              {form.rateDirection === 'foreign-to-usd'
+                ? `1 ${form.currency} = ? USD`
+                : `1 USD = ? ${form.currency}`}
+              <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              {rateSource === 'custom' && (
+                <button type="button" onClick={resetToAutoRate} className="text-xs text-accent-text hover:text-accent-hover">
+                  Reset
+                </button>
+              )}
               <button
                 type="button"
-                onClick={resetToAutoRate}
+                onClick={() => setForm((f) => ({ ...f, showCalc: !f.showCalc }))}
                 className="text-xs text-accent-text hover:text-accent-hover"
               >
-                Reset to auto
+                {form.showCalc ? 'Hide calculator' : 'Calculator'}
               </button>
-            )}
+            </div>
           </div>
-          <div className="relative">
-            <input
-              type="number"
-              step="0.0001"
-              min="0"
-              className={input}
-              value={form.exchangeRate || ''}
-              onChange={(e) => handleRateChange(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between mt-1">
+
+          <input
+            type="number"
+            step="0.0001"
+            min="0"
+            className={input}
+            value={form.rateDirection === 'foreign-to-usd'
+              ? (form.exchangeRate || '')
+              : (form.exchangeRate > 0 ? Math.round((1 / form.exchangeRate) * 10000) / 10000 : '')}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value) || 0
+              if (form.rateDirection === 'foreign-to-usd') {
+                handleRateChange(e.target.value)
+              } else {
+                // Convert "1 USD = X foreign" to "1 foreign = Y USD"
+                const rate = val > 0 ? Math.round((1 / val) * 10000) / 10000 : 0
+                handleRateChange(rate.toString())
+              }
+            }}
+          />
+
+          {/* Exchange calculator */}
+          {form.showCalc && (
+            <div className="bg-card rounded-lg p-2.5 border border-line space-y-2">
+              <p className="text-xs font-medium text-text-secondary">Exchange calculator</p>
+              <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center">
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase">Gave (USD)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="200"
+                    className="w-full border border-line rounded px-2 py-1 text-sm bg-input text-text"
+                    value={form.calcGaveUSD}
+                    onChange={(e) => {
+                      const gave = parseFloat(e.target.value) || 0
+                      const got = parseFloat(form.calcGotForeign) || 0
+                      setForm((f) => ({ ...f, calcGaveUSD: e.target.value }))
+                      if (gave > 0 && got > 0) {
+                        const rate = Math.round((gave / got) * 10000) / 10000
+                        handleRateChange(rate.toString())
+                      }
+                    }}
+                  />
+                </div>
+                <span className="text-text-muted text-sm mt-4">=</span>
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase">Got ({form.currency})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="350"
+                    className="w-full border border-line rounded px-2 py-1 text-sm bg-input text-text"
+                    value={form.calcGotForeign}
+                    onChange={(e) => {
+                      const got = parseFloat(e.target.value) || 0
+                      const gave = parseFloat(form.calcGaveUSD) || 0
+                      setForm((f) => ({ ...f, calcGotForeign: e.target.value }))
+                      if (gave > 0 && got > 0) {
+                        const rate = Math.round((gave / got) * 10000) / 10000
+                        handleRateChange(rate.toString())
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
             {amountUSD > 0 && (
               <p className="text-xs text-text-secondary">
                 {form.amount} {form.currency} = ${amountUSD.toFixed(2)} USD
               </p>
             )}
             <p className="text-xs text-text-muted">
-              {rateSource === 'live' && 'Auto (live rate)'}
-              {rateSource === 'trip' && 'Auto (last used on this trip)'}
-              {rateSource === 'custom' && 'Custom rate'}
+              {rateSource === 'live' && 'Auto (live)'}
+              {rateSource === 'trip' && 'Last used on trip'}
+              {rateSource === 'custom' && 'Custom'}
             </p>
           </div>
         </div>
