@@ -1,5 +1,5 @@
 import type { ActivityLogEntry, UserProfile } from '../lib/types'
-import { formatUSD, getMemberName } from '../lib/types'
+import { formatMoney, getMemberName } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 function relativeTime(date: Date): string {
@@ -16,10 +16,10 @@ function relativeTime(date: Date): string {
   return date.toLocaleDateString()
 }
 
-function describeAction(entry: ActivityLogEntry, members: Record<string, UserProfile>): string {
+function describeAction(entry: ActivityLogEntry, members: Record<string, UserProfile>, settlementCurrency: string): string {
   const actor = getMemberName(entry.actorUid, members)
   const desc = entry.targetDescription ?? ''
-  const amt = entry.targetAmount ? ` (${formatUSD(entry.targetAmount)})` : ''
+  const amt = entry.targetAmount ? ` (${formatMoney(entry.targetAmount, settlementCurrency ?? 'USD')})` : ''
 
   switch (entry.action) {
     case 'expense_added':
@@ -46,9 +46,11 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
 export function ActivityLog({
   entries,
   members,
+  settlementCurrency,
 }: {
   entries: ActivityLogEntry[]
   members: Record<string, UserProfile>
+  settlementCurrency?: string
 }) {
   if (entries.length === 0) {
     return (
@@ -67,7 +69,7 @@ export function ActivityLog({
             <MemberAvatar member={members[entry.actorUid]} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-secondary">
-                {describeAction(entry, members)}
+                {describeAction(entry, members, settlementCurrency ?? 'USD')}
               </p>
               {time && (
                 <p className="text-xs text-text-muted">{relativeTime(time)}</p>

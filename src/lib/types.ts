@@ -27,6 +27,7 @@ export interface Trip {
   deletedAt?: Timestamp | null
   lastRates?: Record<string, number>
   lastCurrency?: string
+  settlementCurrency: string // e.g. 'USD', 'EUR', 'GBP'
   createdAt: Timestamp
 }
 
@@ -36,6 +37,8 @@ export interface Expense {
   amount: number
   currency: string
   exchangeRate: number
+  /** Amount in the trip's settlement currency. Field is named amountUSD
+   *  for backward compatibility with existing Firestore docs. */
   amountUSD: number
   paidBy: string
   paidByAmounts?: Record<string, number>
@@ -76,12 +79,24 @@ export interface ActivityLogEntry {
   createdAt: Timestamp
 }
 
-export function formatUSD(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount)
+/**
+ * Format a monetary amount in any currency using the browser's Intl API.
+ * Falls back gracefully if the currency code is unknown.
+ */
+export function formatMoney(amount: number, currencyCode: string = 'USD'): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(amount)
+  } catch {
+    // Unknown currency code — fall back to simple format
+    return `${currencyCode} ${amount.toFixed(2)}`
+  }
 }
+
+/** @deprecated Use formatMoney(amount, currencyCode) instead */
+export const formatUSD = (amount: number) => formatMoney(amount, 'USD')
 
 /**
  * Returns a display name for a member, appending their email in parentheses

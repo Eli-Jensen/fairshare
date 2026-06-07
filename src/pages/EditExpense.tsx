@@ -31,11 +31,12 @@ export function EditExpense() {
         currentUserUid={user.uid}
         tripRates={trip.lastRates}
         tripLastCurrency={trip.lastCurrency}
+        settlementCurrency={trip.settlementCurrency}
         existing={expense}
         onSubmit={async (data) => {
           await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), data)
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
-          if (data.currency !== 'USD') {
+          if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           await updateDoc(doc(db!, 'trips', id!), tripUpdate)

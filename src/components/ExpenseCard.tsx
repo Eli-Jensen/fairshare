@@ -1,15 +1,17 @@
 import type { Expense, UserProfile } from '../lib/types'
-import { formatUSD, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
   expense,
   members,
   onEdit,
+  settlementCurrency,
 }: {
   expense: Expense
   members: Record<string, UserProfile>
   onEdit?: () => void
+  settlementCurrency?: string
 }) {
   const payer = members[expense.paidBy]
   const dateStr = expense.date?.toDate
@@ -55,7 +57,7 @@ export function ExpenseCard({
               </p>
             </div>
             <p className="font-semibold text-text shrink-0">
-              {formatUSD(expense.amountUSD)}
+              {formatMoney(expense.amountUSD, settlementCurrency ?? 'USD')}
             </p>
           </div>
           <div className="flex items-center justify-between mt-0.5">
@@ -65,7 +67,7 @@ export function ExpenseCard({
                     .map(([uid, amt]) => `${getMemberName(uid, members)} $${amt.toFixed(2)}`)
                     .join(', ')
                 : `${getMemberName(expense.paidBy, members)} paid`}
-              {expense.currency !== 'USD' && (
+              {expense.currency !== (settlementCurrency ?? 'USD') && (
                 <span className="ml-1 text-xs text-text-muted">
                   ({expense.amount} {expense.currency})
                 </span>

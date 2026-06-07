@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from '../lib/types'
-import { formatUSD, getMemberName } from '../lib/types'
+import { formatMoney, getMemberName } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 
@@ -7,13 +7,16 @@ export function SettlementView({
   expenses,
   members,
   memberUids,
+  settlementCurrency,
   onRecordSettlement,
 }: {
   expenses: Expense[]
   members: Record<string, UserProfile>
   memberUids: string[]
+  settlementCurrency?: string
   onRecordSettlement?: (from: string, to: string, amount: number) => Promise<void>
 }) {
+  const sc = settlementCurrency ?? 'USD'
   const balances = computeBalances(expenses, memberUids)
   const settlements = simplifyDebts(balances)
 
@@ -60,14 +63,14 @@ export function SettlementView({
                 </span>
               </div>
               <span className="text-sm font-medium text-text">
-                {formatUSD(amount)}
+                {formatMoney(amount, sc)}
               </span>
             </div>
           ))}
         </div>
         <div className="flex items-center justify-between pt-2 mt-1 border-t border-line-light">
           <span className="text-xs text-text-muted">Trip total</span>
-          <span className="text-sm font-semibold text-text">{formatUSD(totalSpent)}</span>
+          <span className="text-sm font-semibold text-text">{formatMoney(totalSpent, sc)}</span>
         </div>
       </div>
 
@@ -98,7 +101,7 @@ export function SettlementView({
                   }`}
                 >
                   {rounded > 0 ? '+' : ''}
-                  {formatUSD(rounded)}
+                  {formatMoney(rounded, sc)}
                 </span>
               </div>
             )
@@ -128,7 +131,7 @@ export function SettlementView({
                   {getMemberName(s.to, members)}
                 </span>
                 <span className="font-bold text-accent-text">
-                  {formatUSD(s.amount)}
+                  {formatMoney(s.amount, sc)}
                 </span>
                 {onRecordSettlement && (
                   <button

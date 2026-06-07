@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, UserProfile, Expense } from '../lib/types'
-import { formatUSD } from '../lib/types'
+import { formatMoney } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 export function TripCard({ trip }: { trip: Trip }) {
@@ -72,7 +72,7 @@ export function TripCard({ trip }: { trip: Trip }) {
       {/* Total and expense count */}
       <div className="flex items-baseline justify-between mt-2 mb-1.5">
         <span className="text-lg font-semibold text-text">
-          {formatUSD(totalUSD)}
+          {formatMoney(totalUSD, trip.settlementCurrency ?? 'USD')}
         </span>
         <span className="text-xs text-text-muted">
           {expenseCount} expense{expenseCount !== 1 && 's'}
@@ -86,7 +86,7 @@ export function TripCard({ trip }: { trip: Trip }) {
             Latest: {latestExpense.description}
           </span>
           <span className="shrink-0 ml-2 font-medium">
-            {formatUSD(latestExpense.amountUSD)}
+            {formatMoney(latestExpense.amountUSD, trip.settlementCurrency ?? 'USD')}
           </span>
         </div>
       )}

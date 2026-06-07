@@ -25,6 +25,7 @@ export function AddExpense() {
         currentUserUid={user.uid}
         tripRates={trip.lastRates}
         tripLastCurrency={trip.lastCurrency}
+        settlementCurrency={trip.settlementCurrency}
         onSubmit={async (data) => {
           await addDoc(collection(db!, 'trips', id!, 'expenses'), {
             ...data,
@@ -33,7 +34,7 @@ export function AddExpense() {
           })
           // Save last-used currency and rate for this trip
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
-          if (data.currency !== 'USD') {
+          if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           await updateDoc(doc(db!, 'trips', id!), tripUpdate)

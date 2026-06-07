@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
-import { formatUSD } from '../lib/types'
+import { formatMoney } from '../lib/types'
 import type { Trip, Expense } from '../lib/types'
 
 interface DeletedTrip extends Trip {
@@ -222,7 +222,7 @@ export function DeletedItems() {
                         {exp.description}
                       </p>
                       <p className="text-xs text-text-muted">
-                        {formatUSD(exp.amountUSD)} in {exp.tripName}
+                        {formatMoney(exp.amountUSD)} in {exp.tripName}
                         {exp.deletedAt && ` · ${timeRemaining(exp.deletedAt)}`}
                       </p>
                     </div>

@@ -4,7 +4,7 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatUSD, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
 import type { RemovedMember, ExpenseCategory } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
@@ -78,6 +78,7 @@ export function TripDashboard() {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
+  const sc = trip.settlementCurrency ?? 'USD'
   const totalUSD = expenses.reduce((sum, e) => sum + e.amountUSD, 0)
 
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
@@ -148,7 +149,7 @@ export function TripDashboard() {
         </div>
         <div className="flex items-center justify-between">
           <p className="text-sm text-text-secondary">
-            Total: {formatUSD(totalUSD)} across {expenses.length} expense
+            Total: {formatMoney(totalUSD, sc)} across {expenses.length} expense
             {expenses.length !== 1 && 's'}
           </p>
           {expenses.length > 0 && (
@@ -166,7 +167,7 @@ export function TripDashboard() {
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
                     onClick={() => {
-                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids)
+                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
@@ -176,7 +177,7 @@ export function TripDashboard() {
                   </button>
                   <button
                     onClick={() => {
-                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids)
+                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc)
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
@@ -338,7 +339,7 @@ export function TripDashboard() {
                 .map((exp) => (
                   <ExpenseCard
                     key={exp.id}
-                    expense={exp}
+                    expense={exp} settlementCurrency={sc}
                     members={members}
                     onEdit={() =>
                       navigate(`/trip/${id}/expense/${exp.id}`)
@@ -355,6 +356,7 @@ export function TripDashboard() {
           expenses={expenses}
           members={members}
           memberUids={trip.memberUids}
+          settlementCurrency={sc}
           onRecordSettlement={async (from, to, amount) => {
             const fromName = getMemberName(from, members)
             const toName = getMemberName(to, members)
@@ -362,7 +364,7 @@ export function TripDashboard() {
             const ref = await addDoc(collection(db, 'trips', id!, 'expenses'), {
               description: desc,
               amount,
-              currency: 'USD',
+              currency: sc,
               exchangeRate: 1,
               amountUSD: amount,
               paidBy: from,
@@ -385,7 +387,7 @@ export function TripDashboard() {
       )}
 
       {tab === 'activity' && (
-        <ActivityLog entries={activityLog} members={members} />
+        <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} />
       )}
 
       {showDeleteModal && (

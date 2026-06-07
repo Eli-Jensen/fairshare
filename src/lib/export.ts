@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from './types'
-import { formatUSD, getMemberName, EXPENSE_CATEGORIES } from './types'
+import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from './types'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -18,8 +18,10 @@ export function tripToCsv(
   tripName: string,
   expenses: Expense[],
   members: Record<string, UserProfile>,
-  memberUids: string[]
+  memberUids: string[],
+  settlementCurrency: string = 'USD'
 ): string {
+  const fmt = (n: number) => formatMoney(n, settlementCurrency)
   const lines: string[] = []
 
   // Header
@@ -35,7 +37,7 @@ export function tripToCsv(
       'Category',
       'Description',
       'Notes',
-      'Amount (USD)',
+      'Amount (' + settlementCurrency + ')',
       'Currency',
       'Original Amount',
       'Paid By',
@@ -49,11 +51,11 @@ export function tripToCsv(
   for (const exp of expenses) {
     const payer = exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 1
       ? Object.entries(exp.paidByAmounts)
-          .map(([uid, amt]) => `${getMemberName(uid, members)} ${formatUSD(amt)}`)
+          .map(([uid, amt]) => `${getMemberName(uid, members)} ${fmt(amt)}`)
           .join(' + ')
       : getMemberName(exp.paidBy, members)
     const shares = memberUids.map((uid) =>
-      exp.splits[uid] !== undefined ? formatUSD(exp.splits[uid]) : ''
+      exp.splits[uid] !== undefined ? fmt(exp.splits[uid]) : ''
     )
     const catInfo = exp.category
       ? EXPENSE_CATEGORIES.find((c) => c.value === exp.category)
@@ -65,9 +67,9 @@ export function tripToCsv(
         catInfo ? catInfo.label : '',
         exp.description,
         exp.notes ?? '',
-        formatUSD(exp.amountUSD),
+        fmt(exp.amountUSD),
         exp.currency,
-        exp.currency !== 'USD' ? `${exp.amount}` : '',
+        exp.currency !== settlementCurrency ? `${exp.amount}` : '',
         payer,
         exp.splitType,
         ...shares,
@@ -82,7 +84,7 @@ export function tripToCsv(
   const total = expensesOnly.reduce((s, e) => s + e.amountUSD, 0)
   const pad = memberUids.map(() => '')
   lines.push(
-    ['', '', '', 'TOTAL (expenses)', '', formatUSD(total), '', '', '', '', ...pad]
+    ['', '', '', 'TOTAL (expenses)', '', fmt(total), '', '', '', '', ...pad]
       .map(escapeCsv)
       .join(',')
   )
@@ -102,7 +104,7 @@ export function tripToCsv(
         spent += exp.amountUSD
       }
     }
-    lines.push([getMemberName(uid, members), formatUSD(spent)].map(escapeCsv).join(','))
+    lines.push([getMemberName(uid, members), fmt(spent)].map(escapeCsv).join(','))
   }
 
   lines.push('')
@@ -114,7 +116,7 @@ export function tripToCsv(
   for (const uid of memberUids) {
     const name = getMemberName(uid, members)
     const bal = balances[uid] ?? 0
-    lines.push([name, formatUSD(bal)].map(escapeCsv).join(','))
+    lines.push([name, fmt(bal)].map(escapeCsv).join(','))
   }
 
   lines.push('')
@@ -128,7 +130,7 @@ export function tripToCsv(
       [
         getMemberName(d.from, members),
         getMemberName(d.to, members),
-        formatUSD(d.amount),
+        fmt(d.amount),
       ]
         .map(escapeCsv)
         .join(',')

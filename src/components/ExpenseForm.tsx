@@ -39,6 +39,7 @@ export function ExpenseForm({
   currentUserUid,
   tripRates,
   tripLastCurrency,
+  settlementCurrency: sc = 'USD',
   onSubmit,
   onDelete,
   existing,
@@ -48,6 +49,7 @@ export function ExpenseForm({
   currentUserUid: string
   tripRates?: Record<string, number>
   tripLastCurrency?: string
+  settlementCurrency?: string
   onSubmit: (data: {
     description: string
     amount: number
@@ -119,7 +121,7 @@ export function ExpenseForm({
     return {
       description: '',
       amount: 0,
-      currency: tripLastCurrency || 'USD',
+      currency: tripLastCurrency || sc,
       exchangeRate: 1,
       rateIsCustom: false,
       paidBy: currentUserUid,
@@ -151,7 +153,7 @@ export function ExpenseForm({
   }, [])
 
   useEffect(() => {
-    if (form.currency === 'USD') {
+    if (form.currency === sc) {
       setForm((f) => ({ ...f, exchangeRate: 1, rateIsCustom: false }))
       setRateSource('')
       return
@@ -334,15 +336,15 @@ export function ExpenseForm({
 
   // Quick currency switcher: USD + currencies that have been used on this trip
   const quickCurrencies = (() => {
-    const codes = new Set<string>(['USD'])
-    if (tripLastCurrency && tripLastCurrency !== 'USD') codes.add(tripLastCurrency)
+    const codes = new Set<string>([sc])
+    if (tripLastCurrency && tripLastCurrency !== sc) codes.add(tripLastCurrency)
     if (tripRates) {
       for (const code of Object.keys(tripRates)) {
-        if (code !== 'USD') codes.add(code)
+        if (code !== sc) codes.add(code)
       }
     }
     // If current currency isn't in the set, add it
-    if (form.currency !== 'USD') codes.add(form.currency)
+    if (form.currency !== sc) codes.add(form.currency)
     return Array.from(codes).slice(0, 4)
   })()
 
@@ -407,7 +409,7 @@ export function ExpenseForm({
         </div>
       </div>
 
-      {form.currency !== 'USD' && (
+      {form.currency !== sc && (
         <div className="bg-muted/50 rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between">
             <button
