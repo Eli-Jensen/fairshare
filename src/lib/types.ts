@@ -16,9 +16,12 @@ export interface RemovedMember {
   removedAt: Timestamp
 }
 
+export type TripType = 'trip' | 'group'
+
 export interface Trip {
   id: string
   name: string
+  type?: TripType // defaults to 'trip' for backward compat
   createdBy: string
   memberUids: string[]
   inviteCode: string

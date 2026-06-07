@@ -21,12 +21,17 @@ import type { Trip } from '../lib/types'
 
 export function Home() {
   const { user, signIn, firebaseReady, loading: authLoading } = useAuth()
-  const { trips, loading: tripsLoading } = useTrips()
+  const { trips: allTrips, loading: tripsLoading } = useTrips()
   const location = useLocation()
   const [undoTrip, setUndoTrip] = useState<{ id: string; name: string } | null>(null)
   const [pendingInvites, setPendingInvites] = useState<Trip[]>([])
   const [joiningTrip, setJoiningTrip] = useState<string | null>(null)
   const [tripBalances, setTripBalances] = useState<Record<string, number>>({})
+  const [showAllTrips, setShowAllTrips] = useState(false)
+
+  // Separate trips from groups
+  const tripItems = allTrips.filter((t) => (t.type ?? 'trip') === 'trip')
+  const groupItems = allTrips.filter((t) => t.type === 'group')
 
   // Handle undo toast for deleted trips
   useEffect(() => {
@@ -178,50 +183,92 @@ export function Home() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      {/* Cross-trip balance summary */}
+      {!tripsLoading && allTrips.length > 0 && (
+        <BalanceSummary
+          tripBalances={tripBalances}
+          trips={allTrips}
+          settlementCurrency="USD"
+        />
+      )}
+
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-text">Your Trips</h1>
         <Link
           to="/trip/new"
           className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
         >
-          New Trip
+          New
         </Link>
       </div>
 
-      {/* Cross-trip balance summary */}
-      {!tripsLoading && trips.length > 0 && (
-        <BalanceSummary
-          tripBalances={tripBalances}
-          trips={trips}
-          settlementCurrency="USD"
-        />
-      )}
-
       {tripsLoading ? (
-        <div className="text-center py-10 text-text-muted">Loading trips...</div>
-      ) : trips.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-text-secondary mb-4">No trips yet</p>
+        <div className="text-center py-10 text-text-muted">Loading...</div>
+      ) : tripItems.length === 0 && groupItems.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-text-secondary mb-4">No trips or groups yet</p>
           <Link
             to="/trip/new"
             className="text-accent-text font-medium hover:text-accent-hover"
           >
-            Create your first trip
+            Create your first one
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {trips.map((trip) => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              currentUserUid={user.uid}
-              onBalanceComputed={(tripId, balance) =>
-                setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
-              }
-            />
-          ))}
-        </div>
+        <>
+          {/* Trips section */}
+          {tripItems.length > 0 && (
+            <div className="mb-8">
+              <div className="space-y-3">
+                {(showAllTrips ? tripItems : tripItems.slice(0, 3)).map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    currentUserUid={user.uid}
+                    onBalanceComputed={(tripId, balance) =>
+                      setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
+                    }
+                  />
+                ))}
+              </div>
+              {tripItems.length > 3 && !showAllTrips && (
+                <button
+                  onClick={() => setShowAllTrips(true)}
+                  className="w-full mt-2 text-sm text-accent-text hover:text-accent-hover py-2 transition-colors"
+                >
+                  View all {tripItems.length} trips
+                </button>
+              )}
+              {showAllTrips && tripItems.length > 3 && (
+                <button
+                  onClick={() => setShowAllTrips(false)}
+                  className="w-full mt-2 text-sm text-text-muted hover:text-text-secondary py-2 transition-colors"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Groups section */}
+          {groupItems.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-text mb-3">Your Groups</h2>
+              <div className="space-y-3">
+                {groupItems.map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    currentUserUid={user.uid}
+                    onBalanceComputed={(tripId, balance) =>
+                      setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {undoTrip && (

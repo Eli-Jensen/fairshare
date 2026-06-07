@@ -16,6 +16,8 @@ import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
 import { getMemberName, type RemovedMember } from '../lib/types'
+import { useTrips } from '../hooks/useTrips'
+import { useProfileCache } from '../hooks/useProfileCache'
 
 interface RecentContact {
   email: string
@@ -33,6 +35,11 @@ export function TripInvite() {
   const [recentContacts, setRecentContacts] = useState<RecentContact[]>([])
   const [copied, setCopied] = useState(false)
   const [undoMember, setUndoMember] = useState<{ uid: string; name: string } | null>(null)
+  const { trips: allTrips } = useTrips()
+  const { getProfiles } = useProfileCache()
+
+  // Groups the user belongs to (for "import from group")
+  const groups = allTrips.filter((t) => t.type === 'group' && t.id !== id)
 
   // Load recent contacts from user doc
   useEffect(() => {
@@ -252,6 +259,50 @@ export function TripInvite() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 {e}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Import from group */}
+      {groups.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-text-secondary mb-2">Add from a group</h3>
+          <div className="space-y-1">
+            {groups.map((g) => (
+              <div
+                key={g.id}
+                className="flex items-center justify-between bg-card border border-line rounded-lg px-3 py-2"
+              >
+                <div>
+                  <span className="text-sm text-text">👥 {g.name}</span>
+                  <span className="text-xs text-text-muted ml-2">
+                    {g.memberUids.length} member{g.memberUids.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    // Load member profiles from this group
+                    const profiles = await getProfiles(g.memberUids)
+                    let added = 0
+                    for (const uid of g.memberUids) {
+                      const profile = profiles[uid]
+                      if (!profile?.email) continue
+                      const email = profile.email.toLowerCase()
+                      if (!isAlreadyInTrip(email) && !justInvited.includes(email)) {
+                        await inviteEmail(email)
+                        added++
+                      }
+                    }
+                    if (added === 0) {
+                      setError('All members from this group are already in the trip')
+                    }
+                  }}
+                  className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors"
+                >
+                  Add all
+                </button>
               </div>
             ))}
           </div>

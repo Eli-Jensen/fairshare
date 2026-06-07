@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
 import { CurrencyPicker } from '../components/CurrencyPicker'
+import type { TripType } from '../lib/types'
 
 const MAX_TRIPS = 100
 
@@ -20,6 +21,7 @@ export function CreateTrip() {
   const { user } = useAuth()
   const { trips } = useTrips()
   const navigate = useNavigate()
+  const [tripType, setTripType] = useState<TripType>('trip')
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [submitting, setSubmitting] = useState(false)
@@ -33,6 +35,7 @@ export function CreateTrip() {
     setSubmitting(true)
     const ref = await addDoc(collection(db, 'trips'), {
       name: name.trim(),
+      type: tripType,
       createdBy: user.uid,
       memberUids: [user.uid],
       invitedEmails: [],
@@ -43,25 +46,68 @@ export function CreateTrip() {
     navigate(`/trip/${ref.id}`)
   }
 
+  const inputClasses = 'w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-text mb-6">New Trip</h1>
+      <h1 className="text-2xl font-bold text-text mb-6">Create New</h1>
 
       {atLimit && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
-          You've reached the limit of {MAX_TRIPS} trips. Delete an old trip to create a new one.
+        <div className="bg-warn-bg border border-warn-border rounded-lg p-3 mb-4 text-sm text-warn-text">
+          You've reached the limit of {MAX_TRIPS} trips and groups. Delete an old one to create a new one.
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Type selector */}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">Type</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setTripType('trip')}
+              className={`rounded-xl border-2 p-3 text-left transition-all ${
+                tripType === 'trip'
+                  ? 'border-accent bg-accent-soft'
+                  : 'border-line bg-card hover:border-accent/50'
+              }`}
+            >
+              <div className="text-lg mb-0.5">✈️</div>
+              <p className={`text-sm font-medium ${tripType === 'trip' ? 'text-accent-text' : 'text-text'}`}>
+                Trip
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                A one-time event like a vacation or reunion
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTripType('group')}
+              className={`rounded-xl border-2 p-3 text-left transition-all ${
+                tripType === 'group'
+                  ? 'border-accent bg-accent-soft'
+                  : 'border-line bg-card hover:border-accent/50'
+              }`}
+            >
+              <div className="text-lg mb-0.5">👥</div>
+              <p className={`text-sm font-medium ${tripType === 'group' ? 'text-accent-text' : 'text-text'}`}>
+                Group
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Ongoing expenses with the same people
+              </p>
+            </button>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Trip name
+            {tripType === 'trip' ? 'Trip name' : 'Group name'}
           </label>
           <input
             type="text"
-            className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="Italy 2026, Family Reunion, etc."
+            className={inputClasses}
+            placeholder={tripType === 'trip' ? 'Italy 2026, Family Reunion, etc.' : 'Wednesday Lunch, Roommates, etc.'}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -102,7 +148,7 @@ export function CreateTrip() {
           disabled={!name.trim() || submitting || atLimit}
           className="w-full bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
-          {submitting ? 'Creating...' : 'Create Trip'}
+          {submitting ? 'Creating...' : `Create ${tripType === 'trip' ? 'Trip' : 'Group'}`}
         </button>
       </form>
     </div>
