@@ -66,12 +66,15 @@ export function EditExpense() {
         settlementCurrency={trip.settlementCurrency}
         existing={expense}
         onSubmit={async (data) => {
-          await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), data)
+          // Run both writes in parallel
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
           if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
-          await updateDoc(doc(db!, 'trips', id!), tripUpdate)
+          await Promise.all([
+            updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), data),
+            updateDoc(doc(db!, 'trips', id!), tripUpdate),
+          ])
 
           // Compute what changed for the activity log
           const sc = trip.settlementCurrency ?? 'USD'
@@ -92,7 +95,8 @@ export function EditExpense() {
             changes.push(`split: ${expense.splitType} → ${data.splitType}`)
           }
 
-          await writeActivity(id!, {
+          // Activity log is fire-and-forget
+          writeActivity(id!, {
             action: 'expense_edited',
             actorUid: user.uid,
             targetDescription: data.description,
@@ -105,7 +109,8 @@ export function EditExpense() {
           await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), {
             deletedAt: serverTimestamp(),
           })
-          await writeActivity(id!, {
+          // Fire-and-forget
+          writeActivity(id!, {
             action: 'expense_deleted',
             actorUid: user.uid,
             targetDescription: expense.description,

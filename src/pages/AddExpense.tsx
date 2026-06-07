@@ -27,18 +27,21 @@ export function AddExpense() {
         tripLastCurrency={trip.lastCurrency}
         settlementCurrency={trip.settlementCurrency}
         onSubmit={async (data) => {
-          await addDoc(collection(db!, 'trips', id!, 'expenses'), {
-            ...data,
-            createdBy: user.uid,
-            createdAt: serverTimestamp(),
-          })
-          // Save last-used currency and rate for this trip
+          // Run all writes in parallel — they're independent
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
           if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
-          await updateDoc(doc(db!, 'trips', id!), tripUpdate)
-          await writeActivity(id!, {
+          await Promise.all([
+            addDoc(collection(db!, 'trips', id!, 'expenses'), {
+              ...data,
+              createdBy: user.uid,
+              createdAt: serverTimestamp(),
+            }),
+            updateDoc(doc(db!, 'trips', id!), tripUpdate),
+          ])
+          // Activity log is fire-and-forget — don't block navigation
+          writeActivity(id!, {
             action: 'expense_added',
             actorUid: user.uid,
             targetDescription: data.description,
