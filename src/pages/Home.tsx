@@ -15,6 +15,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
 import { TripCard } from '../components/TripCard'
+import { BalanceSummary } from '../components/BalanceSummary'
 import { UndoToast } from '../components/UndoToast'
 import type { Trip } from '../lib/types'
 
@@ -25,6 +26,7 @@ export function Home() {
   const [undoTrip, setUndoTrip] = useState<{ id: string; name: string } | null>(null)
   const [pendingInvites, setPendingInvites] = useState<Trip[]>([])
   const [joiningTrip, setJoiningTrip] = useState<string | null>(null)
+  const [tripBalances, setTripBalances] = useState<Record<string, number>>({})
 
   // Handle undo toast for deleted trips
   useEffect(() => {
@@ -186,6 +188,15 @@ export function Home() {
         </Link>
       </div>
 
+      {/* Cross-trip balance summary */}
+      {!tripsLoading && trips.length > 0 && (
+        <BalanceSummary
+          netBalance={Object.values(tripBalances).reduce((a, b) => a + b, 0)}
+          tripCount={Object.keys(tripBalances).filter((id) => Math.abs(tripBalances[id]) > 0.01).length}
+          settlementCurrency="USD"
+        />
+      )}
+
       {tripsLoading ? (
         <div className="text-center py-10 text-text-muted">Loading trips...</div>
       ) : trips.length === 0 ? (
@@ -201,7 +212,14 @@ export function Home() {
       ) : (
         <div className="space-y-3">
           {trips.map((trip) => (
-            <TripCard key={trip.id} trip={trip} />
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              currentUserUid={user.uid}
+              onBalanceComputed={(tripId, balance) =>
+                setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
+              }
+            />
           ))}
         </div>
       )}

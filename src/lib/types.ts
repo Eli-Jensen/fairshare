@@ -28,6 +28,7 @@ export interface Trip {
   lastRates?: Record<string, number>
   lastCurrency?: string
   settlementCurrency: string // e.g. 'USD', 'EUR', 'GBP'
+  simplifyDebts?: boolean // defaults to true
   createdAt: Timestamp
 }
 
@@ -48,6 +49,7 @@ export interface Expense {
   notes?: string
   category?: ExpenseCategory
   isSettlement?: boolean
+  comments?: Array<{ uid: string; text: string; createdAt: Timestamp }>
   createdBy: string
   createdAt: Timestamp
   deletedAt?: Timestamp | null

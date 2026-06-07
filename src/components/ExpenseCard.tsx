@@ -85,6 +85,11 @@ export function ExpenseCard({
               {expense.notes}
             </p>
           )}
+          {expense.comments && expense.comments.length > 0 && (
+            <p className="text-xs text-accent-text mt-0.5">
+              {expense.comments.length} comment{expense.comments.length !== 1 && 's'}
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -1,22 +1,47 @@
+import { useState } from 'react'
 import type { Expense, UserProfile } from '../lib/types'
-import { formatMoney, getMemberName } from '../lib/types'
+import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
+
+/** Compute all individual debtor→creditor pairs without simplification */
+function computeRawDebts(balances: Record<string, number>) {
+  const debts: { from: string; to: string; amount: number }[] = []
+  const creditors = Object.entries(balances).filter(([, b]) => b > 0.01)
+  const debtors = Object.entries(balances).filter(([, b]) => b < -0.01)
+  for (const [fromUid, fromBal] of debtors) {
+    for (const [toUid, toBal] of creditors) {
+      // Each debtor owes each creditor proportionally
+      const totalDebt = -fromBal
+      const totalCredit = creditors.reduce((s, [, b]) => s + b, 0)
+      const amount = Math.round(totalDebt * (toBal / totalCredit) * 100) / 100
+      if (amount > 0.01) {
+        debts.push({ from: fromUid, to: toUid, amount })
+      }
+    }
+  }
+  return debts
+}
 
 export function SettlementView({
   expenses,
   members,
   memberUids,
   settlementCurrency,
+  simplifyDebtsDefault = true,
   onRecordSettlement,
+  onToggleSimplify,
 }: {
   expenses: Expense[]
   members: Record<string, UserProfile>
   memberUids: string[]
   settlementCurrency?: string
+  simplifyDebtsDefault?: boolean
   onRecordSettlement?: (from: string, to: string, amount: number) => Promise<void>
+  onToggleSimplify?: (value: boolean) => void
 }) {
   const sc = settlementCurrency ?? 'USD'
+  const [simplify, setSimplify] = useState(simplifyDebtsDefault)
   const balances = computeBalances(expenses, memberUids)
   const settlements = simplifyDebts(balances)
 
@@ -116,11 +141,23 @@ export function SettlementView({
       {/* Settle Up */}
       {settlements.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
-            Settle Up
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide">
+              Settle Up
+            </h3>
+            <button
+              onClick={() => {
+                const next = !simplify
+                setSimplify(next)
+                onToggleSimplify?.(next)
+              }}
+              className="text-xs text-accent-text hover:text-accent-hover transition-colors"
+            >
+              {simplify ? 'Show all debts' : 'Simplify debts'}
+            </button>
+          </div>
           <div className="space-y-2">
-            {settlements.map((s, i) => (
+            {(simplify ? settlements : computeRawDebts(balances)).map((s, i) => (
               <div
                 key={i}
                 className="bg-accent-soft rounded-lg p-3 flex items-center gap-2 flex-wrap"
@@ -156,6 +193,47 @@ export function SettlementView({
           All settled up!
         </div>
       )}
+
+      {/* Spending by category */}
+      {(() => {
+        const catTotals: Record<string, number> = {}
+        for (const exp of expenses) {
+          if (exp.isSettlement) continue
+          const cat = exp.category || 'uncategorized'
+          catTotals[cat] = (catTotals[cat] ?? 0) + exp.amountUSD
+        }
+        const entries = Object.entries(catTotals).sort(([, a], [, b]) => b - a)
+        if (entries.length <= 1 && entries[0]?.[0] === 'uncategorized') return null
+        const max = Math.max(...entries.map(([, v]) => v), 1)
+        return (
+          <div>
+            <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
+              Spending by Category
+            </h3>
+            <div className="space-y-2">
+              {entries.map(([cat, amount]) => {
+                const info = EXPENSE_CATEGORIES.find((c) => c.value === cat)
+                return (
+                  <div key={cat}>
+                    <div className="flex items-center justify-between text-sm mb-0.5">
+                      <span className="text-text-secondary">
+                        {info ? `${info.emoji} ${info.label}` : 'Uncategorized'}
+                      </span>
+                      <span className="text-text font-medium">{formatMoney(amount, sc)}</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-accent rounded-full transition-all"
+                        style={{ width: `${(amount / max) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

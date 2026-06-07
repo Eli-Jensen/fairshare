@@ -11,8 +11,13 @@ import type { Trip, UserProfile, Expense } from '../lib/types'
 import { formatMoney } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 import { useProfileCache } from '../hooks/useProfileCache'
+import { computeBalances } from '../lib/settlement'
 
-export function TripCard({ trip }: { trip: Trip }) {
+export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
+  trip: Trip
+  currentUserUid?: string
+  onBalanceComputed?: (tripId: string, balance: number) => void
+}) {
   const { getProfiles } = useProfileCache()
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [totalUSD, setTotalUSD] = useState(0)
@@ -48,6 +53,15 @@ export function TripCard({ trip }: { trip: Trip }) {
       setTotalUSD(total)
       setLatestExpense(latest)
       setExpenseCount(count)
+
+      // Report user's balance to parent for cross-trip summary
+      if (currentUserUid && onBalanceComputed) {
+        const allExpenses = snap.docs
+          .filter((d) => !d.data().deletedAt)
+          .map((d) => ({ id: d.id, ...d.data() }) as Expense)
+        const balances = computeBalances(allExpenses, trip.memberUids)
+        onBalanceComputed(trip.id, balances[currentUserUid] ?? 0)
+      }
     })
   }, [trip.id])
 
