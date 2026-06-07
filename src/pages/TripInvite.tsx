@@ -401,7 +401,7 @@ export function TripInvite() {
           </button>
         </div>
         <p className="text-xs text-text-muted mt-1">
-          Anyone with this link can join the trip after signing in
+          Anyone with this link can join after signing in
         </p>
       </div>
 
@@ -420,7 +420,7 @@ export function TripInvite() {
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {e} — hasn't signed in yet
+                {e} — hasn't joined yet
               </div>
             ))}
           </div>
