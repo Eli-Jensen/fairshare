@@ -12,11 +12,8 @@ const COMMON_SETTLEMENT = ['USD', 'EUR', 'GBP', 'CAD', 'AUD']
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  let code = ''
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return code
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
 }
 
 export function CreateTrip() {

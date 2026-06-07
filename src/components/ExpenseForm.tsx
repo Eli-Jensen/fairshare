@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory } from '../lib/types'
-import { getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import { getMemberName, formatMoney, EXPENSE_CATEGORIES } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates, getRate } from '../lib/rates'
 
@@ -23,7 +23,7 @@ interface ExpenseFormData {
   notes: string
   category: ExpenseCategory | ''
   rateDirection: 'foreign-to-usd' | 'usd-to-foreign'
-  calcGaveUSD: string
+  calcGave: string
   calcGotForeign: string
   showCalc: boolean
 }
@@ -112,7 +112,7 @@ export function ExpenseForm({
         notes: existing.notes ?? '',
         category: existing.category ?? '',
         rateDirection: 'foreign-to-usd',
-        calcGaveUSD: '',
+        calcGave: '',
         calcGotForeign: '',
         showCalc: false,
       }
@@ -136,7 +136,7 @@ export function ExpenseForm({
       notes: '',
       category: '',
       rateDirection: 'foreign-to-usd',
-      calcGaveUSD: '',
+      calcGave: '',
       calcGotForeign: '',
       showCalc: false,
     }
@@ -272,7 +272,7 @@ export function ExpenseForm({
       const paidTotal = Object.values(paidAmounts).reduce((a, b) => a + b, 0)
       if (Math.abs(paidTotal - amountUSD) > 0.02) {
         setError(
-          `Paid amounts total ($${paidTotal.toFixed(2)}) doesn't match expense ($${amountUSD.toFixed(2)})`
+          `Paid amounts total (${paidTotal.toFixed(2)}) doesn't match expense (${amountUSD.toFixed(2)})`
         )
         return
       }
@@ -285,7 +285,7 @@ export function ExpenseForm({
       Math.abs(splitTotal - amountUSD) > 0.02
     ) {
       setError(
-        `Split total ($${splitTotal.toFixed(2)}) doesn't match expense ($${amountUSD.toFixed(2)})`
+        `Split total (${splitTotal.toFixed(2)}) doesn't match expense (${amountUSD.toFixed(2)})`
       )
       return
     }
@@ -422,7 +422,7 @@ export function ExpenseForm({
             >
               {form.rateDirection === 'foreign-to-usd'
                 ? `1 ${form.currency} = ? USD`
-                : `1 USD = ? ${form.currency}`}
+                : `1 ${sc} = ? ${form.currency}`}
               <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
@@ -469,18 +469,18 @@ export function ExpenseForm({
               <p className="text-xs font-medium text-text-secondary">Exchange calculator</p>
               <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center">
                 <div>
-                  <label className="text-[10px] text-text-muted uppercase">Gave (USD)</label>
+                  <label className="text-[10px] text-text-muted uppercase">Gave ({sc})</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="200"
                     className="w-full border border-line rounded px-2 py-1 text-sm bg-input text-text"
-                    value={form.calcGaveUSD}
+                    value={form.calcGave}
                     onChange={(e) => {
                       const gave = parseFloat(e.target.value) || 0
                       const got = parseFloat(form.calcGotForeign) || 0
-                      setForm((f) => ({ ...f, calcGaveUSD: e.target.value }))
+                      setForm((f) => ({ ...f, calcGave: e.target.value }))
                       if (gave > 0 && got > 0) {
                         const rate = Math.round((gave / got) * 10000) / 10000
                         handleRateChange(rate.toString())
@@ -500,7 +500,7 @@ export function ExpenseForm({
                     value={form.calcGotForeign}
                     onChange={(e) => {
                       const got = parseFloat(e.target.value) || 0
-                      const gave = parseFloat(form.calcGaveUSD) || 0
+                      const gave = parseFloat(form.calcGave) || 0
                       setForm((f) => ({ ...f, calcGotForeign: e.target.value }))
                       if (gave > 0 && got > 0) {
                         const rate = Math.round((gave / got) * 10000) / 10000
@@ -516,7 +516,7 @@ export function ExpenseForm({
           <div className="flex items-center justify-between">
             {amountUSD > 0 && (
               <p className="text-xs text-text-secondary">
-                {form.amount} {form.currency} = ${amountUSD.toFixed(2)} USD
+                {form.amount} {form.currency} = {formatMoney(amountUSD, sc)}
               </p>
             )}
             <p className="text-xs text-text-muted">
@@ -730,7 +730,7 @@ export function ExpenseForm({
 
               {form.splitType === 'equal' && form.splitAmong.includes(uid) && (
                 <span className="text-sm text-text-muted">
-                  ${(amountUSD / form.splitAmong.length).toFixed(2)}
+                  {formatMoney(amountUSD / form.splitAmong.length, sc)}
                 </span>
               )}
             </div>

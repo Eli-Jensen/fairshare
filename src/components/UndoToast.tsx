@@ -30,7 +30,7 @@ export function UndoToast({
 
   return (
     <div className="fixed bottom-20 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-50 animate-slide-up">
-      <div className="bg-slate-800 text-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-card text-text border border-line rounded-lg shadow-lg overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <p className="text-sm">{message}</p>
           <div className="flex items-center gap-2 ml-3 shrink-0">
@@ -50,7 +50,7 @@ export function UndoToast({
             </button>
           </div>
         </div>
-        <div className="h-0.5 bg-slate-700">
+        <div className="h-0.5 bg-line">
           <div
             className="h-full bg-primary-400 transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}

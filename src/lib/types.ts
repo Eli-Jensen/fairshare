@@ -95,9 +95,6 @@ export function formatMoney(amount: number, currencyCode: string = 'USD'): strin
   }
 }
 
-/** @deprecated Use formatMoney(amount, currencyCode) instead */
-export const formatUSD = (amount: number) => formatMoney(amount, 'USD')
-
 /**
  * Returns a display name for a member, appending their email in parentheses
  * if another member in the same group shares the same display name.

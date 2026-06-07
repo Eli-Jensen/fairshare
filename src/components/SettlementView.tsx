@@ -80,15 +80,19 @@ export function SettlementView({
           Balances
         </h3>
         <div className="space-y-1">
-          {memberUids.map((uid) => {
-            const balance = balances[uid] ?? 0
+          {/* Show all UIDs with balances, including removed members */}
+          {Object.entries(balances)
+            .sort(([, a], [, b]) => b - a)
+            .map(([uid, balance]) => {
             const rounded = Math.round(balance * 100) / 100
+            const isRemoved = !memberUids.includes(uid)
             return (
               <div key={uid} className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-2">
                   <MemberAvatar member={members[uid]} size="sm" />
                   <span className="text-sm text-text-secondary">
                     {getMemberName(uid, members)}
+                    {isRemoved && <span className="text-text-muted ml-1">(removed)</span>}
                   </span>
                 </div>
                 <span
