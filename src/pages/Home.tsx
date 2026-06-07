@@ -192,6 +192,7 @@ export function Home() {
       {!tripsLoading && trips.length > 0 && (
         <BalanceSummary
           tripBalances={tripBalances}
+          trips={trips}
           settlementCurrency="USD"
         />
       )}
