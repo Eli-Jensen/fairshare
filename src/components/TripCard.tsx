@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  doc,
-  getDoc,
   collection,
   query,
   orderBy,
@@ -12,8 +10,10 @@ import { db } from '../lib/firebase'
 import type { Trip, UserProfile, Expense } from '../lib/types'
 import { formatMoney } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
+import { useProfileCache } from '../hooks/useProfileCache'
 
 export function TripCard({ trip }: { trip: Trip }) {
+  const { getProfiles } = useProfileCache()
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [totalUSD, setTotalUSD] = useState(0)
   const [latestExpense, setLatestExpense] = useState<Expense | null>(null)
@@ -24,16 +24,8 @@ export function TripCard({ trip }: { trip: Trip }) {
     : ''
 
   useEffect(() => {
-    async function loadMembers() {
-      const profiles: Record<string, UserProfile> = {}
-      for (const uid of trip.memberUids) {
-        const snap = await getDoc(doc(db, 'users', uid))
-        if (snap.exists()) profiles[uid] = snap.data() as UserProfile
-      }
-      setMembers(profiles)
-    }
-    loadMembers()
-  }, [trip.memberUids.join(',')])
+    getProfiles(trip.memberUids).then(setMembers)
+  }, [trip.memberUids.join(','), getProfiles])
 
   useEffect(() => {
     const q = query(

@@ -15,10 +15,11 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
 
-      // Any authed user can update trips (join via invite code/email,
-      // add invitedEmails, update lastRates, etc.)
-      // Real data protection is on the expenses subcollection (member-only)
-      allow update: if request.auth != null;
+      // Members can update trip data; non-members can join if invited by email
+      allow update: if request.auth != null && (
+        request.auth.uid in resource.data.memberUids
+        || request.auth.token.email in resource.data.invitedEmails
+      );
 
       // Expenses — only trip members can read/write
       match /expenses/{expenseId} {

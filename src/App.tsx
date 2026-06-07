@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
 import { CreateTrip } from './pages/CreateTrip'
@@ -31,6 +32,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <Layout>
         <Routes>
@@ -95,5 +97,6 @@ export default function App() {
         </Routes>
       </Layout>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }

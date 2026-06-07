@@ -6,13 +6,14 @@ import {
   query,
   orderBy,
   limit,
-  getDoc,
   deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
+import { useProfileCache } from './useProfileCache'
 
 export function useTrip(tripId: string | undefined) {
+  const { getProfiles } = useProfileCache()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
@@ -64,18 +65,8 @@ export function useTrip(tripId: string | undefined) {
 
   useEffect(() => {
     if (!trip) return
-    const load = async () => {
-      const profiles: Record<string, UserProfile> = {}
-      for (const uid of trip.memberUids) {
-        const snap = await getDoc(doc(db, 'users', uid))
-        if (snap.exists()) {
-          profiles[uid] = snap.data() as UserProfile
-        }
-      }
-      setMembers(profiles)
-    }
-    load()
-  }, [trip?.memberUids?.join(',')])
+    getProfiles(trip.memberUids).then(setMembers)
+  }, [trip?.memberUids?.join(','), getProfiles])
 
   // Activity log subscription
   useEffect(() => {
