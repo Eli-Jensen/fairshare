@@ -1,19 +1,32 @@
 import { formatMoney } from '../lib/types'
 
 export function BalanceSummary({
-  netBalance,
-  tripCount,
+  tripBalances,
   settlementCurrency,
 }: {
-  netBalance: number
-  tripCount: number
+  tripBalances: Record<string, number>
   settlementCurrency: string
 }) {
-  if (tripCount === 0) return null
+  const entries = Object.values(tripBalances)
+  if (entries.length === 0) return null
 
-  const rounded = Math.round(netBalance * 100) / 100
+  let totalOwed = 0   // positive balances (others owe you)
+  let totalOwe = 0    // negative balances (you owe others)
+  let tripsOwed = 0
+  let tripsOwe = 0
 
-  if (Math.abs(rounded) < 0.01) {
+  for (const bal of entries) {
+    const rounded = Math.round(bal * 100) / 100
+    if (rounded > 0.01) {
+      totalOwed += rounded
+      tripsOwed++
+    } else if (rounded < -0.01) {
+      totalOwe += -rounded
+      tripsOwe++
+    }
+  }
+
+  if (totalOwed < 0.01 && totalOwe < 0.01) {
     return (
       <div className="bg-success-bg rounded-lg px-4 py-3 mb-6">
         <p className="text-sm font-medium text-success-text">
@@ -23,14 +36,18 @@ export function BalanceSummary({
     )
   }
 
-  const isOwed = rounded > 0
   return (
-    <div className={`rounded-lg px-4 py-3 mb-6 ${isOwed ? 'bg-success-bg' : 'bg-warn-bg'}`}>
-      <p className={`text-sm font-medium ${isOwed ? 'text-success-text' : 'text-warn-text'}`}>
-        {isOwed
-          ? `You are owed ${formatMoney(rounded, settlementCurrency)} across ${tripCount} trip${tripCount !== 1 ? 's' : ''}`
-          : `You owe ${formatMoney(-rounded, settlementCurrency)} across ${tripCount} trip${tripCount !== 1 ? 's' : ''}`}
-      </p>
+    <div className="rounded-lg border border-line bg-card px-4 py-3 mb-6 space-y-1">
+      {totalOwe > 0.01 && (
+        <p className="text-sm font-medium text-warn-text">
+          You owe {formatMoney(totalOwe, settlementCurrency)} across {tripsOwe} trip{tripsOwe !== 1 ? 's' : ''}
+        </p>
+      )}
+      {totalOwed > 0.01 && (
+        <p className="text-sm font-medium text-success-text">
+          You are owed {formatMoney(totalOwed, settlementCurrency)} across {tripsOwed} trip{tripsOwed !== 1 ? 's' : ''}
+        </p>
+      )}
     </div>
   )
 }

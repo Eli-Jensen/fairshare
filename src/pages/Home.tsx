@@ -191,8 +191,7 @@ export function Home() {
       {/* Cross-trip balance summary */}
       {!tripsLoading && trips.length > 0 && (
         <BalanceSummary
-          netBalance={Object.values(tripBalances).reduce((a, b) => a + b, 0)}
-          tripCount={Object.keys(tripBalances).filter((id) => Math.abs(tripBalances[id]) > 0.01).length}
+          tripBalances={tripBalances}
           settlementCurrency="USD"
         />
       )}
