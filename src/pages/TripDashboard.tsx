@@ -565,7 +565,7 @@ export function TripDashboard() {
               uid,
               email: member?.email ?? '',
               displayName: member?.displayName ?? removeMemberName,
-              removedAt: serverTimestamp() as unknown as import('firebase/firestore').Timestamp,
+              removedAt: Timestamp.now(),
             }
             const updatedRemoved = [...(trip.removedMembers ?? []), removedEntry]
 
