@@ -97,50 +97,60 @@ export function TripDashboard() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">
             {editingName ? (
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={nameValue}
-                onChange={(e) => setNameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveName()
-                  if (e.key === 'Escape') setEditingName(false)
-                }}
-                className="text-2xl font-bold text-text border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
-                autoFocus
-              />
+              <>
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveName()
+                    if (e.key === 'Escape') { setNameValue(trip.name); setEditingName(false) }
+                  }}
+                  className="text-2xl font-bold text-text border-b-2 border-primary-400 outline-none bg-transparent flex-1 min-w-0"
+                  autoFocus
+                />
+                <button
+                  onClick={saveName}
+                  className="p-1.5 rounded-lg text-accent-text hover:bg-accent-soft transition-colors shrink-0"
+                  title="Save changes"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => { setNameValue(trip.name); setEditingName(false) }}
+                  className="p-1.5 rounded-lg text-text-muted hover:bg-card-hover transition-colors shrink-0"
+                  title="Cancel"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="p-1.5 rounded-lg text-danger-text hover:bg-danger-bg transition-colors shrink-0"
+                  title={`Delete ${tl}`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </>
             ) : (
-              <h1 className="text-2xl font-bold text-text truncate">{trip.name}</h1>
-            )}
-            <button
-              onClick={editingName ? saveName : startEditing}
-              className={`p-1 transition-colors shrink-0 ${
-                editingName
-                  ? 'text-accent-text hover:text-primary-700'
-                  : 'text-text-muted hover:text-text-secondary'
-              }`}
-              title={editingName ? 'Save' : `Edit ${tl} name`}
-            >
-              {editingName ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              )}
-            </button>
-            {editingName && (
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="p-1 text-text-muted hover:text-red-500 transition-colors shrink-0"
-                title={`Delete ${tl}`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+              <>
+                <h1 className="text-2xl font-bold text-text truncate">{trip.name}</h1>
+                <button
+                  onClick={startEditing}
+                  className="p-1 text-text-muted hover:text-text-secondary transition-colors shrink-0"
+                  title={`Edit ${tl} name`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </>
             )}
           </div>
           <Link
