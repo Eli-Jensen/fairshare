@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
 import { getMemberName, formatMoney, getAllCategories, categoryExists, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getRate } from '../lib/rates'
+
+import type { Theme as EmojiTheme } from 'emoji-picker-react'
+const EmojiPicker = lazy(() => import('emoji-picker-react'))
 
 interface ExpenseFormData {
   description: string
@@ -800,12 +803,6 @@ export function ExpenseForm({
 
 const MAX_LABEL_LENGTH = 20
 
-const EMOJI_GRID = [
-  '🍽️','🍕','🍺','☕','🛒','🚗','✈️','🚌','🏨','🏠',
-  '🎭','🎬','🎯','🎵','⛷️','🏖️','🎟️','💊','🛍️','💇',
-  '📱','💡','🔧','🎁','📦','💰','🧾','🎓','👶','🐾',
-]
-
 const RANDOM_EMOJIS = ['🏷️','📌','🔖','🎲','💫','⭐','🌟','✨']
 
 function CategoryPicker({
@@ -922,21 +919,22 @@ function CategoryPicker({
     await onUpdateCategories(customCategories.filter((c) => c.id !== id))
   }
 
-  function EmojiGrid({ selected, onPick }: { selected: string; onPick: (e: string) => void }) {
+  function EmojiGrid({ onPick }: { selected: string; onPick: (e: string) => void }) {
+    const isDark = document.documentElement.classList.contains('dark')
     return (
-      <div className="grid grid-cols-10 gap-1 mt-1 p-2 bg-muted rounded-lg">
-        {EMOJI_GRID.map((e) => (
-          <button
-            key={e}
-            type="button"
-            onClick={() => onPick(e)}
-            className={`w-8 h-8 flex items-center justify-center rounded text-base hover:bg-card-hover transition-colors ${
-              selected === e ? 'bg-accent-soft ring-1 ring-accent' : ''
-            }`}
-          >
-            {e}
-          </button>
-        ))}
+      <div className="mt-1 rounded-lg overflow-hidden [&_.epr-main]:!border-line [&_.epr-search-container_input]:!bg-input [&_.epr-search-container_input]:!border-line">
+        <Suspense fallback={<div className="h-[350px] flex items-center justify-center text-text-muted text-sm">Loading...</div>}>
+          <EmojiPicker
+            onEmojiClick={(emojiData) => onPick(emojiData.emoji)}
+            width="100%"
+            height={350}
+            theme={(isDark ? 'dark' : 'light') as EmojiTheme}
+            searchPlaceholder="Search emojis..."
+            previewConfig={{ showPreview: false }}
+            skinTonesDisabled
+            lazyLoadEmojis
+          />
+        </Suspense>
       </div>
     )
   }
