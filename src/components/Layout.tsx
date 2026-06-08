@@ -12,7 +12,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [menuOpenLevel, setMenuOpenLevel] = useState(textLevel)
   const [hasUnseen, setHasUnseen] = useState(false)
 
   // Close menu on navigation, re-check unseen activity
@@ -38,10 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {user && (
             <div className="relative">
               <button
-                onClick={() => {
-                  if (!menuOpen) setMenuOpenLevel(textLevel)
-                  setMenuOpen(!menuOpen)
-                }}
+                onClick={() => setMenuOpen(!menuOpen)}
                 className="relative w-8 h-8 rounded-full overflow-visible ring-2 ring-transparent hover:ring-primary-200 transition-all"
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden">
@@ -72,7 +68,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 />
                 <div
                   className="absolute right-0 mt-2 bg-card border border-line rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up"
-                  style={{ zoom: TEXT_SCALE_LEVELS[menuOpenLevel] / TEXT_SCALE_LEVELS[textLevel] }}
                 >
                   <div className="px-3 py-2 border-b border-line-light">
                     <p className="text-sm font-medium text-text truncate">
