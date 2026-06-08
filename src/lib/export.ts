@@ -58,14 +58,18 @@ export function tripToCsv(
     const shares = memberUids.map((uid) =>
       exp.splits[uid] !== undefined ? fmt(exp.splits[uid]) : ''
     )
-    const catInfo = exp.category
-      ? getCategoryInfo(exp.category, customCategories)
-      : null
+    const cats = (exp.categories && exp.categories.length > 0)
+      ? exp.categories
+      : exp.category ? [exp.category] : []
+    const catLabel = cats
+      .map((c) => getCategoryInfo(c, customCategories)?.label)
+      .filter(Boolean)
+      .join(', ')
     lines.push(
       [
         formatDate(exp.date),
         exp.isSettlement ? 'Settlement' : 'Expense',
-        catInfo ? catInfo.label : '',
+        catLabel,
         exp.description,
         exp.notes ?? '',
         fmt(exp.amountSettled),

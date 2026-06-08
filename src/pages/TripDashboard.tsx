@@ -4,7 +4,7 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatMoney, getMemberName, tripLabel, getAllCategories, DEFAULT_CURRENCY } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel, getAllCategories, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
 import type { RemovedMember } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
@@ -423,7 +423,7 @@ export function TripDashboard() {
             {/* Total / Subtotal */}
             {(() => {
               const filtered = expenses.filter((exp) =>
-                categoryFilter.size === 0 || (exp.category && categoryFilter.has(exp.category))
+                categoryFilter.size === 0 || getExpenseCategories(exp).some((c) => categoryFilter.has(c))
               )
               const sum = filtered.reduce((s, e) => s + e.amountSettled, 0)
               const isFiltered = categoryFilter.size > 0
@@ -449,7 +449,7 @@ export function TripDashboard() {
           ) : (
             <div className="space-y-2">
               {expenses
-                .filter((exp) => categoryFilter.size === 0 || (exp.category && categoryFilter.has(exp.category)))
+                .filter((exp) => categoryFilter.size === 0 || getExpenseCategories(exp).some((c) => categoryFilter.has(c)))
                 .map((exp) => (
                   <ExpenseCard
                     key={exp.id}

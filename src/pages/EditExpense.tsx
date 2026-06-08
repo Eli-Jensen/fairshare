@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { doc, updateDoc, serverTimestamp, arrayUnion, Timestamp } from 'firebase/firestore'
 import type { CustomCategory } from '../lib/types'
+import { getExpenseCategories } from '../lib/types'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
@@ -116,7 +117,13 @@ export function EditExpense() {
           if (expense.splitType !== data.splitType) prev.splitType = expense.splitType
           if (JSON.stringify(expense.splits) !== JSON.stringify(data.splits)) prev.splits = expense.splits
           if (expense.paidByAmounts && JSON.stringify(expense.paidByAmounts) !== JSON.stringify(data.paidByAmounts)) prev.paidByAmounts = expense.paidByAmounts
-          if (expense.category !== data.category) prev.category = expense.category
+          const oldCats = getExpenseCategories(expense)
+          const newCats = data.categories ?? (data.category ? [data.category] : [])
+          if (JSON.stringify(oldCats) !== JSON.stringify(newCats)) {
+            prev.categories = oldCats.length > 0 ? oldCats : []
+            // Clean up legacy field on edit
+            prev.category = undefined
+          }
           if (expense.notes !== data.notes) prev.notes = expense.notes
 
           // Activity log is fire-and-forget

@@ -64,7 +64,8 @@ export interface Expense {
   splits: Record<string, number>
   date: Timestamp
   notes?: string
-  category?: ExpenseCategory
+  category?: ExpenseCategory        // legacy single category
+  categories?: ExpenseCategory[]    // multi-tag categories (preferred)
   isSettlement?: boolean
   comments?: Array<{ uid: string; text: string; createdAt: Timestamp }>
   createdBy: string
@@ -85,6 +86,13 @@ export function mapExpense(doc: { id: string } & Record<string, any>): Expense {
 /** The Firestore field name for amountSettled (legacy, do not rename in Firestore) */
 export const FIRESTORE_AMOUNT_FIELD = 'amountUSD'
 
+/** Get all categories for an expense (handles both legacy `category` and new `categories` field). */
+export function getExpenseCategories(expense: Expense): string[] {
+  if (expense.categories && expense.categories.length > 0) return expense.categories
+  if (expense.category) return [expense.category]
+  return []
+}
+
 export type ExpenseCategory = string
 
 export interface CategoryInfo {
@@ -97,7 +105,7 @@ export const EXPENSE_CATEGORIES: CategoryInfo[] = [
   { value: 'food', label: 'Food', emoji: '🍽️' },
   { value: 'transport', label: 'Transport', emoji: '🚗' },
   { value: 'accommodation', label: 'Housing', emoji: '🏨' },
-  { value: 'entertainment', label: 'Entertainment', emoji: '🎭' },
+  { value: 'entertainment', label: 'Fun', emoji: '🎭' },
   { value: 'other', label: 'Other', emoji: '📦' },
 ]
 

@@ -1,5 +1,5 @@
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
-import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
@@ -20,9 +20,9 @@ export function ExpenseCard({
     ? expense.date.toDate().toLocaleDateString()
     : ''
 
-  const categoryInfo = expense.category
-    ? getCategoryInfo(expense.category, customCategories)
-    : undefined
+  const expenseCategories = getExpenseCategories(expense)
+    .map((c) => getCategoryInfo(c, customCategories))
+    .filter(Boolean) as { label: string; emoji: string }[]
 
   const isSettlement = expense.isSettlement
 
@@ -51,8 +51,10 @@ export function ExpenseCard({
               {isSettlement && (
                 <span className="text-sm font-medium text-accent-text shrink-0">Settlement</span>
               )}
-              {categoryInfo && !isSettlement && (
-                <span className="text-sm shrink-0" title={categoryInfo.label}>{categoryInfo.emoji}</span>
+              {expenseCategories.length > 0 && !isSettlement && (
+                <span className="text-sm shrink-0" title={expenseCategories.map((c) => c.label).join(', ')}>
+                  {expenseCategories.map((c) => c.emoji).join('')}
+                </span>
               )}
               <p className="font-medium text-text truncate">
                 {expense.description}

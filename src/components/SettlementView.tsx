@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
-import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 import { CurrencyPicker } from './CurrencyPicker'
@@ -442,8 +442,14 @@ export function SettlementView({
         const catTotals: Record<string, number> = {}
         for (const exp of expenses) {
           if (exp.isSettlement) continue
-          const cat = exp.category || 'uncategorized'
-          catTotals[cat] = (catTotals[cat] ?? 0) + exp.amountSettled
+          const cats = getExpenseCategories(exp)
+          if (cats.length === 0) {
+            catTotals['uncategorized'] = (catTotals['uncategorized'] ?? 0) + exp.amountSettled
+          } else {
+            for (const cat of cats) {
+              catTotals[cat] = (catTotals[cat] ?? 0) + exp.amountSettled
+            }
+          }
         }
         const entries = Object.entries(catTotals).sort(([, a], [, b]) => b - a)
         if (entries.length <= 1 && entries[0]?.[0] === 'uncategorized') return null

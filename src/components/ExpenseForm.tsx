@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
-import { getMemberName, formatMoney, getAllCategories, categoryExists, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
+import { getMemberName, formatMoney, getAllCategories, categoryExists, getExpenseCategories, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getRate } from '../lib/rates'
@@ -25,7 +25,7 @@ interface ExpenseFormData {
   shares: Record<string, string>
   date: string
   notes: string
-  category: string
+  categories: string[]
   rateDirection: 'foreign-to-usd' | 'usd-to-foreign'
   calcGave: string
   calcGotForeign: string
@@ -73,6 +73,7 @@ export function ExpenseForm({
     date: Timestamp
     notes?: string
     category?: ExpenseCategory
+    categories?: ExpenseCategory[]
   }) => Promise<void>
   onDelete?: () => Promise<void>
   existing?: Expense
@@ -126,7 +127,7 @@ export function ExpenseForm({
         shares,
         date: toDateString(existing.date),
         notes: existing.notes ?? '',
-        category: existing.category ?? '',
+        categories: getExpenseCategories(existing),
         rateDirection: 'foreign-to-usd',
         calcGave: '',
         calcGotForeign: '',
@@ -150,7 +151,7 @@ export function ExpenseForm({
       shares: Object.fromEntries(memberUids.map((uid) => [uid, '1'])),
       date: new Date().toISOString().slice(0, 10),
       notes: '',
-      category: '',
+      categories: [],
       rateDirection: 'foreign-to-usd',
       calcGave: '',
       calcGotForeign: '',
@@ -336,7 +337,7 @@ export function ExpenseForm({
       // Only include optional fields when set (Firestore rejects undefined)
       if (paidByAmounts) submitData.paidByAmounts = paidByAmounts
       if (form.notes.trim()) submitData.notes = form.notes.trim()
-      if (form.category) submitData.category = form.category
+      if (form.categories.length > 0) submitData.categories = form.categories
       await onSubmit(submitData)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -647,9 +648,14 @@ export function ExpenseForm({
       </div>
 
       <CategoryPicker
-        category={form.category}
+        categories={form.categories}
         customCategories={customCategories}
-        onSelect={(value) => setForm((f) => ({ ...f, category: f.category === value ? '' : value }))}
+        onToggle={(value) => setForm((f) => ({
+          ...f,
+          categories: f.categories.includes(value)
+            ? f.categories.filter((v) => v !== value)
+            : [...f.categories, value],
+        }))}
         onAddCategory={onAddCategory}
         onUpdateCategories={onUpdateCategories}
       />
@@ -806,15 +812,15 @@ const MAX_LABEL_LENGTH = 20
 const RANDOM_EMOJIS = ['🏷️','📌','🔖','🎲','💫','⭐','🌟','✨']
 
 function CategoryPicker({
-  category,
+  categories,
   customCategories,
-  onSelect,
+  onToggle,
   onAddCategory,
   onUpdateCategories,
 }: {
-  category: string
+  categories: string[]
   customCategories?: CustomCategory[]
-  onSelect: (value: string) => void
+  onToggle: (value: string) => void
   onAddCategory?: (category: CustomCategory) => Promise<void>
   onUpdateCategories?: (categories: CustomCategory[]) => Promise<void>
 }) {
@@ -877,7 +883,7 @@ function CategoryPicker({
     setSaving(true)
     try {
       await onAddCategory?.({ id, label, emoji })
-      onSelect(id)
+      onToggle(id)
       handleCancel()
     } catch {
       setError('Failed to save')
@@ -943,7 +949,7 @@ function CategoryPicker({
     <div>
       <div className="flex items-center justify-between mb-1">
         <label className="text-sm font-medium text-text-secondary">
-          Category <span className="font-normal text-text-muted">(optional)</span>
+          Tags <span className="font-normal text-text-muted">(optional)</span>
         </label>
         {onUpdateCategories && customCategories && customCategories.length > 0 && mode !== 'manage' && (
           <button type="button" onClick={() => setMode('manage')} className="text-xs text-accent-text hover:text-accent-hover">
@@ -964,9 +970,9 @@ function CategoryPicker({
             <button
               key={cat.value}
               type="button"
-              onClick={() => onSelect(cat.value)}
+              onClick={() => onToggle(cat.value)}
               className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
-                category === cat.value
+                categories.includes(cat.value)
                   ? 'bg-accent-soft border-accent text-accent-text font-medium'
                   : 'bg-card border-line text-text-secondary hover:border-accent'
               }`}
