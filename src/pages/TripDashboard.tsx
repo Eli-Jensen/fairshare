@@ -34,7 +34,9 @@ export function TripDashboard() {
   const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<Set<string>>(new Set())
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLongPress = useRef(false)
   const [undoSettlement, setUndoSettlement] = useState<{ id: string; description: string } | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
@@ -298,31 +300,85 @@ export function TripDashboard() {
         <div>
           {/* Category filter */}
           {expenses.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap pb-3 mb-2">
+            <>
+            <div className="flex gap-1.5 flex-wrap pb-2">
               <button
-                onClick={() => setCategoryFilter('')}
+                onClick={() => setCategoryFilter(new Set())}
                 className={`text-sm px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-all ${
-                  categoryFilter === ''
+                  categoryFilter.size === 0
                     ? 'bg-accent-soft border-accent text-accent-text font-medium'
                     : 'bg-card border-line text-text-secondary'
                 }`}
               >
                 All
               </button>
-              {getAllCategories(trip.customCategories).map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => setCategoryFilter(cat.value)}
-                  className={`text-sm px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-all ${
-                    categoryFilter === cat.value
-                      ? 'bg-accent-soft border-accent text-accent-text font-medium'
-                      : 'bg-card border-line text-text-secondary'
-                  }`}
-                >
-                  {cat.emoji} {cat.label}
-                </button>
-              ))}
+              {getAllCategories(trip.customCategories).map((cat) => {
+                const isActive = categoryFilter.has(cat.value)
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => {
+                      if (isLongPress.current) return
+                      // Short press: single select (replaces current filter)
+                      if (isActive && categoryFilter.size === 1) {
+                        setCategoryFilter(new Set())
+                      } else {
+                        setCategoryFilter(new Set([cat.value]))
+                      }
+                    }}
+                    onPointerDown={() => {
+                      isLongPress.current = false
+                      longPressTimer.current = setTimeout(() => {
+                        isLongPress.current = true
+                        // Long press: toggle this category while keeping others
+                        setCategoryFilter((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(cat.value)) {
+                            next.delete(cat.value)
+                          } else {
+                            next.add(cat.value)
+                          }
+                          return next
+                        })
+                      }, 400)
+                    }}
+                    onPointerUp={() => {
+                      if (longPressTimer.current) {
+                        clearTimeout(longPressTimer.current)
+                        longPressTimer.current = null
+                      }
+                    }}
+                    onPointerLeave={() => {
+                      if (longPressTimer.current) {
+                        clearTimeout(longPressTimer.current)
+                        longPressTimer.current = null
+                      }
+                    }}
+                    className={`text-sm px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-all select-none ${
+                      isActive
+                        ? 'bg-accent-soft border-accent text-accent-text font-medium'
+                        : 'bg-card border-line text-text-secondary'
+                    }`}
+                  >
+                    {cat.emoji} {cat.label}
+                  </button>
+                )
+              })}
             </div>
+            {/* Total / Subtotal */}
+            {(() => {
+              const filtered = expenses.filter((exp) =>
+                categoryFilter.size === 0 || (exp.category && categoryFilter.has(exp.category))
+              )
+              const sum = filtered.reduce((s, e) => s + e.amountUSD, 0)
+              const isFiltered = categoryFilter.size > 0
+              return (
+                <p className="text-sm text-text-muted pb-2 mb-1">
+                  {isFiltered ? 'Subtotal' : 'Total'}: {formatMoney(sum, sc)} across {filtered.length} expense{filtered.length !== 1 ? 's' : ''}
+                </p>
+              )
+            })()}
+            </>
           )}
 
           {expenses.length === 0 ? (
@@ -338,7 +394,7 @@ export function TripDashboard() {
           ) : (
             <div className="space-y-2">
               {expenses
-                .filter((exp) => !categoryFilter || exp.category === categoryFilter)
+                .filter((exp) => categoryFilter.size === 0 || (exp.category && categoryFilter.has(exp.category)))
                 .map((exp) => (
                   <ExpenseCard
                     key={exp.id}
