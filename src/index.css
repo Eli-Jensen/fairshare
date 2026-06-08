@@ -79,6 +79,7 @@
 
 html {
   font-size: var(--text-scale, 100%);
+  scrollbar-gutter: stable;
 }
 
 body {

@@ -16,12 +16,14 @@ interface TextScaleState {
   level: number
   increase: () => void
   decrease: () => void
+  setLevel: (n: number) => void
 }
 
 const TextScaleContext = createContext<TextScaleState>({
   level: DEFAULT_LEVEL,
   increase: () => {},
   decrease: () => {},
+  setLevel: () => {},
 })
 
 export function TextScaleProvider({ children }: { children: ReactNode }) {
@@ -59,8 +61,12 @@ export function TextScaleProvider({ children }: { children: ReactNode }) {
     setLevel((l) => Math.max(l - 1, 0))
   }
 
+  function jumpTo(n: number) {
+    setLevel(Math.max(0, Math.min(n, LEVELS.length - 1)))
+  }
+
   return (
-    <TextScaleContext.Provider value={{ level, increase, decrease }}>
+    <TextScaleContext.Provider value={{ level, increase, decrease, setLevel: jumpTo }}>
       {children}
     </TextScaleContext.Provider>
   )

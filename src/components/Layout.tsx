@@ -8,7 +8,7 @@ import { hasUnseenActivity } from '../lib/activityNotification'
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
-  const { level: textLevel, increase: textIncrease, decrease: textDecrease } = useTextScale()
+  const { level: textLevel, increase: textIncrease, decrease: textDecrease, setLevel: textSetLevel } = useTextScale()
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -128,15 +128,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       </button>
                       <div className="flex-1 flex items-end justify-center" style={{ gap: '3px', height: '24px' }}>
                         {TEXT_SCALE_LEVELS.map((_, i) => (
-                          <span
+                          <button
                             key={i}
-                            className={`font-semibold leading-none transition-colors ${
+                            onClick={() => textSetLevel(i)}
+                            className={`font-semibold leading-none transition-colors cursor-pointer hover:text-accent-hover ${
                               i <= textLevel ? 'text-accent' : 'text-muted'
                             }`}
-                            style={{ fontSize: `${10 + i * 2}px` }}
+                            style={{ fontSize: `${10 + i * 2}px`, background: 'none', border: 'none', padding: 0 }}
                           >
                             A
-                          </span>
+                          </button>
                         ))}
                       </div>
                       <button
