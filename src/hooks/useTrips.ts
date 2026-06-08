@@ -33,6 +33,8 @@ export function useTrips() {
       orderBy('createdAt', 'desc')
     )
 
+    const purged = new Set<string>()
+
     return onSnapshot(q, (snap) => {
       const now = Date.now()
       const active: Trip[] = []
@@ -42,11 +44,13 @@ export function useTrips() {
 
         if (data.deletedAt) {
           // Permanently delete trips soft-deleted more than 24h ago
+          // Only purge once per session to avoid snapshot cascades
           const deletedTime = data.deletedAt.toDate?.()
-          if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+          if (deletedTime && now - deletedTime.getTime() > DAY_MS && !purged.has(d.id)) {
+            purged.add(d.id)
             purgeTrip(d.id)
           }
-          continue // Skip soft-deleted trips
+          continue
         }
 
         active.push({ id: d.id, ...data } as Trip)

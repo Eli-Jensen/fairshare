@@ -42,8 +42,9 @@ export function DeletedItems() {
     let unsubExpenses: (() => void)[] = []
     const expensesByTrip = new Map<string, DeletedExpense[]>()
 
+    let hasServerData = false
+
     const unsubTrips = onSnapshot(q, (snap) => {
-      // Update deleted trips
       const deleted: DeletedTrip[] = []
       for (const d of snap.docs) {
         const data = d.data()
@@ -51,7 +52,13 @@ export function DeletedItems() {
           deleted.push({ id: d.id, ...data } as DeletedTrip)
         }
       }
-      setDeletedTrips(deleted)
+
+      if (!snap.metadata.fromCache) hasServerData = true
+
+      // Don't let a stale cache snapshot clear data we already have from the server
+      if (deleted.length > 0 || !snap.metadata.fromCache || !hasServerData) {
+        setDeletedTrips(deleted)
+      }
       setLoading(false)
 
       // Rebuild expense listeners for active (non-deleted) trips
