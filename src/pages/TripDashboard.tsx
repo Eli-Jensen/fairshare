@@ -81,6 +81,7 @@ export function TripDashboard() {
         actorUid: user!.uid,
         targetDescription: trimmed,
         previousValues: { name: oldName },
+        editDetails: [`name: "${oldName}" → "${trimmed}"`],
       })
     }
     setEditingName(false)
@@ -183,6 +184,7 @@ export function TripDashboard() {
                   actorUid: user!.uid,
                   targetDescription: `${oldCurrency} → ${code}`,
                   previousValues: { settlementCurrency: oldCurrency },
+                  editDetails: [`settlement currency: ${oldCurrency} → ${code}`],
                 })
               }}
             />

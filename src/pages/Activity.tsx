@@ -302,6 +302,15 @@ export function Activity() {
                           : describeAction(entry, members, tripCurrencies[entry.tripId!] ?? DEFAULT_CURRENCY)
                         }
                       </p>
+                      {!isUndone && entry.editDetails && entry.editDetails.length > 0 && (
+                        <div className="mt-0.5 space-y-0.5">
+                          {entry.editDetails.map((detail, j) => (
+                            <p key={j} className="text-sm text-text-muted">
+                              {detail}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-sm text-accent-text">
                           {entry.tripName}
