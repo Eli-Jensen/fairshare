@@ -66,18 +66,25 @@ export interface Expense {
 export type ExpenseCategory = 'food' | 'groceries' | 'transport' | 'accommodation' | 'activities' | 'entertainment' | 'shopping' | 'health' | 'tips' | 'services' | 'other'
 
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; emoji: string }[] = [
-  { value: 'food', label: 'Dining', emoji: '🍽️' },
-  { value: 'groceries', label: 'Groceries', emoji: '🛒' },
   { value: 'transport', label: 'Transport', emoji: '🚗' },
-  { value: 'accommodation', label: 'Accommodation', emoji: '🏨' },
+  { value: 'accommodation', label: 'Housing', emoji: '🏨' },
   { value: 'activities', label: 'Activities', emoji: '🎯' },
   { value: 'entertainment', label: 'Entertainment', emoji: '🎭' },
-  { value: 'shopping', label: 'Shopping', emoji: '🛍️' },
-  { value: 'health', label: 'Health', emoji: '💊' },
-  { value: 'tips', label: 'Tips', emoji: '💰' },
-  { value: 'services', label: 'Services', emoji: '🔧' },
+  { value: 'groceries', label: 'Groceries', emoji: '🛒' },
   { value: 'other', label: 'Other', emoji: '📦' },
 ]
+
+const LEGACY_CATEGORIES: Record<string, { label: string; emoji: string }> = {
+  food: { label: 'Dining', emoji: '🍽️' },
+  shopping: { label: 'Shopping', emoji: '🛍️' },
+  health: { label: 'Health', emoji: '💊' },
+  tips: { label: 'Tips', emoji: '💰' },
+  services: { label: 'Services', emoji: '🔧' },
+}
+
+export function getCategoryInfo(value: string): { label: string; emoji: string } | undefined {
+  return EXPENSE_CATEGORIES.find((c) => c.value === value) ?? LEGACY_CATEGORIES[value]
+}
 
 export interface Settlement {
   from: string

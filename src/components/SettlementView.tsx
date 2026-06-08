@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Expense, UserProfile } from '../lib/types'
-import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 
@@ -246,7 +246,7 @@ export function SettlementView({
             </h3>
             <div className="space-y-2">
               {entries.map(([cat, amount]) => {
-                const info = EXPENSE_CATEGORIES.find((c) => c.value === cat)
+                const info = getCategoryInfo(cat)
                 return (
                   <div key={cat}>
                     <div className="flex items-center justify-between text-sm mb-0.5">
