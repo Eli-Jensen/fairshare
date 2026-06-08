@@ -296,7 +296,7 @@ export function TripDashboard() {
         <div>
           {/* Category filter */}
           {expenses.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto pb-3 mb-2 -mx-1 px-1">
+            <div className="flex gap-1.5 flex-wrap pb-3 mb-2">
               <button
                 onClick={() => setCategoryFilter('')}
                 className={`text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-all ${

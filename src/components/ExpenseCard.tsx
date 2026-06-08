@@ -1,5 +1,5 @@
 import type { Expense, UserProfile } from '../lib/types'
-import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
@@ -19,8 +19,8 @@ export function ExpenseCard({
     : ''
 
   const categoryInfo = expense.category
-    ? EXPENSE_CATEGORIES.find((c) => c.value === expense.category)
-    : null
+    ? getCategoryInfo(expense.category)
+    : undefined
 
   const isSettlement = expense.isSettlement
 
