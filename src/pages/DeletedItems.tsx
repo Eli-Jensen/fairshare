@@ -97,6 +97,9 @@ export function DeletedItems() {
       for (const id of expensesByTrip.keys()) {
         if (!activeTripIds.has(id)) expensesByTrip.delete(id)
       }
+    }, (err) => {
+      console.error('DeletedItems listener error:', err)
+      setLoading(false)
     })
 
     return () => {

@@ -27,6 +27,8 @@ export function useTrips() {
       return
     }
 
+    setLoading(true)
+
     const q = query(
       collection(db, 'trips'),
       where('memberUids', 'array-contains', user.uid),
@@ -43,8 +45,6 @@ export function useTrips() {
         const data = d.data()
 
         if (data.deletedAt) {
-          // Permanently delete trips soft-deleted more than 24h ago
-          // Only purge once per session to avoid snapshot cascades
           const deletedTime = data.deletedAt.toDate?.()
           if (deletedTime && now - deletedTime.getTime() > DAY_MS && !purged.has(d.id)) {
             purged.add(d.id)
@@ -57,6 +57,9 @@ export function useTrips() {
       }
 
       setTrips(active)
+      setLoading(false)
+    }, (err) => {
+      console.error('useTrips listener error:', err)
       setLoading(false)
     })
   }, [user?.uid])
