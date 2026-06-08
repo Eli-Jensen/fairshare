@@ -13,6 +13,11 @@ import { useProfileCache } from '../hooks/useProfileCache'
 import { formatMoney, getMemberName, tripLabel } from '../lib/types'
 import type { ActivityLogEntry, UserProfile, Trip } from '../lib/types'
 import { MemberAvatar } from '../components/MemberAvatar'
+import {
+  getActivitySeenTimestamp,
+  setActivitySeenTimestamp,
+  setActivityLatestTimestamp,
+} from '../lib/activityNotification'
 
 const MAX_ENTRIES_PER_TRIP = 20
 
@@ -71,6 +76,19 @@ export function Activity() {
   const [entries, setEntries] = useState<ActivityLogEntry[]>([])
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [loading, setLoading] = useState(true)
+  const [seenTimestamp, setSeenTimestamp] = useState(0)
+
+  // Read the old "seen" timestamp for highlighting, then mark as seen now
+  useEffect(() => {
+    if (!user?.uid) return
+    const seen = getActivitySeenTimestamp(user.uid)
+    setSeenTimestamp(seen)
+    setActivitySeenTimestamp(user.uid, Date.now())
+    return () => {
+      // Update again on unmount to catch entries that arrived while viewing
+      setActivitySeenTimestamp(user.uid, Date.now())
+    }
+  }, [user?.uid])
 
   useEffect(() => {
     if (!user?.uid) return
@@ -137,6 +155,14 @@ export function Activity() {
             })
           setEntries(all)
 
+          // Update latest timestamp for notification dot
+          if (all.length > 0 && user?.uid) {
+            const latestTime = all[0].createdAt?.toDate?.()?.getTime() ?? 0
+            if (latestTime > 0) {
+              setActivityLatestTimestamp(user.uid, latestTime)
+            }
+          }
+
           loadedCount++
           if (loadedCount >= trips.length) setLoading(false)
         })
@@ -198,13 +224,30 @@ export function Activity() {
               {group.entries.map((entry) => {
                 const time = entry.createdAt?.toDate?.()
                 const isSettlement = entry.action === 'settlement_recorded'
+                const entryTime = time?.getTime() ?? 0
+                const isNew = seenTimestamp > 0 && entryTime > seenTimestamp
                 return (
                   <a
                     key={entry.id}
                     href={`/trip/${entry.tripId}`}
-                    className="flex items-start gap-2.5 py-2.5 px-3 -mx-3 rounded-lg hover:bg-card-hover transition-colors"
+                    className={`flex items-start gap-2.5 py-2.5 px-3 -mx-3 rounded-lg transition-colors ${
+                      isSettlement
+                        ? 'bg-accent-soft hover:bg-accent-soft/80'
+                        : 'hover:bg-card-hover'
+                    } ${isNew ? 'animate-highlight' : ''}`}
                   >
-                    <MemberAvatar member={members[entry.actorUid]} size="sm" />
+                    {isSettlement && entry.targetPayeeUid ? (
+                      <div className="relative w-9 h-6 shrink-0">
+                        <div className="absolute top-0 left-0 z-10 ring-2 ring-card rounded-full">
+                          <MemberAvatar member={members[entry.actorUid]} size="sm" />
+                        </div>
+                        <div className="absolute top-0 left-3 z-0">
+                          <MemberAvatar member={members[entry.targetPayeeUid]} size="sm" />
+                        </div>
+                      </div>
+                    ) : (
+                      <MemberAvatar member={members[entry.actorUid]} size="sm" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm ${isSettlement ? 'text-text font-medium' : 'text-text-secondary'}`}>
                         {describeAction(entry, members, 'USD')}

@@ -90,7 +90,7 @@ export function TripDashboard() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div>
       <div className="mb-6">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-3">

@@ -1,23 +1,29 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
+import { hasUnseenActivity } from '../lib/activityNotification'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [hasUnseen, setHasUnseen] = useState(false)
 
-  // Close menu on navigation
+  // Close menu on navigation, re-check unseen activity
   useEffect(() => {
     setMenuOpen(false)
-  }, [location.pathname])
+    if (user?.uid) {
+      setHasUnseen(hasUnseenActivity(user.uid))
+    }
+  }, [location.pathname, user?.uid])
 
   return (
     <div className="min-h-screen flex flex-col bg-page text-text transition-colors">
       <header className="bg-card border-b border-line sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-accent-text ">
             <svg className="w-6 h-6" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
               <rect width="32" height="32" rx="7" fill="currentColor"/>
@@ -27,32 +33,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
             fairshare
           </Link>
           {user && (
-            <div className="flex items-center gap-3">
-              <Link
-                to="/activity"
-                className="text-sm text-text-muted hover:text-text-secondary transition-colors flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                Activity
-              </Link>
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-primary-200 transition-all"
+                className="relative w-8 h-8 rounded-full overflow-visible ring-2 ring-transparent hover:ring-primary-200 transition-all"
               >
-                {user.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt=""
-                    className="w-full h-full"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-primary-100 text-accent-text  flex items-center justify-center text-sm font-medium">
-                    {user.displayName?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt=""
+                      className="w-full h-full"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-primary-100 text-accent-text flex items-center justify-center text-sm font-medium">
+                      {user.displayName?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                </div>
+                {hasUnseen && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full ring-2 ring-card" />
                 )}
               </button>
 
@@ -108,6 +109,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => {
                       setMenuOpen(false)
+                      navigate('/activity')
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-card-hover transition-colors flex items-center gap-1.5 ${
+                      hasUnseen ? 'text-accent-text font-medium' : 'text-text-secondary'
+                    }`}
+                  >
+                    All Activity
+                    {hasUnseen && (
+                      <span className="w-1.5 h-1.5 bg-accent rounded-full" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
                       navigate('/profile')
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
@@ -138,12 +153,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </>
               )}
             </div>
-            </div>
           )}
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         {children}
       </main>
     </div>

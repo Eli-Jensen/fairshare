@@ -15,7 +15,7 @@ import { useTrip } from '../hooks/useTrip'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
-import { getMemberName, tripLabel, type RemovedMember } from '../lib/types'
+import { getMemberName, tripLabel, type RemovedMember, type UserProfile } from '../lib/types'
 import { useTrips } from '../hooks/useTrips'
 import { useProfileCache } from '../hooks/useProfileCache'
 
@@ -40,6 +40,28 @@ export function TripInvite() {
 
   // Groups the user belongs to (for "import from group")
   const groups = allTrips.filter((t) => t.type === 'group' && t.id !== id)
+
+  // Expandable group members
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [groupProfiles, setGroupProfiles] = useState<Record<string, Record<string, UserProfile>>>({})
+  const [loadingGroup, setLoadingGroup] = useState<string | null>(null)
+
+  async function toggleGroup(groupId: string, memberUids: string[]) {
+    const next = new Set(expandedGroups)
+    if (next.has(groupId)) {
+      next.delete(groupId)
+      setExpandedGroups(next)
+      return
+    }
+    next.add(groupId)
+    setExpandedGroups(next)
+    if (!groupProfiles[groupId]) {
+      setLoadingGroup(groupId)
+      const profiles = await getProfiles(memberUids)
+      setGroupProfiles((prev) => ({ ...prev, [groupId]: profiles }))
+      setLoadingGroup(null)
+    }
+  }
 
   // Load recent contacts from user doc
   useEffect(() => {
@@ -271,41 +293,100 @@ export function TripInvite() {
         <div className="mb-6">
           <h3 className="text-sm font-medium text-text-secondary mb-2">Add from a group</h3>
           <div className="space-y-1">
-            {groups.map((g) => (
-              <div
-                key={g.id}
-                className="flex items-center justify-between bg-card border border-line rounded-lg px-3 py-2"
-              >
-                <div>
-                  <span className="text-sm text-text">👥 {g.name}</span>
-                  <span className="text-xs text-text-muted ml-2">
-                    {g.memberUids.length} member{g.memberUids.length !== 1 ? 's' : ''}
-                  </span>
+            {groups.map((g) => {
+              const isExpanded = expandedGroups.has(g.id)
+              const profiles = groupProfiles[g.id]
+              const isLoading = loadingGroup === g.id
+              return (
+                <div key={g.id} className="bg-card border border-line rounded-lg overflow-hidden">
+                  {/* Group header row */}
+                  <div className="flex items-center px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.id, g.memberUids)}
+                      className="mr-2 text-text-muted hover:text-text-secondary transition-colors"
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.id, g.memberUids)}
+                      className="flex-1 text-left"
+                    >
+                      <span className="text-sm text-text">👥 {g.name}</span>
+                      <span className="text-sm text-text-muted ml-2">
+                        {g.memberUids.length} member{g.memberUids.length !== 1 ? 's' : ''}
+                      </span>
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const p = profiles || await getProfiles(g.memberUids)
+                        if (!profiles) setGroupProfiles((prev) => ({ ...prev, [g.id]: p }))
+                        let added = 0
+                        for (const uid of g.memberUids) {
+                          const profile = p[uid]
+                          if (!profile?.email) continue
+                          const em = profile.email.toLowerCase()
+                          if (!isAlreadyInTrip(em) && !justInvited.includes(em)) {
+                            await inviteEmail(em)
+                            added++
+                          }
+                        }
+                        if (added === 0) {
+                          setError(`All group members already in this ${tl}`)
+                        }
+                      }}
+                      className="text-sm font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors shrink-0"
+                    >
+                      Add all
+                    </button>
+                  </div>
+
+                  {/* Expanded member list */}
+                  {isExpanded && (
+                    <div className="border-t border-line-light px-3 py-2 pl-9 space-y-1">
+                      {isLoading && (
+                        <p className="text-sm text-text-muted py-1">Loading...</p>
+                      )}
+                      {profiles && g.memberUids.map((uid) => {
+                        const profile = profiles[uid]
+                        if (!profile) return null
+                        const em = profile.email?.toLowerCase() ?? ''
+                        const alreadyAdded = isAlreadyInTrip(em) || justInvited.includes(em)
+                        return (
+                          <div key={uid} className="flex items-center justify-between py-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <MemberAvatar member={profile} size="sm" />
+                              <div className="min-w-0">
+                                <p className="text-sm text-text truncate">{profile.displayName || profile.email}</p>
+                                {profile.displayName && (
+                                  <p className="text-sm text-text-muted truncate">{profile.email}</p>
+                                )}
+                              </div>
+                            </div>
+                            {alreadyAdded ? (
+                              <span className="text-sm text-text-muted shrink-0">Added</span>
+                            ) : (
+                              <button
+                                onClick={() => inviteEmail(em)}
+                                className="text-sm font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors shrink-0"
+                              >
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={async () => {
-                    // Load member profiles from this group
-                    const profiles = await getProfiles(g.memberUids)
-                    let added = 0
-                    for (const uid of g.memberUids) {
-                      const profile = profiles[uid]
-                      if (!profile?.email) continue
-                      const email = profile.email.toLowerCase()
-                      if (!isAlreadyInTrip(email) && !justInvited.includes(email)) {
-                        await inviteEmail(email)
-                        added++
-                      }
-                    }
-                    if (added === 0) {
-                      setError(`All group members already in this ${tl}`)
-                    }
-                  }}
-                  className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors"
-                >
-                  Add all
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

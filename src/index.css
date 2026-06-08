@@ -103,3 +103,12 @@ body {
 .animate-slide-up {
   animation: slide-up 0.2s ease-out;
 }
+
+@keyframes highlight-fade {
+  0% { background-color: var(--color-accent-soft); }
+  100% { background-color: transparent; }
+}
+
+.animate-highlight {
+  animation: highlight-fade 2s ease-out forwards;
+}
