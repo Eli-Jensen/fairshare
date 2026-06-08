@@ -79,10 +79,29 @@ export function useTrip(tripId: string | undefined) {
       limit(50)
     )
 
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
+
     return onSnapshot(q, (snap) => {
-      setActivityLog(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ActivityLogEntry)
-      )
+      const now = Date.now()
+      const active: ActivityLogEntry[] = []
+
+      for (const d of snap.docs) {
+        const data = d.data()
+        const createdTime = data.createdAt?.toDate?.()
+        if (createdTime) {
+          const age = now - createdTime.getTime()
+          const isSettlement = data.action === 'settlement_recorded'
+          const maxAge = isSettlement ? TWO_WEEKS_MS : WEEK_MS
+          if (age > maxAge) {
+            deleteDoc(d.ref)
+            continue
+          }
+        }
+        active.push({ id: d.id, ...data } as ActivityLogEntry)
+      }
+
+      setActivityLog(active)
     })
   }, [tripId])
 

@@ -517,7 +517,7 @@ export function TripDashboard() {
 
       {tab === 'activity' && (
         <div className="min-w-0">
-          <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} tripId={id} />
+          <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} tripId={id} currentUserUid={user?.uid} />
         </div>
       )}
 

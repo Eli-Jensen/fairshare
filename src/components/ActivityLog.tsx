@@ -78,12 +78,14 @@ export function ActivityLog({
   settlementCurrency,
   tripType,
   tripId,
+  currentUserUid,
 }: {
   entries: ActivityLogEntry[]
   members: Record<string, UserProfile>
   settlementCurrency?: string
   tripType?: TripType
   tripId?: string
+  currentUserUid?: string
 }) {
   const [undoneIds, setUndoneIds] = useState<Set<string>>(new Set())
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -94,7 +96,7 @@ export function ActivityLog({
 
     setLoadingId(entry.id)
     try {
-      await executeUndo(entry, tid, undoAction)
+      await executeUndo(entry, tid, undoAction, currentUserUid)
       setUndoneIds((prev) => new Set(prev).add(entry.id))
     } catch {
       // Silently fail — target may already be changed
@@ -121,12 +123,32 @@ export function ActivityLog({
           <div key={entry.id} className={`flex items-start gap-2.5 py-2 group ${isUndone ? 'opacity-50' : ''}`}>
             <MemberAvatar member={members[entry.actorUid]} size="sm" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-text-secondary">
-                {isUndone
-                  ? <span className="italic">Undone</span>
-                  : describeAction(entry, members, settlementCurrency ?? DEFAULT_CURRENCY, tripType)
-                }
-              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm text-text-secondary">
+                  {isUndone
+                    ? <span className="italic">Undone</span>
+                    : describeAction(entry, members, settlementCurrency ?? DEFAULT_CURRENCY, tripType)
+                  }
+                </p>
+                {undoAction && !isUndone && (
+                  <button
+                    onClick={() => handleUndo(entry, undoAction)}
+                    disabled={isLoading}
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-accent-text hover:bg-accent-soft disabled:opacity-50 transition-colors"
+                  >
+                    {isLoading ? (
+                      <span className="inline-block w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+                        </svg>
+                        {undoAction === 'restore' || undoAction === 'restore-trip' ? 'Restore' : 'Undo'}
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
               {!isUndone && entry.editDetails && entry.editDetails.length > 0 && (
                 <div className="mt-0.5 space-y-0.5">
                   {entry.editDetails.map((detail, j) => (
@@ -140,22 +162,6 @@ export function ActivityLog({
                 <p className="text-sm text-text-muted mt-0.5">{relativeTime(time)}</p>
               )}
             </div>
-            {undoAction && !isUndone && (
-              <button
-                onClick={() => handleUndo(entry, undoAction)}
-                disabled={isLoading}
-                className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 transition-opacity px-2 py-1 rounded-md text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-muted disabled:opacity-50"
-                title={undoAction === 'restore' ? 'Restore' : 'Undo'}
-              >
-                {isLoading ? (
-                  <span className="inline-block w-3.5 h-3.5 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
-                  </svg>
-                )}
-              </button>
-            )}
           </div>
         )
       })}

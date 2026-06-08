@@ -209,7 +209,7 @@ export function Activity() {
 
     setLoadingId(entry.id)
     try {
-      await executeUndo(entry, entry.tripId, undoAction)
+      await executeUndo(entry, entry.tripId, undoAction, user?.uid)
       setUndoneIds((prev) => new Set(prev).add(entry.id))
     } catch {
       // Silently fail — target may already be changed
@@ -292,16 +292,35 @@ export function Activity() {
                     ) : (
                       <MemberAvatar member={members[entry.actorUid]} size="sm" />
                     )}
-                    <a
-                      href={`/trip/${entry.tripId}`}
-                      className="flex-1 min-w-0"
-                    >
-                      <p className={`text-sm ${isSettlement ? 'text-text font-medium' : 'text-text-secondary'}`}>
-                        {isUndone
-                          ? <span className="italic">Undone</span>
-                          : describeAction(entry, members, tripCurrencies[entry.tripId!] ?? DEFAULT_CURRENCY)
-                        }
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <a href={`/trip/${entry.tripId}`} className="min-w-0">
+                          <p className={`text-sm ${isSettlement ? 'text-text font-medium' : 'text-text-secondary'}`}>
+                            {isUndone
+                              ? <span className="italic">Undone</span>
+                              : describeAction(entry, members, tripCurrencies[entry.tripId!] ?? DEFAULT_CURRENCY)
+                            }
+                          </p>
+                        </a>
+                        {undoAction && !isUndone && (
+                          <button
+                            onClick={(e) => { e.preventDefault(); handleUndo(entry, undoAction) }}
+                            disabled={isUndoLoading}
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-accent-text hover:bg-accent-soft disabled:opacity-50 transition-colors"
+                          >
+                            {isUndoLoading ? (
+                              <span className="inline-block w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+                                </svg>
+                                {undoAction === 'restore' || undoAction === 'restore-trip' ? 'Restore' : 'Undo'}
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                       {!isUndone && entry.editDetails && entry.editDetails.length > 0 && (
                         <div className="mt-0.5 space-y-0.5">
                           {entry.editDetails.map((detail, j) => (
@@ -312,30 +331,14 @@ export function Activity() {
                         </div>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-sm text-accent-text">
+                        <a href={`/trip/${entry.tripId}`} className="text-sm text-accent-text">
                           {entry.tripName}
-                        </span>
+                        </a>
                         {time && (
                           <span className="text-sm text-text-muted">{relativeTime(time)}</span>
                         )}
                       </div>
-                    </a>
-                    {undoAction && !isUndone && (
-                      <button
-                        onClick={() => handleUndo(entry, undoAction)}
-                        disabled={isUndoLoading}
-                        className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 transition-opacity px-2 py-1 rounded-md text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-muted disabled:opacity-50 self-center"
-                        title={undoAction === 'restore' ? 'Restore' : 'Undo'}
-                      >
-                        {isUndoLoading ? (
-                          <span className="inline-block w-3.5 h-3.5 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
-                          </svg>
-                        )}
-                      </button>
-                    )}
+                    </div>
                   </div>
                 )
               })}

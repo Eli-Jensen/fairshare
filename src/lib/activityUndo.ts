@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ActivityLogEntry } from './types'
+import { writeActivity } from './activity'
 
 export type UndoAction =
   | 'soft-delete'      // expense_added, settlement_recorded, expense_restored
@@ -74,7 +75,8 @@ export function getUndoAction(entry: ActivityLogEntry): UndoAction | null {
 export async function executeUndo(
   entry: ActivityLogEntry,
   tripId: string,
-  undoAction: UndoAction
+  undoAction: UndoAction,
+  actorUid?: string
 ): Promise<void> {
   const tripRef = doc(db, 'trips', tripId)
 
@@ -84,18 +86,46 @@ export async function executeUndo(
       if (!entry.targetExpenseId) return
       const expenseRef = doc(db, 'trips', tripId, 'expenses', entry.targetExpenseId)
       await updateDoc(expenseRef, { deletedAt: serverTimestamp() })
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'expense_deleted',
+          actorUid,
+          targetDescription: entry.targetDescription,
+          targetAmount: entry.targetAmount,
+          targetExpenseId: entry.targetExpenseId,
+        })
+      }
       break
     }
     case 'restore': {
       if (!entry.targetExpenseId) return
       const expenseRef = doc(db, 'trips', tripId, 'expenses', entry.targetExpenseId)
       await updateDoc(expenseRef, { deletedAt: deleteField() })
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'expense_restored',
+          actorUid,
+          targetDescription: entry.targetDescription,
+          targetAmount: entry.targetAmount,
+          targetExpenseId: entry.targetExpenseId,
+        })
+      }
       break
     }
     case 'revert-edit': {
       if (!entry.targetExpenseId || !entry.previousValues) return
       const expenseRef = doc(db, 'trips', tripId, 'expenses', entry.targetExpenseId)
       await updateDoc(expenseRef, entry.previousValues)
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'expense_edited',
+          actorUid,
+          targetDescription: entry.targetDescription,
+          targetAmount: entry.targetAmount,
+          targetExpenseId: entry.targetExpenseId,
+          editDetails: ['reverted to previous values'],
+        })
+      }
       break
     }
 
@@ -103,11 +133,27 @@ export async function executeUndo(
     case 're-add-member': {
       if (!entry.targetMemberUid) return
       await updateDoc(tripRef, { memberUids: arrayUnion(entry.targetMemberUid) })
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'member_joined',
+          actorUid,
+          targetMemberUid: entry.targetMemberUid,
+          targetDescription: entry.targetDescription,
+        })
+      }
       break
     }
     case 'remove-member': {
       if (!entry.targetMemberUid) return
       await updateDoc(tripRef, { memberUids: arrayRemove(entry.targetMemberUid) })
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'member_removed',
+          actorUid,
+          targetMemberUid: entry.targetMemberUid,
+          targetDescription: entry.targetDescription,
+        })
+      }
       break
     }
     case 'uninvite': {
@@ -117,18 +163,56 @@ export async function executeUndo(
     }
 
     // Trip undo actions
-    case 'revert-rename':
+    case 'revert-rename': {
+      if (!entry.previousValues) return
+      const oldName = entry.previousValues.name as string | undefined
+      await updateDoc(tripRef, entry.previousValues)
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'trip_renamed',
+          actorUid,
+          targetDescription: oldName ?? '',
+          previousValues: { name: entry.targetDescription },
+          editDetails: [`name: "${entry.targetDescription}" → "${oldName}"`],
+        })
+      }
+      break
+    }
     case 'revert-currency': {
       if (!entry.previousValues) return
+      const oldCurrency = entry.previousValues.settlementCurrency as string | undefined
       await updateDoc(tripRef, entry.previousValues)
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'currency_changed',
+          actorUid,
+          targetDescription: `reverted to ${oldCurrency}`,
+          previousValues: entry.targetDescription ? { settlementCurrency: entry.targetDescription.split(' → ')[1] } : undefined,
+          editDetails: [`settlement currency: reverted to ${oldCurrency}`],
+        })
+      }
       break
     }
     case 'restore-trip': {
       await updateDoc(tripRef, { deletedAt: deleteField() })
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'trip_restored',
+          actorUid,
+          targetDescription: entry.targetDescription,
+        })
+      }
       break
     }
     case 're-delete-trip': {
       await updateDoc(tripRef, { deletedAt: serverTimestamp() })
+      if (actorUid) {
+        writeActivity(tripId, {
+          action: 'trip_deleted',
+          actorUid,
+          targetDescription: entry.targetDescription,
+        })
+      }
       break
     }
   }
