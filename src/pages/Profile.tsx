@@ -29,7 +29,7 @@ export function Profile() {
       setLoading(false)
     }
     load()
-  }, [user])
+  }, [user?.uid])
 
   if (loading || !profile || !user) {
     return <div className="text-center py-10 text-text-muted">Loading...</div>

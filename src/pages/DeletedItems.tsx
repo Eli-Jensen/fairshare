@@ -96,7 +96,7 @@ export function DeletedItems() {
       unsubTrips()
       unsubExpenses.forEach((u) => u())
     }
-  }, [user])
+  }, [user?.uid])
 
   async function restoreTrip(tripId: string) {
     setRestoring(tripId)

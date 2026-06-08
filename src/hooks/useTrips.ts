@@ -55,7 +55,7 @@ export function useTrips() {
       setTrips(active)
       setLoading(false)
     })
-  }, [user])
+  }, [user?.uid])
 
   return { trips, loading }
 }

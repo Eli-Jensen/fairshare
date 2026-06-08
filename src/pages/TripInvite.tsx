@@ -52,7 +52,7 @@ export function TripInvite() {
       }
     }
     loadContacts()
-  }, [user])
+  }, [user?.uid])
 
   // Clean up expired removed members (>24h)
   useEffect(() => {
