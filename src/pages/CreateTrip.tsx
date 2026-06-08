@@ -7,6 +7,7 @@ import { useTrips } from '../hooks/useTrips'
 import { CurrencyPicker } from '../components/CurrencyPicker'
 import type { TripType } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
+import { writeActivity } from '../lib/activity'
 
 const MAX_TRIPS = 100
 
@@ -43,6 +44,11 @@ export function CreateTrip() {
       inviteCode: generateInviteCode(),
       settlementCurrency: currency,
       createdAt: serverTimestamp(),
+    })
+    writeActivity(ref.id, {
+      action: 'trip_created',
+      actorUid: user.uid,
+      targetDescription: name.trim(),
     })
     navigate(`/trip/${ref.id}`)
   }

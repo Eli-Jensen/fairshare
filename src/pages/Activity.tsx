@@ -6,17 +6,13 @@ import {
   orderBy,
   limit,
   onSnapshot,
-  doc,
-  updateDoc,
-  serverTimestamp,
-  deleteField,
-  arrayUnion,
-  arrayRemove,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useProfileCache } from '../hooks/useProfileCache'
 import { formatMoney, getMemberName, tripLabel, DEFAULT_CURRENCY } from '../lib/types'
+import { getUndoAction, executeUndo } from '../lib/activityUndo'
+import type { UndoAction } from '../lib/activityUndo'
 import type { ActivityLogEntry, UserProfile, Trip } from '../lib/types'
 import { MemberAvatar } from '../components/MemberAvatar'
 import {
@@ -75,21 +71,25 @@ function describeAction(
     }
     case 'trip_created':
       return `${actor} created this ${tripLabel(undefined)}`
+    case 'trip_renamed':
+      return `${actor} renamed to "${desc}"`
+    case 'trip_deleted':
+      return `${actor} deleted`
+    case 'trip_restored':
+      return `${actor} restored`
+    case 'currency_changed':
+      return `${actor} changed currency (${desc})`
+    case 'member_invited':
+      return `${actor} invited ${desc}`
+    case 'expense_restored':
+      return `${actor} restored ${desc}${amt ? ` (${amt})` : ''}`
+    case 'comment_added':
+      return `${actor} commented on ${desc}`
     default:
       return `${actor} performed an action`
   }
 }
 
-/** Which actions can be undone, and what the undo does */
-function getUndoAction(entry: ActivityLogEntry): 'soft-delete' | 'restore' | 're-add-member' | 'remove-member' | null {
-  if (!entry.tripId) return null
-  if (entry.action === 'member_removed' && entry.targetMemberUid) return 're-add-member'
-  if (entry.action === 'member_joined' && entry.targetMemberUid) return 'remove-member'
-  if (!entry.targetExpenseId) return null
-  if (entry.action === 'expense_added' || entry.action === 'settlement_recorded') return 'soft-delete'
-  if (entry.action === 'expense_deleted') return 'restore'
-  return null
-}
 
 export function Activity() {
   const { user } = useAuth()
@@ -204,26 +204,12 @@ export function Activity() {
     }
   }, [user?.uid])
 
-  async function handleUndo(entry: ActivityLogEntry, undoAction: 'soft-delete' | 'restore' | 're-add-member' | 'remove-member') {
+  async function handleUndo(entry: ActivityLogEntry, undoAction: UndoAction) {
     if (!entry.tripId) return
 
     setLoadingId(entry.id)
     try {
-      if (undoAction === 're-add-member' || undoAction === 'remove-member') {
-        const tripRef = doc(db, 'trips', entry.tripId)
-        if (undoAction === 're-add-member' && entry.targetMemberUid) {
-          await updateDoc(tripRef, { memberUids: arrayUnion(entry.targetMemberUid) })
-        } else if (undoAction === 'remove-member' && entry.targetMemberUid) {
-          await updateDoc(tripRef, { memberUids: arrayRemove(entry.targetMemberUid) })
-        }
-      } else if (entry.targetExpenseId) {
-        const expenseRef = doc(db, 'trips', entry.tripId, 'expenses', entry.targetExpenseId)
-        if (undoAction === 'soft-delete') {
-          await updateDoc(expenseRef, { deletedAt: serverTimestamp() })
-        } else {
-          await updateDoc(expenseRef, { deletedAt: deleteField() })
-        }
-      }
+      await executeUndo(entry, entry.tripId, undoAction)
       setUndoneIds((prev) => new Set(prev).add(entry.id))
     } catch {
       // Silently fail — target may already be changed

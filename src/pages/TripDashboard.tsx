@@ -73,7 +73,16 @@ export function TripDashboard() {
       setEditingName(false)
       return
     }
+    const oldName = trip?.name
     await updateDoc(doc(db, 'trips', id), { name: trimmed })
+    if (oldName && oldName !== trimmed) {
+      writeActivity(id, {
+        action: 'trip_renamed',
+        actorUid: user!.uid,
+        targetDescription: trimmed,
+        previousValues: { name: oldName },
+      })
+    }
     setEditingName(false)
   }
 
@@ -167,7 +176,14 @@ export function TripDashboard() {
             <CurrencyPicker
               value={sc}
               onChange={async (code) => {
+                const oldCurrency = sc
                 await updateDoc(doc(db, 'trips', id!), { settlementCurrency: code })
+                writeActivity(id!, {
+                  action: 'currency_changed',
+                  actorUid: user!.uid,
+                  targetDescription: `${oldCurrency} → ${code}`,
+                  previousValues: { settlementCurrency: oldCurrency },
+                })
               }}
             />
           </div>
@@ -512,6 +528,11 @@ export function TripDashboard() {
             setShowDeleteModal(false)
             await updateDoc(doc(db, 'trips', id!), {
               deletedAt: serverTimestamp(),
+            })
+            writeActivity(id!, {
+              action: 'trip_deleted',
+              actorUid: user!.uid,
+              targetDescription: trip.name,
             })
             navigate('/', {
               state: { deletedTripId: id, deletedTripName: trip.name },

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { doc, updateDoc, serverTimestamp, deleteField, arrayUnion, arrayRemove } from 'firebase/firestore'
-import { db } from '../lib/firebase'
 import type { ActivityLogEntry, UserProfile, TripType } from '../lib/types'
 import { formatMoney, getMemberName, tripLabel, DEFAULT_CURRENCY } from '../lib/types'
+import { getUndoAction, executeUndo } from '../lib/activityUndo'
+import type { UndoAction } from '../lib/activityUndo'
 import { MemberAvatar } from './MemberAvatar'
 
 function relativeTime(date: Date): string {
@@ -52,20 +52,25 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
     }
     case 'trip_created':
       return `${actor} created the ${tl}`
+    case 'trip_renamed':
+      return `${actor} renamed the ${tl} to "${desc}"`
+    case 'trip_deleted':
+      return `${actor} deleted the ${tl}`
+    case 'trip_restored':
+      return `${actor} restored the ${tl}`
+    case 'currency_changed':
+      return `${actor} changed settlement currency (${desc})`
+    case 'member_invited':
+      return `${actor} invited ${desc}`
+    case 'expense_restored':
+      return `${actor} restored ${desc}${amt ? ` (${amt})` : ''}`
+    case 'comment_added':
+      return `${actor} commented on ${desc}`
     default:
       return `${actor} performed an action`
   }
 }
 
-/** Which actions can be undone, and what the undo does */
-function getUndoAction(entry: ActivityLogEntry): 'soft-delete' | 'restore' | 're-add-member' | 'remove-member' | null {
-  if (entry.action === 'member_removed' && entry.targetMemberUid) return 're-add-member'
-  if (entry.action === 'member_joined' && entry.targetMemberUid) return 'remove-member'
-  if (!entry.targetExpenseId) return null
-  if (entry.action === 'expense_added' || entry.action === 'settlement_recorded') return 'soft-delete'
-  if (entry.action === 'expense_deleted') return 'restore'
-  return null
-}
 
 export function ActivityLog({
   entries,
@@ -83,27 +88,13 @@ export function ActivityLog({
   const [undoneIds, setUndoneIds] = useState<Set<string>>(new Set())
   const [loadingId, setLoadingId] = useState<string | null>(null)
 
-  async function handleUndo(entry: ActivityLogEntry, undoAction: 'soft-delete' | 'restore' | 're-add-member' | 'remove-member') {
+  async function handleUndo(entry: ActivityLogEntry, undoAction: UndoAction) {
     const tid = entry.tripId ?? tripId
     if (!tid) return
 
     setLoadingId(entry.id)
     try {
-      if (undoAction === 're-add-member' || undoAction === 'remove-member') {
-        const tripRef = doc(db, 'trips', tid)
-        if (undoAction === 're-add-member' && entry.targetMemberUid) {
-          await updateDoc(tripRef, { memberUids: arrayUnion(entry.targetMemberUid) })
-        } else if (undoAction === 'remove-member' && entry.targetMemberUid) {
-          await updateDoc(tripRef, { memberUids: arrayRemove(entry.targetMemberUid) })
-        }
-      } else if (entry.targetExpenseId) {
-        const expenseRef = doc(db, 'trips', tid, 'expenses', entry.targetExpenseId)
-        if (undoAction === 'soft-delete') {
-          await updateDoc(expenseRef, { deletedAt: serverTimestamp() })
-        } else {
-          await updateDoc(expenseRef, { deletedAt: deleteField() })
-        }
-      }
+      await executeUndo(entry, tid, undoAction)
       setUndoneIds((prev) => new Set(prev).add(entry.id))
     } catch {
       // Silently fail — target may already be changed

@@ -105,6 +105,20 @@ export function EditExpense() {
             changes.push(`split: ${expense.splitType} → ${data.splitType}`)
           }
 
+          // Build previousValues from old expense for undo (uses Firestore field names)
+          const prev: Record<string, unknown> = {}
+          if (expense.description !== data.description) prev.description = expense.description
+          if (Math.abs(expense.amountSettled - data.amountUSD) > BALANCE_THRESHOLD) prev.amountUSD = expense.amountSettled
+          if (expense.currency !== data.currency) prev.currency = expense.currency
+          if (expense.exchangeRate !== data.exchangeRate) prev.exchangeRate = expense.exchangeRate
+          if (expense.amount !== data.amount) prev.amount = expense.amount
+          if (expense.paidBy !== data.paidBy) prev.paidBy = expense.paidBy
+          if (expense.splitType !== data.splitType) prev.splitType = expense.splitType
+          if (JSON.stringify(expense.splits) !== JSON.stringify(data.splits)) prev.splits = expense.splits
+          if (expense.paidByAmounts && JSON.stringify(expense.paidByAmounts) !== JSON.stringify(data.paidByAmounts)) prev.paidByAmounts = expense.paidByAmounts
+          if (expense.category !== data.category) prev.category = expense.category
+          if (expense.notes !== data.notes) prev.notes = expense.notes
+
           // Activity log is fire-and-forget
           writeActivity(id!, {
             action: 'expense_edited',
@@ -113,6 +127,7 @@ export function EditExpense() {
             targetAmount: data.amountUSD,
             targetExpenseId: eid!,
             editDetails: changes.length > 0 ? changes : undefined,
+            previousValues: Object.keys(prev).length > 0 ? prev : undefined,
           })
           navigate(`/trip/${id}`)
         }}
