@@ -72,7 +72,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 />
                 <div
                   className="absolute right-0 mt-2 bg-card border border-line rounded-lg shadow-lg py-1 w-52 z-50 animate-slide-up"
-                  style={{ zoom: TEXT_SCALE_LEVELS[menuOpenLevel] / TEXT_SCALE_LEVELS[textLevel] }}
+                  style={{
+                    transform: `scale(${TEXT_SCALE_LEVELS[menuOpenLevel] / TEXT_SCALE_LEVELS[textLevel]})`,
+                    transformOrigin: 'top right',
+                  }}
                 >
                   <div className="px-3 py-2 border-b border-line-light">
                     <p className="text-sm font-medium text-text truncate">
