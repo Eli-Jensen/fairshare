@@ -113,7 +113,7 @@ export function ActivityLog({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 max-w-lg">
       {entries.map((entry) => {
         const time = entry.createdAt?.toDate?.()
         const undoAction = getUndoAction(entry)

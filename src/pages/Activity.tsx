@@ -260,7 +260,7 @@ export function Activity() {
             <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-2">
               {group.label}
             </h2>
-            <div className="space-y-1">
+            <div className="space-y-1 max-w-lg">
               {group.entries.map((entry) => {
                 const time = entry.createdAt?.toDate?.()
                 const isSettlement = entry.action === 'settlement_recorded'

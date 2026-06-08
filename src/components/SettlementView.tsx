@@ -375,24 +375,26 @@ export function SettlementView({
         <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
           Total Spent
         </h3>
-        <div className="space-y-1">
-          {sortedSpending.map(({ uid, amount }) => (
-            <div key={uid} className="flex items-center justify-between py-1">
-              <div className="flex items-center gap-2">
-                <MemberAvatar member={members[uid]} size="sm" />
-                <span className="text-sm text-text-secondary">
-                  {getMemberName(uid, members)}
+        <div className="max-w-lg">
+          <div className="space-y-1">
+            {sortedSpending.map(({ uid, amount }) => (
+              <div key={uid} className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <MemberAvatar member={members[uid]} size="sm" />
+                  <span className="text-sm text-text-secondary">
+                    {getMemberName(uid, members)}
+                  </span>
+                </div>
+                <span className="text-sm font-medium text-text">
+                  {formatMoney(amount, sc)}
                 </span>
               </div>
-              <span className="text-sm font-medium text-text">
-                {formatMoney(amount, sc)}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between pt-2 mt-1 border-t border-line-light">
-          <span className="text-sm text-text-muted">Trip total</span>
-          <span className="text-sm font-semibold text-text">{formatMoney(totalSpent, sc)}</span>
+            ))}
+          </div>
+          <div className="flex items-center justify-between pt-2 mt-1 border-t border-line-light">
+            <span className="text-sm text-text-muted">Trip total</span>
+            <span className="text-sm font-semibold text-text">{formatMoney(totalSpent, sc)}</span>
+          </div>
         </div>
       </div>
 
@@ -401,7 +403,7 @@ export function SettlementView({
         <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
           Balances
         </h3>
-        <div className="space-y-1">
+        <div className="max-w-lg space-y-1">
           {/* Show all UIDs with balances, including removed members */}
           {Object.entries(balances)
             .sort(([, a], [, b]) => b - a)
@@ -451,7 +453,7 @@ export function SettlementView({
             <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
               By Category
             </h3>
-            <div className="space-y-2">
+            <div className="max-w-lg space-y-2">
               {entries.map(([cat, amount]) => {
                 const info = getCategoryInfo(cat, customCategories)
                 return (
