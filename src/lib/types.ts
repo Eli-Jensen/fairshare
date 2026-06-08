@@ -37,6 +37,7 @@ export interface Trip {
   lastCurrency?: string
   settlementCurrency: string // e.g. 'USD', 'EUR', 'GBP'
   simplifyDebts?: boolean // defaults to true
+  customCategories?: CustomCategory[]
   createdAt: Timestamp
 }
 
@@ -63,27 +64,78 @@ export interface Expense {
   deletedAt?: Timestamp | null
 }
 
-export type ExpenseCategory = 'food' | 'groceries' | 'transport' | 'accommodation' | 'activities' | 'entertainment' | 'shopping' | 'health' | 'tips' | 'services' | 'other'
+export type ExpenseCategory = string
 
-export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string; emoji: string }[] = [
+export interface CategoryInfo {
+  value: string
+  label: string
+  emoji: string
+}
+
+export const EXPENSE_CATEGORIES: CategoryInfo[] = [
+  { value: 'food', label: 'Food', emoji: '🍽️' },
   { value: 'transport', label: 'Transport', emoji: '🚗' },
   { value: 'accommodation', label: 'Housing', emoji: '🏨' },
-  { value: 'activities', label: 'Activities', emoji: '🎯' },
   { value: 'entertainment', label: 'Entertainment', emoji: '🎭' },
-  { value: 'groceries', label: 'Groceries', emoji: '🛒' },
   { value: 'other', label: 'Other', emoji: '📦' },
 ]
 
 const LEGACY_CATEGORIES: Record<string, { label: string; emoji: string }> = {
-  food: { label: 'Dining', emoji: '🍽️' },
+  food_and_drink: { label: 'Food & Drink', emoji: '🍽️' },
+  groceries: { label: 'Groceries', emoji: '🛒' },
+  activities: { label: 'Activities', emoji: '🎯' },
   shopping: { label: 'Shopping', emoji: '🛍️' },
   health: { label: 'Health', emoji: '💊' },
   tips: { label: 'Tips', emoji: '💰' },
   services: { label: 'Services', emoji: '🔧' },
 }
 
-export function getCategoryInfo(value: string): { label: string; emoji: string } | undefined {
-  return EXPENSE_CATEGORIES.find((c) => c.value === value) ?? LEGACY_CATEGORIES[value]
+export interface CustomCategory {
+  id: string   // unique slug, e.g. "drinks", "souvenirs"
+  label: string // display text, max 20 chars
+  emoji: string // single emoji
+}
+
+/** Get display info for a category by its value/id. Checks defaults, legacy, then trip customs. */
+export function getCategoryInfo(
+  value: string,
+  customCategories?: CustomCategory[]
+): { label: string; emoji: string } | undefined {
+  const defaultCat = EXPENSE_CATEGORIES.find((c) => c.value === value)
+  if (defaultCat) return defaultCat
+  if (LEGACY_CATEGORIES[value]) return LEGACY_CATEGORIES[value]
+  const custom = customCategories?.find((c) => c.id === value)
+  if (custom) return { label: custom.label, emoji: custom.emoji }
+  return undefined
+}
+
+/** Get all available categories for a trip (defaults + custom). */
+export function getAllCategories(customCategories?: CustomCategory[]): CategoryInfo[] {
+  const cats = [...EXPENSE_CATEGORIES]
+  if (customCategories) {
+    for (const c of customCategories) {
+      cats.push({ value: c.id, label: c.label, emoji: c.emoji })
+    }
+  }
+  return cats
+}
+
+/** Check if an emoji+label combo already exists in defaults or custom categories. */
+export function categoryExists(
+  emoji: string,
+  label: string,
+  customCategories?: CustomCategory[]
+): boolean {
+  const key = `${emoji}${label.toLowerCase().trim()}`
+  for (const cat of EXPENSE_CATEGORIES) {
+    if (`${cat.emoji}${cat.label.toLowerCase()}` === key) return true
+  }
+  if (customCategories) {
+    for (const cat of customCategories) {
+      if (`${cat.emoji}${cat.label.toLowerCase().trim()}` === key) return true
+    }
+  }
+  return false
 }
 
 export interface Settlement {
@@ -98,7 +150,11 @@ export interface ActivityLogEntry {
   actorUid: string
   targetDescription?: string
   targetAmount?: number
-  editDetails?: string[]  // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]
+  targetPayeeUid?: string   // for settlements: who received the payment
+  paymentMethod?: string    // for settlements: e.g. "Venmo", "Cash"
+  editDetails?: string[]    // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]
+  tripId?: string           // set when querying across trips for global activity
+  tripName?: string         // set when querying across trips for global activity
   createdAt: Timestamp
 }
 

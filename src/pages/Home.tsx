@@ -322,7 +322,7 @@ function InviteCard({
           {label === 'group' && <span className="text-sm">👥</span>}
           <h3 className="font-semibold text-text">{invite.name}</h3>
         </div>
-        <span className="text-xs text-text-muted">
+        <span className="text-sm text-text-muted">
           {invite.memberUids.length} member{invite.memberUids.length !== 1 ? 's' : ''}
         </span>
       </div>

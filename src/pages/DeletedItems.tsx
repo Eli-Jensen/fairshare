@@ -200,7 +200,7 @@ export function DeletedItems() {
                       <p className="text-sm font-medium text-text-secondary line-through">
                         {exp.description}
                       </p>
-                      <p className="text-xs text-text-muted">
+                      <p className="text-sm text-text-muted">
                         {formatMoney(exp.amountUSD)} in {exp.tripName}
                         {exp.deletedAt && ` · ${timeRemaining(exp.deletedAt)}`}
                       </p>
@@ -251,7 +251,7 @@ function DeletedSection({
               <p className="text-sm font-medium text-text-secondary line-through">
                 {trip.name}
               </p>
-              <p className="text-xs text-text-muted">
+              <p className="text-sm text-text-muted">
                 {trip.memberUids.length} members
                 {trip.deletedAt && ` · ${timeRemaining(trip.deletedAt)}`}
               </p>

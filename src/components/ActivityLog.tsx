@@ -20,17 +20,23 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
   const tl = tripLabel(type)
   const actor = getMemberName(entry.actorUid, members)
   const desc = entry.targetDescription ?? ''
-  const amt = entry.targetAmount ? ` (${formatMoney(entry.targetAmount, settlementCurrency ?? 'USD')})` : ''
+  const sc = settlementCurrency ?? 'USD'
+  const amt = entry.targetAmount ? formatMoney(entry.targetAmount, sc) : ''
 
   switch (entry.action) {
     case 'expense_added':
-      return `${actor} added ${desc}${amt}`
+      return `${actor} added ${desc} (${amt})`
     case 'expense_edited':
-      return `${actor} edited ${desc}${amt}`
+      return `${actor} edited ${desc} (${amt})`
     case 'expense_deleted':
-      return `${actor} deleted ${desc}${amt}`
-    case 'settlement_recorded':
-      return `${actor} recorded a payment${amt}`
+      return `${actor} deleted ${desc} (${amt})`
+    case 'settlement_recorded': {
+      const payee = entry.targetPayeeUid
+        ? getMemberName(entry.targetPayeeUid, members)
+        : desc.split(' → ')[1] ?? ''
+      const method = entry.paymentMethod ? ` via ${entry.paymentMethod}` : ''
+      return `${actor} paid ${payee} ${amt}${method}`
+    }
     case 'member_joined':
       return `${actor} joined the ${tl}`
     case 'member_left':
@@ -77,14 +83,14 @@ export function ActivityLog({
               {entry.editDetails && entry.editDetails.length > 0 && (
                 <div className="mt-0.5 space-y-0.5">
                   {entry.editDetails.map((detail, j) => (
-                    <p key={j} className="text-xs text-text-muted">
+                    <p key={j} className="text-sm text-text-muted">
                       {detail}
                     </p>
                   ))}
                 </div>
               )}
               {time && (
-                <p className="text-xs text-text-muted mt-0.5">{relativeTime(time)}</p>
+                <p className="text-sm text-text-muted mt-0.5">{relativeTime(time)}</p>
               )}
             </div>
           </div>

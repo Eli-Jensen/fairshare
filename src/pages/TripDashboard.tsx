@@ -4,8 +4,8 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatMoney, getMemberName, tripLabel, EXPENSE_CATEGORIES } from '../lib/types'
-import type { RemovedMember, ExpenseCategory } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel, getAllCategories } from '../lib/types'
+import type { RemovedMember } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { SettlementView } from '../components/SettlementView'
@@ -34,7 +34,7 @@ export function TripDashboard() {
   const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | ''>('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [undoSettlement, setUndoSettlement] = useState<{ id: string; description: string } | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
@@ -157,7 +157,7 @@ export function TripDashboard() {
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="text-xs text-text-muted hover:text-text-secondary flex items-center gap-1 transition-colors"
+                className="text-sm text-text-muted hover:text-text-secondary flex items-center gap-1 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -168,7 +168,7 @@ export function TripDashboard() {
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
                     onClick={() => {
-                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc)
+                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc, trip.customCategories)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
@@ -178,7 +178,7 @@ export function TripDashboard() {
                   </button>
                   <button
                     onClick={() => {
-                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc)
+                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc, trip.customCategories)
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
@@ -199,14 +199,14 @@ export function TripDashboard() {
           <h3 className="text-sm font-medium text-text-secondary">Members</h3>
           <Link
             to={`/trip/${id}/invite`}
-            className="text-xs text-accent-text hover:text-accent-hover font-medium"
+            className="text-sm text-accent-text hover:text-accent-hover font-medium"
           >
             + Invite
           </Link>
           <span className="text-text-muted">|</span>
           <button
             onClick={copyInvite}
-            className="text-xs text-accent-text hover:text-accent-hover"
+            className="text-sm text-accent-text hover:text-accent-hover"
           >
             {copied ? 'Copied!' : 'Copy link'}
           </button>
@@ -233,7 +233,7 @@ export function TripDashboard() {
                 }`}
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
-                <span className={`text-xs ${
+                <span className={`text-sm ${
                   canRemove ? 'text-red-700' : canLeave ? 'text-amber-700' : 'text-text-secondary'
                 }`}>
                   {getMemberName(uid, members)}
@@ -264,7 +264,7 @@ export function TripDashboard() {
                   <div className="w-5 h-5 rounded-full bg-amber-200 flex items-center justify-center text-[10px] text-amber-700 font-medium">
                     {email[0].toUpperCase()}
                   </div>
-                  <span className="text-xs text-amber-700">
+                  <span className="text-sm text-amber-700">
                     {email}
                     <span className="text-amber-400 ml-1">(invited)</span>
                   </span>
@@ -299,7 +299,7 @@ export function TripDashboard() {
             <div className="flex gap-1.5 flex-wrap pb-3 mb-2">
               <button
                 onClick={() => setCategoryFilter('')}
-                className={`text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-all ${
+                className={`text-sm px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-all ${
                   categoryFilter === ''
                     ? 'bg-accent-soft border-accent text-accent-text font-medium'
                     : 'bg-card border-line text-text-secondary'
@@ -307,11 +307,11 @@ export function TripDashboard() {
               >
                 All
               </button>
-              {EXPENSE_CATEGORIES.map((cat) => (
+              {getAllCategories(trip.customCategories).map((cat) => (
                 <button
                   key={cat.value}
                   onClick={() => setCategoryFilter(cat.value)}
-                  className={`text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-all ${
+                  className={`text-sm px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-all ${
                     categoryFilter === cat.value
                       ? 'bg-accent-soft border-accent text-accent-text font-medium'
                       : 'bg-card border-line text-text-secondary'
@@ -342,6 +342,7 @@ export function TripDashboard() {
                     key={exp.id}
                     expense={exp} settlementCurrency={sc}
                     members={members}
+                    customCategories={trip.customCategories}
                     onEdit={() =>
                       navigate(`/trip/${id}/expense/${exp.id}`)
                     }
@@ -358,6 +359,7 @@ export function TripDashboard() {
           members={members}
           memberUids={trip.memberUids}
           settlementCurrency={sc}
+          customCategories={trip.customCategories}
           onRecordSettlement={async (from, to, amount, method) => {
             const fromName = getMemberName(from, members)
             const toName = getMemberName(to, members)
@@ -376,11 +378,13 @@ export function TripDashboard() {
               createdBy: user!.uid,
               createdAt: serverTimestamp(),
             })
-            await writeActivity(id!, {
+            writeActivity(id!, {
               action: 'settlement_recorded',
-              actorUid: user!.uid,
+              actorUid: from,
+              targetPayeeUid: to,
               targetDescription: `${fromName} → ${toName}`,
               targetAmount: amount,
+              paymentMethod: method,
             })
             setUndoSettlement({ id: ref.id, description: desc })
           }}

@@ -75,7 +75,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
           {trip.type === 'group' && <span className="text-sm shrink-0">👥</span>}
           <h3 className="font-semibold text-text truncate">{trip.name}</h3>
         </div>
-        <span className="text-xs text-text-muted shrink-0">{dateStr}</span>
+        <span className="text-sm text-text-muted shrink-0">{dateStr}</span>
       </div>
 
       {/* Total and expense count */}
@@ -83,18 +83,18 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
         <span className="text-lg font-semibold text-text">
           {formatMoney(totalUSD, trip.settlementCurrency ?? 'USD')}
         </span>
-        <span className="text-xs text-text-muted">
+        <span className="text-sm text-text-muted">
           {expenseCount} expense{expenseCount !== 1 && 's'}
         </span>
       </div>
 
       {/* Latest expense */}
       {latestExpense && (
-        <div className="flex items-center justify-between text-xs text-text-secondary bg-muted/50 rounded-md px-2.5 py-1.5 mb-2">
-          <span className="truncate">
+        <div className="flex items-center justify-between text-sm bg-accent-soft border border-accent/20 rounded-md px-2.5 py-1.5 mb-2">
+          <span className="truncate text-text">
             Latest: {latestExpense.description}
           </span>
-          <span className="shrink-0 ml-2 font-medium">
+          <span className="shrink-0 ml-2 font-semibold text-accent-text">
             {formatMoney(latestExpense.amountUSD, trip.settlementCurrency ?? 'USD')}
           </span>
         </div>
@@ -109,7 +109,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
             </div>
           ))}
         </div>
-        <span className="text-xs text-text-muted">
+        <span className="text-sm text-text-muted">
           {trip.memberUids.length} member{trip.memberUids.length !== 1 && 's'}
         </span>
       </div>

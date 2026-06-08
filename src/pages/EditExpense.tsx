@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { doc, updateDoc, serverTimestamp, arrayUnion, Timestamp } from 'firebase/firestore'
+import type { CustomCategory } from '../lib/types'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
@@ -64,6 +65,12 @@ export function EditExpense() {
         tripRates={trip.lastRates}
         tripLastCurrency={trip.lastCurrency}
         settlementCurrency={trip.settlementCurrency}
+        customCategories={trip.customCategories}
+        onAddCategory={async (cat: CustomCategory) => {
+          await updateDoc(doc(db!, 'trips', id!), {
+            customCategories: arrayUnion(cat),
+          })
+        }}
         existing={expense}
         onSubmit={async (data) => {
           // Run both writes in parallel

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
-import type { Expense, UserProfile, ExpenseCategory } from '../lib/types'
-import { getMemberName, formatMoney, EXPENSE_CATEGORIES } from '../lib/types'
+import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
+import { getMemberName, formatMoney, getAllCategories, categoryExists } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates, getRate } from '../lib/rates'
 
@@ -21,7 +21,7 @@ interface ExpenseFormData {
   shares: Record<string, string>
   date: string
   notes: string
-  category: ExpenseCategory | ''
+  category: string
   rateDirection: 'foreign-to-usd' | 'usd-to-foreign'
   calcGave: string
   calcGotForeign: string
@@ -40,6 +40,8 @@ export function ExpenseForm({
   tripRates,
   tripLastCurrency,
   settlementCurrency: sc = 'USD',
+  customCategories,
+  onAddCategory,
   onSubmit,
   onDelete,
   existing,
@@ -50,6 +52,8 @@ export function ExpenseForm({
   tripRates?: Record<string, number>
   tripLastCurrency?: string
   settlementCurrency?: string
+  customCategories?: CustomCategory[]
+  onAddCategory?: (category: CustomCategory) => Promise<void>
   onSubmit: (data: {
     description: string
     amount: number
@@ -306,7 +310,7 @@ export function ExpenseForm({
       // Only include optional fields when set (Firestore rejects undefined)
       if (paidByAmounts) submitData.paidByAmounts = paidByAmounts
       if (form.notes.trim()) submitData.notes = form.notes.trim()
-      if (form.category) submitData.category = form.category as ExpenseCategory
+      if (form.category) submitData.category = form.category
       await onSubmit(submitData)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -358,7 +362,7 @@ export function ExpenseForm({
         <input
           type="text"
           className={input}
-          placeholder="Dinner, taxi, groceries..."
+          placeholder="Dinner, taxi, drinks..."
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
         />
@@ -614,30 +618,12 @@ export function ExpenseForm({
         />
       </div>
 
-      <div>
-        <label className={label}>Category <span className="font-normal text-text-muted">(optional)</span></label>
-        <div className="flex flex-wrap gap-1.5">
-          {EXPENSE_CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              onClick={() =>
-                setForm((f) => ({
-                  ...f,
-                  category: f.category === cat.value ? '' : cat.value,
-                }))
-              }
-              className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
-                form.category === cat.value
-                  ? 'bg-accent-soft border-accent text-accent-text font-medium'
-                  : 'bg-card border-line text-text-secondary hover:border-accent'
-              }`}
-            >
-              {cat.emoji} {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <CategoryPicker
+        category={form.category}
+        customCategories={customCategories}
+        onSelect={(value) => setForm((f) => ({ ...f, category: f.category === value ? '' : value }))}
+        onAddCategory={onAddCategory}
+      />
 
       <div>
         <label className={label}>Notes <span className="font-normal text-text-muted">(optional)</span></label>
@@ -783,5 +769,170 @@ export function ExpenseForm({
         )}
       </div>
     </form>
+  )
+}
+
+const MAX_LABEL_LENGTH = 20
+
+function CategoryPicker({
+  category,
+  customCategories,
+  onSelect,
+  onAddCategory,
+}: {
+  category: string
+  customCategories?: CustomCategory[]
+  onSelect: (value: string) => void
+  onAddCategory?: (category: CustomCategory) => Promise<void>
+}) {
+  const [creating, setCreating] = useState(false)
+  const [newEmoji, setNewEmoji] = useState('')
+  const [newLabel, setNewLabel] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const labelRef = useRef<HTMLInputElement>(null)
+
+  const allCategories = getAllCategories(customCategories)
+
+  function handleStartCreate() {
+    setCreating(true)
+    setNewEmoji('')
+    setNewLabel('')
+    setError('')
+    setTimeout(() => labelRef.current?.focus(), 50)
+  }
+
+  function handleCancel() {
+    setCreating(false)
+    setNewEmoji('')
+    setNewLabel('')
+    setError('')
+  }
+
+  async function handleSave() {
+    const emoji = newEmoji.trim()
+    const label = newLabel.trim()
+
+    if (!emoji) {
+      setError('Pick an emoji')
+      return
+    }
+    if (!label) {
+      setError('Enter a name')
+      return
+    }
+    if (label.length > MAX_LABEL_LENGTH) {
+      setError(`Max ${MAX_LABEL_LENGTH} characters`)
+      return
+    }
+    if (categoryExists(emoji, label, customCategories)) {
+      setError('This category already exists')
+      return
+    }
+
+    const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+    if (!id) {
+      setError('Enter a valid name')
+      return
+    }
+
+    // Check id collision too
+    if (allCategories.some((c) => c.value === id)) {
+      setError('This category already exists')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await onAddCategory?.({ id, label, emoji })
+      onSelect(id)
+      setCreating(false)
+      setNewEmoji('')
+      setNewLabel('')
+      setError('')
+    } catch {
+      setError('Failed to save')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-text-secondary mb-1">
+        Category <span className="font-normal text-text-muted">(optional)</span>
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {allCategories.map((cat) => (
+          <button
+            key={cat.value}
+            type="button"
+            onClick={() => onSelect(cat.value)}
+            className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
+              category === cat.value
+                ? 'bg-accent-soft border-accent text-accent-text font-medium'
+                : 'bg-card border-line text-text-secondary hover:border-accent'
+            }`}
+          >
+            {cat.emoji} {cat.label}
+          </button>
+        ))}
+        {onAddCategory && !creating && (
+          <button
+            type="button"
+            onClick={handleStartCreate}
+            className="text-xs px-2.5 py-1.5 rounded-full border border-dashed border-line text-text-muted hover:border-accent hover:text-accent-text transition-all"
+          >
+            +
+          </button>
+        )}
+      </div>
+
+      {creating && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="text"
+            className="w-12 border border-line rounded-lg px-2 py-1.5 text-center text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="😀"
+            value={newEmoji}
+            onChange={(e) => {
+              // Allow only emoji-like input (take last grapheme cluster)
+              const val = e.target.value
+              const segments = [...new Intl.Segmenter().segment(val)]
+              const last = segments[segments.length - 1]?.segment ?? ''
+              setNewEmoji(last)
+              setError('')
+            }}
+          />
+          <input
+            ref={labelRef}
+            type="text"
+            className="flex-1 border border-line rounded-lg px-2.5 py-1.5 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Category name"
+            maxLength={MAX_LABEL_LENGTH}
+            value={newLabel}
+            onChange={(e) => { setNewLabel(e.target.value); setError('') }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave() } }}
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1.5 disabled:opacity-50"
+          >
+            {saving ? '...' : 'Add'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="text-xs text-text-muted hover:text-text-secondary px-1 py-1.5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {error && creating && (
+        <p className="text-xs text-red-600 mt-1">{error}</p>
+      )}
+    </div>
   )
 }

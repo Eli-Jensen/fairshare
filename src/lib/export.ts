@@ -1,5 +1,5 @@
-import type { Expense, UserProfile } from './types'
-import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from './types'
+import type { Expense, UserProfile, CustomCategory } from './types'
+import { formatMoney, getMemberName, getCategoryInfo } from './types'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -19,7 +19,8 @@ export function tripToCsv(
   expenses: Expense[],
   members: Record<string, UserProfile>,
   memberUids: string[],
-  settlementCurrency: string = 'USD'
+  settlementCurrency: string = 'USD',
+  customCategories?: CustomCategory[]
 ): string {
   const fmt = (n: number) => formatMoney(n, settlementCurrency)
   const lines: string[] = []
@@ -58,7 +59,7 @@ export function tripToCsv(
       exp.splits[uid] !== undefined ? fmt(exp.splits[uid]) : ''
     )
     const catInfo = exp.category
-      ? EXPENSE_CATEGORIES.find((c) => c.value === exp.category)
+      ? getCategoryInfo(exp.category, customCategories)
       : null
     lines.push(
       [

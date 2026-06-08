@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { writeActivity } from '../lib/activity'
+import type { CustomCategory } from '../lib/types'
 
 export function AddExpense() {
   const { id } = useParams<{ id: string }>()
@@ -26,6 +27,12 @@ export function AddExpense() {
         tripRates={trip.lastRates}
         tripLastCurrency={trip.lastCurrency}
         settlementCurrency={trip.settlementCurrency}
+        customCategories={trip.customCategories}
+        onAddCategory={async (cat: CustomCategory) => {
+          await updateDoc(doc(db!, 'trips', id!), {
+            customCategories: arrayUnion(cat),
+          })
+        }}
         onSubmit={async (data) => {
           // Run all writes in parallel — they're independent
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
