@@ -13,6 +13,7 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { tripLabel } from '../lib/types'
+import { writeActivity } from '../lib/activity'
 import type { TripType } from '../lib/types'
 
 export function JoinTrip() {
@@ -74,6 +75,11 @@ export function JoinTrip() {
 
       await updateDoc(doc(db, 'trips', tripDoc.id), {
         memberUids: arrayUnion(user.uid),
+      })
+      writeActivity(tripDoc.id, {
+        action: 'member_joined',
+        actorUid: user.uid,
+        targetMemberUid: user.uid,
       })
 
       navigate(`/trip/${tripDoc.id}`, { replace: true })

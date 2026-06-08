@@ -545,6 +545,11 @@ export function TripDashboard() {
                 memberUids: arrayRemove(user.uid),
                 ...(remainingCount <= 0 ? { deletedAt: serverTimestamp() } : {}),
               })
+              writeActivity(id!, {
+                action: 'member_left',
+                actorUid: user.uid,
+                targetMemberUid: user.uid,
+              })
               navigate('/')
             }
           }}
@@ -574,6 +579,12 @@ export function TripDashboard() {
               memberUids: arrayRemove(uid),
               removedMembers: updatedRemoved,
               ...(remainingCount <= 0 ? { deletedAt: serverTimestamp() } : {}),
+            })
+            writeActivity(id!, {
+              action: 'member_removed',
+              actorUid: user!.uid,
+              targetMemberUid: uid,
+              targetDescription: removeMemberName,
             })
             if (remainingCount <= 0) navigate('/')
           }}

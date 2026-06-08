@@ -7,7 +7,7 @@ import {
   arrayRemove,
   getDoc,
   setDoc,
-  serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -18,6 +18,7 @@ import { UndoToast } from '../components/UndoToast'
 import { getMemberName, tripLabel, type RemovedMember, type UserProfile } from '../lib/types'
 import { useTrips } from '../hooks/useTrips'
 import { useProfileCache } from '../hooks/useProfileCache'
+import { writeActivity } from '../lib/activity'
 
 interface RecentContact {
   email: string
@@ -190,7 +191,7 @@ export function TripInvite() {
       uid,
       email: member.email,
       displayName: member.displayName,
-      removedAt: serverTimestamp() as unknown as import('firebase/firestore').Timestamp,
+      removedAt: Timestamp.now(),
     }
 
     const updatedRemoved = [...(trip.removedMembers ?? []), removedEntry]
@@ -198,6 +199,13 @@ export function TripInvite() {
     await updateDoc(doc(db, 'trips', id), {
       memberUids: arrayRemove(uid),
       removedMembers: updatedRemoved,
+    })
+
+    writeActivity(id, {
+      action: 'member_removed',
+      actorUid: user!.uid,
+      targetMemberUid: uid,
+      targetDescription: member.displayName || member.email,
     })
 
     setUndoMember({ uid, name: member.displayName || member.email })

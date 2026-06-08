@@ -19,6 +19,7 @@ import { BalanceSummary } from '../components/BalanceSummary'
 import { UndoToast } from '../components/UndoToast'
 import type { Trip } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
+import { writeActivity } from '../lib/activity'
 
 export function Home() {
   const { user, signIn, firebaseReady, loading: authLoading } = useAuth()
@@ -80,6 +81,11 @@ export function Home() {
     await updateDoc(doc(db, 'trips', tripId), {
       memberUids: arrayUnion(user.uid),
       invitedEmails: arrayRemove(user.email!.toLowerCase()),
+    })
+    writeActivity(tripId, {
+      action: 'member_joined',
+      actorUid: user.uid,
+      targetMemberUid: user.uid,
     })
     setJoiningTrip(null)
   }
