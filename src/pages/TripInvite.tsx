@@ -173,6 +173,11 @@ export function TripInvite() {
       await updateDoc(doc(db, 'trips', id!), {
         invitedEmails: arrayUnion(normalized),
       })
+      writeActivity(id!, {
+        action: 'member_invited',
+        actorUid: user!.uid,
+        targetDescription: normalized,
+      })
       await saveContact(normalized)
       setJustInvited((prev) => [...prev, normalized])
       setEmail('')

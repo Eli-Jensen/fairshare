@@ -167,17 +167,24 @@ export interface Settlement {
 
 export interface ActivityLogEntry {
   id: string
-  action: 'expense_added' | 'expense_edited' | 'expense_deleted' | 'settlement_recorded' | 'member_joined' | 'member_left' | 'member_removed' | 'trip_created'
+  action:
+    | 'expense_added' | 'expense_edited' | 'expense_deleted' | 'expense_restored'
+    | 'settlement_recorded'
+    | 'member_joined' | 'member_left' | 'member_removed' | 'member_invited'
+    | 'trip_created' | 'trip_renamed' | 'trip_deleted' | 'trip_restored'
+    | 'currency_changed'
+    | 'comment_added'
   actorUid: string
   targetDescription?: string
   targetAmount?: number
-  targetExpenseId?: string  // the expense doc id — enables undo from activity
-  targetMemberUid?: string  // for member actions: the member who was added/removed
-  targetPayeeUid?: string   // for settlements: who received the payment
-  paymentMethod?: string    // for settlements: e.g. "Venmo", "Cash"
-  editDetails?: string[]    // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]
-  tripId?: string           // set when querying across trips for global activity
-  tripName?: string         // set when querying across trips for global activity
+  targetExpenseId?: string   // the expense doc id — enables undo from activity
+  targetMemberUid?: string   // for member actions: the member who was added/removed
+  targetPayeeUid?: string    // for settlements: who received the payment
+  paymentMethod?: string     // for settlements: e.g. "Venmo", "Cash"
+  editDetails?: string[]     // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]
+  previousValues?: Record<string, unknown>  // old field values for undo (uses Firestore field names)
+  tripId?: string            // set when querying across trips for global activity
+  tripName?: string          // set when querying across trips for global activity
   createdAt: Timestamp
 }
 

@@ -45,12 +45,17 @@ export function Home() {
   }, [location.state])
 
   const handleUndoTrip = useCallback(async () => {
-    if (!undoTrip) return
+    if (!undoTrip || !user) return
     await updateDoc(doc(db, 'trips', undoTrip.id), {
       deletedAt: deleteField(),
     })
+    writeActivity(undoTrip.id, {
+      action: 'trip_restored',
+      actorUid: user.uid,
+      targetDescription: undoTrip.name,
+    })
     setUndoTrip(null)
-  }, [undoTrip])
+  }, [undoTrip, user])
 
   const dismissUndoTrip = useCallback(() => setUndoTrip(null), [])
 

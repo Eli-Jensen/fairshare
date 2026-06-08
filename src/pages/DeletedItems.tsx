@@ -13,6 +13,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { formatMoney, mapExpense } from '../lib/types'
 import type { Trip, Expense } from '../lib/types'
+import { writeActivity } from '../lib/activity'
 
 interface DeletedTrip extends Trip {
   deletedAt: import('firebase/firestore').Timestamp
@@ -109,17 +110,35 @@ export function DeletedItems() {
 
   async function restoreTrip(tripId: string) {
     setRestoring(tripId)
+    const trip = deletedTrips.find((t) => t.id === tripId)
     await updateDoc(doc(db, 'trips', tripId), {
       deletedAt: deleteField(),
     })
+    if (user) {
+      writeActivity(tripId, {
+        action: 'trip_restored',
+        actorUid: user.uid,
+        targetDescription: trip?.name,
+      })
+    }
     setRestoring(null)
   }
 
   async function restoreExpense(tripId: string, expenseId: string) {
     setRestoring(expenseId)
+    const exp = deletedExpenses.find((e) => e.id === expenseId)
     await updateDoc(doc(db, 'trips', tripId, 'expenses', expenseId), {
       deletedAt: deleteField(),
     })
+    if (user) {
+      writeActivity(tripId, {
+        action: 'expense_restored',
+        actorUid: user.uid,
+        targetDescription: exp?.description,
+        targetAmount: exp?.amountSettled,
+        targetExpenseId: expenseId,
+      })
+    }
     setRestoring(null)
   }
 
