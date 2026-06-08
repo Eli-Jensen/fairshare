@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
 import { getMemberName, formatMoney, getAllCategories, categoryExists } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
+import { getCurrency } from '../lib/currencies'
 import { fetchRates, getRate } from '../lib/rates'
 
 interface ExpenseFormData {
@@ -86,8 +87,11 @@ export function ExpenseForm({
       const percentages: Record<string, string> = {}
       const shares: Record<string, string> = {}
       const paidByAmounts: Record<string, string> = {}
+      const rate = existing.exchangeRate || 1
       for (const uid of memberUids) {
-        exactAmounts[uid] = (existing.splits[uid] ?? 0).toString()
+        // Convert splits from settlement currency back to original for display
+        const splitVal = existing.splits[uid] ?? 0
+        exactAmounts[uid] = (rate !== 1 ? Math.round((splitVal / rate) * 100) / 100 : splitVal).toString()
         percentages[uid] = ''
         shares[uid] = '1'
         paidByAmounts[uid] = ''
@@ -95,8 +99,11 @@ export function ExpenseForm({
 
       const hasMultiPayer = existing.paidByAmounts && Object.keys(existing.paidByAmounts).length > 0
       if (hasMultiPayer) {
+        const rate = existing.exchangeRate || 1
         for (const [uid, amt] of Object.entries(existing.paidByAmounts!)) {
-          paidByAmounts[uid] = amt.toString()
+          // Convert from settlement currency back to original currency for display
+          const inOriginal = rate !== 1 ? Math.round((amt / rate) * 100) / 100 : amt
+          paidByAmounts[uid] = inOriginal.toString()
         }
       }
 
@@ -211,7 +218,9 @@ export function ExpenseForm({
       }
     } else if (form.splitType === 'exact') {
       for (const uid of form.splitAmong) {
-        splits[uid] = parseFloat(form.exactAmounts[uid] || '0') || 0
+        const val = parseFloat(form.exactAmounts[uid] || '0') || 0
+        // Convert from original currency to settlement currency
+        splits[uid] = Math.round(val * form.exchangeRate * 100) / 100
       }
     } else if (form.splitType === 'percentage') {
       for (const uid of form.splitAmong) {
@@ -239,7 +248,8 @@ export function ExpenseForm({
     const amounts: Record<string, number> = {}
     for (const uid of memberUids) {
       const val = parseFloat(form.paidByAmounts[uid] || '0') || 0
-      if (val > 0) amounts[uid] = val
+      // Convert from original currency to settlement currency
+      if (val > 0) amounts[uid] = Math.round(val * form.exchangeRate * 100) / 100
     }
     return Object.keys(amounts).length > 0 ? amounts : undefined
   }
@@ -265,32 +275,43 @@ export function ExpenseForm({
       return
     }
 
-    // Validate multi-payer amounts
+    // Validate multi-payer amounts (in original currency, before conversion)
     if (form.multiPayer) {
-      const paidAmounts = computePaidByAmounts()
-      if (!paidAmounts || Object.keys(paidAmounts).length === 0) {
+      const rawPaidTotal = memberUids.reduce(
+        (sum, uid) => sum + (parseFloat(form.paidByAmounts[uid] || '0') || 0), 0
+      )
+      if (rawPaidTotal <= 0) {
         setError('Enter how much each person paid')
         return
       }
-      const paidTotal = Object.values(paidAmounts).reduce((a, b) => a + b, 0)
-      if (Math.abs(paidTotal - amountUSD) > 0.02) {
+      if (Math.abs(rawPaidTotal - form.amount) > 0.02) {
         setError(
-          `Paid amounts total (${paidTotal.toFixed(2)}) doesn't match expense (${amountUSD.toFixed(2)})`
+          `Paid amounts total (${rawPaidTotal.toFixed(2)}) doesn't match expense (${form.amount.toFixed(2)})`
         )
         return
       }
     }
 
     const splits = computeSplits()
-    const splitTotal = Object.values(splits).reduce((a, b) => a + b, 0)
-    if (
-      form.splitType !== 'equal' &&
-      Math.abs(splitTotal - amountUSD) > 0.02
-    ) {
-      setError(
-        `Split total (${splitTotal.toFixed(2)}) doesn't match expense (${amountUSD.toFixed(2)})`
+    if (form.splitType === 'exact') {
+      // Validate in original currency (before conversion)
+      const rawSplitTotal = form.splitAmong.reduce(
+        (sum, uid) => sum + (parseFloat(form.exactAmounts[uid] || '0') || 0), 0
       )
-      return
+      if (Math.abs(rawSplitTotal - form.amount) > 0.02) {
+        setError(
+          `Split total (${rawSplitTotal.toFixed(2)}) doesn't match expense (${form.amount.toFixed(2)})`
+        )
+        return
+      }
+    } else if (form.splitType !== 'equal') {
+      const splitTotal = Object.values(splits).reduce((a, b) => a + b, 0)
+      if (Math.abs(splitTotal - amountUSD) > 0.02) {
+        setError(
+          `Split total (${splitTotal.toFixed(2)}) doesn't match expense (${amountUSD.toFixed(2)})`
+        )
+        return
+      }
     }
 
     setSubmitting(true)
@@ -351,11 +372,12 @@ export function ExpenseForm({
     return Array.from(codes).slice(0, 4)
   })()
 
-  // Compute paid total for multi-payer display
+  // Compute paid total for multi-payer display (in original currency)
   const paidTotal = form.multiPayer
     ? memberUids.reduce((sum, uid) => sum + (parseFloat(form.paidByAmounts[uid] || '0') || 0), 0)
     : 0
-  const paidRemaining = form.multiPayer ? amountUSD - paidTotal : 0
+  const paidRemaining = form.multiPayer ? form.amount - paidTotal : 0
+  const currencySymbol = getCurrency(form.currency)?.symbol ?? form.currency
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -567,9 +589,10 @@ export function ExpenseForm({
                   {getMemberName(uid, members)}
                 </span>
                 <div className="flex items-center gap-1">
-                  <span className="text-sm text-text-muted">$</span>
+                  <span className="text-sm text-text-muted">{currencySymbol}</span>
                   <input
                     type="number"
+                    inputMode="decimal"
                     step="0.01"
                     min="0"
                     className="w-28 border border-line rounded px-2 py-1 text-sm bg-card text-text"
@@ -585,13 +608,13 @@ export function ExpenseForm({
                 </div>
               </div>
             ))}
-            {amountUSD > 0 && (
+            {form.amount > 0 && (
               <p className={`text-xs ${Math.abs(paidRemaining) < 0.02 ? 'text-emerald-600' : 'text-amber-600'}`}>
                 {Math.abs(paidRemaining) < 0.02
                   ? 'Paid amounts match total'
                   : paidRemaining > 0
-                    ? `$${paidRemaining.toFixed(2)} remaining to assign`
-                    : `$${Math.abs(paidRemaining).toFixed(2)} over the total`}
+                    ? `${currencySymbol}${paidRemaining.toFixed(2)} remaining to assign`
+                    : `${currencySymbol}${Math.abs(paidRemaining).toFixed(2)} over the total`}
               </p>
             )}
           </div>
@@ -676,7 +699,7 @@ export function ExpenseForm({
 
               {form.splitType === 'exact' && form.splitAmong.includes(uid) && (
                 <div className="flex items-center gap-1">
-                  <span className="text-sm text-text-muted">$</span>
+                  <span className="text-sm text-text-muted">{currencySymbol}</span>
                   <input
                     type="number"
                     step="0.01"

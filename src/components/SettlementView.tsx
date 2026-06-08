@@ -107,7 +107,7 @@ export function SettlementView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Settle Up — most important, shown first */}
       {settlements.length > 0 && (
         <div>

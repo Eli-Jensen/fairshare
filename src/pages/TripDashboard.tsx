@@ -418,6 +418,7 @@ export function TripDashboard() {
       )}
 
       {tab === 'settle' && (
+        <div className="min-w-0">
         <SettlementView
           expenses={expenses}
           members={members}
@@ -467,10 +468,13 @@ export function TripDashboard() {
             setUndoSettlement({ id: ref.id, description: desc })
           }}
         />
+        </div>
       )}
 
       {tab === 'activity' && (
-        <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} tripId={id} />
+        <div className="min-w-0">
+          <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} tripId={id} />
+        </div>
       )}
 
       {showDeleteModal && (
