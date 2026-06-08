@@ -103,7 +103,7 @@ export interface CategoryInfo {
 
 export const EXPENSE_CATEGORIES: CategoryInfo[] = [
   { value: 'food', label: 'Food', emoji: '🍽️' },
-  { value: 'transport', label: 'Transport', emoji: '🚗' },
+  { value: 'transport', label: 'Transport', emoji: '✈️' },
   { value: 'accommodation', label: 'Housing', emoji: '🏨' },
   { value: 'entertainment', label: 'Fun', emoji: '🎭' },
   { value: 'other', label: 'Other', emoji: '📦' },
