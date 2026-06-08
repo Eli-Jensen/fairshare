@@ -1,5 +1,12 @@
 {
   "projects": {
     "default": "fairshare-4c9a2"
+  },
+  "targets": {
+    "fairshare-4c9a2": {
+      "hosting": {
+        "app": ["fairshare-split"]
+      }
+    }
   }
 }

@@ -19,7 +19,7 @@ npx firebase deploy --only hosting,firestore    # Deploy both + indexes
 
 **Stack**: React 19 + TypeScript + Vite + Tailwind CSS v4 + Firebase (Auth, Firestore, Hosting)
 
-**Live**: https://fairshare-4c9a2.web.app | **Repo**: github.com/Eli-Jensen/fairshare
+**Live**: https://fairshare-split.web.app | **Repo**: github.com/Eli-Jensen/fairshare
 
 ### Firestore Data Model
 
