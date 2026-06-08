@@ -71,7 +71,10 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
       className="block bg-card rounded-xl border border-line p-4 hover:border-accent hover:shadow-sm transition-all"
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-text truncate">{trip.name}</h3>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {trip.type === 'group' && <span className="text-sm shrink-0">👥</span>}
+          <h3 className="font-semibold text-text truncate">{trip.name}</h3>
+        </div>
         <span className="text-xs text-text-muted shrink-0">{dateStr}</span>
       </div>
 

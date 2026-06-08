@@ -615,7 +615,7 @@ export function ExpenseForm({
       </div>
 
       <div>
-        <label className={label}>Category</label>
+        <label className={label}>Category <span className="font-normal text-text-muted">(optional)</span></label>
         <div className="flex flex-wrap gap-1.5">
           {EXPENSE_CATEGORIES.map((cat) => (
             <button
@@ -762,7 +762,15 @@ export function ExpenseForm({
           disabled={submitting}
           className="flex-1 bg-accent text-white rounded-lg py-2.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
-          {submitting ? 'Saving...' : existing ? 'Update Expense' : 'Add Expense'}
+          {submitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Saving
+            </span>
+          ) : existing ? 'Update Expense' : 'Add Expense'}
         </button>
         {onDelete && (
           <button

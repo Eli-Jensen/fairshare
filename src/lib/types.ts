@@ -16,9 +16,17 @@ export interface RemovedMember {
   removedAt: Timestamp
 }
 
+export type TripType = 'trip' | 'group'
+
+/** Returns "trip" or "group" label for display text */
+export function tripLabel(type?: TripType): string {
+  return type === 'group' ? 'group' : 'trip'
+}
+
 export interface Trip {
   id: string
   name: string
+  type?: TripType // defaults to 'trip' for backward compat
   createdBy: string
   memberUids: string[]
   inviteCode: string

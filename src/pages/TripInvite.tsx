@@ -15,7 +15,9 @@ import { useTrip } from '../hooks/useTrip'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
-import { getMemberName, type RemovedMember } from '../lib/types'
+import { getMemberName, tripLabel, type RemovedMember } from '../lib/types'
+import { useTrips } from '../hooks/useTrips'
+import { useProfileCache } from '../hooks/useProfileCache'
 
 interface RecentContact {
   email: string
@@ -33,6 +35,11 @@ export function TripInvite() {
   const [recentContacts, setRecentContacts] = useState<RecentContact[]>([])
   const [copied, setCopied] = useState(false)
   const [undoMember, setUndoMember] = useState<{ uid: string; name: string } | null>(null)
+  const { trips: allTrips } = useTrips()
+  const { getProfiles } = useProfileCache()
+
+  // Groups the user belongs to (for "import from group")
+  const groups = allTrips.filter((t) => t.type === 'group' && t.id !== id)
 
   // Load recent contacts from user doc
   useEffect(() => {
@@ -81,6 +88,7 @@ export function TripInvite() {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
+  const tl = tripLabel(trip.type)
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
 
   // Emails already in the trip (members + pending invites)
@@ -131,7 +139,7 @@ export function TripInvite() {
     }
 
     if (isAlreadyInTrip(normalized)) {
-      setError('This person is already in the trip')
+      setError(`Already in this ${tl}`)
       return
     }
 
@@ -228,7 +236,7 @@ export function TripInvite() {
           </button>
         </form>
         <p className="text-xs text-text-muted mt-1">
-          They'll see this trip when they sign in to fairshare
+          Appears after they sign in
         </p>
       </div>
 
@@ -252,6 +260,50 @@ export function TripInvite() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 {e}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Import from group */}
+      {groups.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-text-secondary mb-2">Add from a group</h3>
+          <div className="space-y-1">
+            {groups.map((g) => (
+              <div
+                key={g.id}
+                className="flex items-center justify-between bg-card border border-line rounded-lg px-3 py-2"
+              >
+                <div>
+                  <span className="text-sm text-text">👥 {g.name}</span>
+                  <span className="text-xs text-text-muted ml-2">
+                    {g.memberUids.length} member{g.memberUids.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    // Load member profiles from this group
+                    const profiles = await getProfiles(g.memberUids)
+                    let added = 0
+                    for (const uid of g.memberUids) {
+                      const profile = profiles[uid]
+                      if (!profile?.email) continue
+                      const email = profile.email.toLowerCase()
+                      if (!isAlreadyInTrip(email) && !justInvited.includes(email)) {
+                        await inviteEmail(email)
+                        added++
+                      }
+                    }
+                    if (added === 0) {
+                      setError(`All group members already in this ${tl}`)
+                    }
+                  }}
+                  className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors"
+                >
+                  Add all
+                </button>
               </div>
             ))}
           </div>
@@ -334,7 +386,7 @@ export function TripInvite() {
 
       {/* Invite link */}
       <div className="border-t border-line pt-4">
-        <label className={label}>Or share invite link</label>
+        <label className={label}>Invite link</label>
         <div className="flex gap-2">
           <input
             type="text"
@@ -350,7 +402,7 @@ export function TripInvite() {
           </button>
         </div>
         <p className="text-xs text-text-muted mt-1">
-          Anyone with this link can join the trip after signing in
+          Anyone with this link can join
         </p>
       </div>
 
@@ -369,7 +421,7 @@ export function TripInvite() {
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {e} — hasn't signed in yet
+                {e}
               </div>
             ))}
           </div>

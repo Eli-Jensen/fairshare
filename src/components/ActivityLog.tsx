@@ -1,5 +1,5 @@
-import type { ActivityLogEntry, UserProfile } from '../lib/types'
-import { formatMoney, getMemberName } from '../lib/types'
+import type { ActivityLogEntry, UserProfile, TripType } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 function relativeTime(date: Date): string {
@@ -16,7 +16,8 @@ function relativeTime(date: Date): string {
   return date.toLocaleDateString()
 }
 
-function describeAction(entry: ActivityLogEntry, members: Record<string, UserProfile>, settlementCurrency: string): string {
+function describeAction(entry: ActivityLogEntry, members: Record<string, UserProfile>, settlementCurrency: string, type?: TripType): string {
+  const tl = tripLabel(type)
   const actor = getMemberName(entry.actorUid, members)
   const desc = entry.targetDescription ?? ''
   const amt = entry.targetAmount ? ` (${formatMoney(entry.targetAmount, settlementCurrency ?? 'USD')})` : ''
@@ -31,13 +32,13 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
     case 'settlement_recorded':
       return `${actor} recorded a payment${amt}`
     case 'member_joined':
-      return `${actor} joined the trip`
+      return `${actor} joined the ${tl}`
     case 'member_left':
-      return `${actor} left the trip`
+      return `${actor} left the ${tl}`
     case 'member_removed':
-      return `${actor} was removed from the trip`
+      return `${actor} was removed from the ${tl}`
     case 'trip_created':
-      return `${actor} created the trip`
+      return `${actor} created the ${tl}`
     default:
       return `${actor} performed an action`
   }
@@ -47,15 +48,17 @@ export function ActivityLog({
   entries,
   members,
   settlementCurrency,
+  tripType,
 }: {
   entries: ActivityLogEntry[]
   members: Record<string, UserProfile>
   settlementCurrency?: string
+  tripType?: TripType
 }) {
   if (entries.length === 0) {
     return (
       <div className="text-center py-8 text-text-muted">
-        No activity yet.
+        No activity yet
       </div>
     )
   }
@@ -69,7 +72,7 @@ export function ActivityLog({
             <MemberAvatar member={members[entry.actorUid]} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-secondary">
-                {describeAction(entry, members, settlementCurrency ?? 'USD')}
+                {describeAction(entry, members, settlementCurrency ?? 'USD', tripType)}
               </p>
               {entry.editDetails && entry.editDetails.length > 0 && (
                 <div className="mt-0.5 space-y-0.5">

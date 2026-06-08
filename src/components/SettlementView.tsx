@@ -68,7 +68,7 @@ export function SettlementView({
   if (expenses.length === 0) {
     return (
       <div className="text-center py-8 text-text-muted">
-        No expenses yet — add one to get started.
+        No expenses yet
       </div>
     )
   }
@@ -242,7 +242,7 @@ export function SettlementView({
         return (
           <div>
             <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
-              Spending by Category
+              By Category
             </h3>
             <div className="space-y-2">
               {entries.map(([cat, amount]) => {

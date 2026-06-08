@@ -4,7 +4,7 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatMoney, getMemberName, EXPENSE_CATEGORIES } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel, EXPENSE_CATEGORIES } from '../lib/types'
 import type { RemovedMember, ExpenseCategory } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
@@ -80,6 +80,7 @@ export function TripDashboard() {
 
   const sc = trip.settlementCurrency ?? 'USD'
   const totalUSD = expenses.reduce((sum, e) => sum + e.amountUSD, 0)
+  const tl = tripLabel(trip.type)
 
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
   function copyInvite() {
@@ -116,7 +117,7 @@ export function TripDashboard() {
                   ? 'text-accent-text hover:text-primary-700'
                   : 'text-text-muted hover:text-text-secondary'
               }`}
-              title={editingName ? 'Save' : 'Edit trip name'}
+              title={editingName ? 'Save' : `Edit ${tl} name`}
             >
               {editingName ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -132,7 +133,7 @@ export function TripDashboard() {
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="p-1 text-text-muted hover:text-red-500 transition-colors shrink-0"
-                title="Delete trip"
+                title={`Delete ${tl}`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -200,7 +201,7 @@ export function TripDashboard() {
             to={`/trip/${id}/invite`}
             className="text-xs text-accent-text hover:text-accent-hover font-medium"
           >
-            + Invite people
+            + Invite
           </Link>
           <span className="text-text-muted">|</span>
           <button
@@ -329,7 +330,7 @@ export function TripDashboard() {
                 to={`/trip/${id}/expense/new`}
                 className="text-accent-text font-medium hover:text-accent-hover"
               >
-                Add the first expense
+                Add an expense
               </Link>
             </div>
           ) : (
@@ -387,13 +388,13 @@ export function TripDashboard() {
       )}
 
       {tab === 'activity' && (
-        <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} />
+        <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} />
       )}
 
       {showDeleteModal && (
         <DeleteModal
-          title="Delete this trip for everyone?"
-          message={`This will permanently delete "${trip.name}" and all its expenses for every member of this trip, not just you. This action is moved to the trash for 24 hours before being permanently removed.`}
+          title={`Delete this ${tl} for everyone?`}
+          message={`"${trip.name}" and all expenses will be moved to trash for 24 hours, then permanently removed for all members.`}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={async () => {
             setShowDeleteModal(false)
@@ -409,8 +410,8 @@ export function TripDashboard() {
 
       {showLeaveModal && (
         <DeleteModal
-          title="Leave this trip?"
-          message="You'll no longer see this trip or its expenses. Your past expenses will remain for other members."
+          title={`Leave this ${tl}?`}
+          message={`You'll no longer see this ${tl} or its expenses.`}
           onCancel={() => setShowLeaveModal(false)}
           onConfirm={() => {
             setShowLeaveModal(false)
@@ -422,7 +423,7 @@ export function TripDashboard() {
       {showLeaveConfirm && (
         <DeleteModal
           title="Are you sure?"
-          message="This cannot be undone. You will need to be re-invited to rejoin this trip."
+          message={`This cannot be undone. You'll need a new invite to rejoin.`}
           onCancel={() => setShowLeaveConfirm(false)}
           onConfirm={async () => {
             setShowLeaveConfirm(false)
@@ -439,7 +440,7 @@ export function TripDashboard() {
       {removeMemberUid && members[removeMemberUid] && (
         <DeleteModal
           title="Remove member?"
-          message={`Do you want to remove ${getMemberName(removeMemberUid, members)} from the trip?`}
+          message={`Do you want to remove ${getMemberName(removeMemberUid, members)} from the ${tl}?`}
           onCancel={() => setRemoveMemberUid(null)}
           onConfirm={async () => {
             const uid = removeMemberUid

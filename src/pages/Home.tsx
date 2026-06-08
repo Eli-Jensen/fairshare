@@ -21,12 +21,17 @@ import type { Trip } from '../lib/types'
 
 export function Home() {
   const { user, signIn, firebaseReady, loading: authLoading } = useAuth()
-  const { trips, loading: tripsLoading } = useTrips()
+  const { trips: allTrips, loading: tripsLoading } = useTrips()
   const location = useLocation()
   const [undoTrip, setUndoTrip] = useState<{ id: string; name: string } | null>(null)
   const [pendingInvites, setPendingInvites] = useState<Trip[]>([])
   const [joiningTrip, setJoiningTrip] = useState<string | null>(null)
   const [tripBalances, setTripBalances] = useState<Record<string, number>>({})
+  const [showAllTrips, setShowAllTrips] = useState(false)
+
+  // Separate trips from groups
+  const tripItems = allTrips.filter((t) => (t.type ?? 'trip') === 'trip')
+  const groupItems = allTrips.filter((t) => t.type === 'group')
 
   // Handle undo toast for deleted trips
   useEffect(() => {
@@ -136,92 +141,141 @@ export function Home() {
 
   return (
     <div>
-      {/* Pending invites */}
-      {pendingInvites.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
-            Trip Invites ({pendingInvites.length})
-          </h2>
-          <div className="space-y-2">
-            {pendingInvites.map((invite) => (
-              <div
-                key={invite.id}
-                className="bg-accent-soft border border-primary-200 rounded-xl p-4"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-text">{invite.name}</h3>
-                  <span className="text-xs text-text-muted">
-                    {invite.memberUids.length} member{invite.memberUids.length !== 1 && 's'}
-                  </span>
-                </div>
-                <p className="text-sm text-text-secondary mb-3">
-                  You've been invited to join this trip.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => joinTrip(invite.id)}
-                    disabled={joiningTrip === invite.id}
-                    className="bg-accent text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                  >
-                    {joiningTrip === invite.id ? 'Joining...' : 'Join Trip'}
-                  </button>
-                  <button
-                    onClick={() => declineInvite(invite.id)}
-                    className="text-sm text-text-secondary hover:text-text-secondary px-3 py-1.5 transition-colors"
-                  >
-                    Decline
-                  </button>
+      {/* Pending invites — separated by type */}
+      {pendingInvites.length > 0 && (() => {
+        const tripInvites = pendingInvites.filter((i) => (i.type ?? 'trip') === 'trip')
+        const groupInvites = pendingInvites.filter((i) => i.type === 'group')
+
+        return (
+          <div className="mb-8 space-y-4">
+            {tripInvites.length > 0 && (
+              <div>
+                <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
+                  Trip Invites ({tripInvites.length})
+                </h2>
+                <div className="space-y-2">
+                  {tripInvites.map((invite) => (
+                    <InviteCard
+                      key={invite.id}
+                      invite={invite}
+                      label="trip"
+                      joining={joiningTrip === invite.id}
+                      onJoin={() => joinTrip(invite.id)}
+                      onDecline={() => declineInvite(invite.id)}
+                    />
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+            {groupInvites.length > 0 && (
+              <div>
+                <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
+                  Group Invites ({groupInvites.length})
+                </h2>
+                <div className="space-y-2">
+                  {groupInvites.map((invite) => (
+                    <InviteCard
+                      key={invite.id}
+                      invite={invite}
+                      label="group"
+                      joining={joiningTrip === invite.id}
+                      onJoin={() => joinTrip(invite.id)}
+                      onDecline={() => declineInvite(invite.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-text">Your Trips</h1>
-        <Link
-          to="/trip/new"
-          className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
-        >
-          New Trip
-        </Link>
-      </div>
+        )
+      })()}
 
       {/* Cross-trip balance summary */}
-      {!tripsLoading && trips.length > 0 && (
+      {!tripsLoading && allTrips.length > 0 && (
         <BalanceSummary
           tripBalances={tripBalances}
-          trips={trips}
+          trips={allTrips}
           settlementCurrency="USD"
         />
       )}
 
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-text">Trips</h1>
+        <Link
+          to="/trip/new"
+          className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
+        >
+          New
+        </Link>
+      </div>
+
       {tripsLoading ? (
-        <div className="text-center py-10 text-text-muted">Loading trips...</div>
-      ) : trips.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-text-secondary mb-4">No trips yet</p>
+        <div className="text-center py-10 text-text-muted">Loading...</div>
+      ) : tripItems.length === 0 && groupItems.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-text-secondary mb-4">No trips or groups yet</p>
           <Link
             to="/trip/new"
             className="text-accent-text font-medium hover:text-accent-hover"
           >
-            Create your first trip
+            Create one
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {trips.map((trip) => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              currentUserUid={user.uid}
-              onBalanceComputed={(tripId, balance) =>
-                setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
-              }
-            />
-          ))}
-        </div>
+        <>
+          {/* Trips section */}
+          {tripItems.length > 0 && (
+            <div className="mb-8">
+              <div className="space-y-3">
+                {(showAllTrips ? tripItems : tripItems.slice(0, 3)).map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    currentUserUid={user.uid}
+                    onBalanceComputed={(tripId, balance) =>
+                      setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
+                    }
+                  />
+                ))}
+              </div>
+              {tripItems.length > 3 && !showAllTrips && (
+                <button
+                  onClick={() => setShowAllTrips(true)}
+                  className="w-full mt-2 text-sm text-accent-text hover:text-accent-hover py-2 transition-colors"
+                >
+                  Show all ({tripItems.length})
+                </button>
+              )}
+              {showAllTrips && tripItems.length > 3 && (
+                <button
+                  onClick={() => setShowAllTrips(false)}
+                  className="w-full mt-2 text-sm text-text-muted hover:text-text-secondary py-2 transition-colors"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Groups section */}
+          {groupItems.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-text mb-3">Groups</h2>
+              <div className="space-y-3">
+                {groupItems.map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    currentUserUid={user.uid}
+                    onBalanceComputed={(tripId, balance) =>
+                      setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {undoTrip && (
@@ -231,6 +285,60 @@ export function Home() {
           onDismiss={dismissUndoTrip}
         />
       )}
+    </div>
+  )
+}
+
+function InviteCard({
+  invite,
+  label,
+  joining,
+  onJoin,
+  onDecline,
+}: {
+  invite: Trip
+  label: 'trip' | 'group'
+  joining: boolean
+  onJoin: () => void
+  onDecline: () => void
+}) {
+  return (
+    <div className="bg-accent-soft border border-primary-200 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          {label === 'group' && <span className="text-sm">👥</span>}
+          <h3 className="font-semibold text-text">{invite.name}</h3>
+        </div>
+        <span className="text-xs text-text-muted">
+          {invite.memberUids.length} member{invite.memberUids.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      <p className="text-sm text-text-secondary mb-3">
+        You've been invited to join this {label}.
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={onJoin}
+          disabled={joining}
+          className="bg-accent text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
+        >
+          {joining ? (
+            <span className="flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Joining
+            </span>
+          ) : `Join ${label === 'trip' ? 'Trip' : 'Group'}`}
+        </button>
+        <button
+          onClick={onDecline}
+          className="text-sm text-text-secondary hover:text-text px-3 py-1.5 transition-colors"
+        >
+          Decline
+        </button>
+      </div>
     </div>
   )
 }
