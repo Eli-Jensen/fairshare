@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -23,7 +23,11 @@ export function CreateTrip() {
   const { user } = useAuth()
   const { trips } = useTrips()
   const navigate = useNavigate()
-  const [tripType, setTripType] = useState<TripType>('trip')
+  const location = useLocation()
+  const [tripType, setTripType] = useState<TripType>(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('type') === 'group' ? 'group' : 'trip'
+  })
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
   const [submitting, setSubmitting] = useState(false)

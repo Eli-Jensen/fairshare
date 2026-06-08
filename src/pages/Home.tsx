@@ -231,9 +231,12 @@ export function Home() {
               <h1 className="text-2xl font-bold text-text">Trips</h1>
               <Link
                 to="/trip/new"
-                className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
+                className="text-accent hover:text-accent-hover transition-colors"
+                aria-label="New trip"
               >
-                New
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
               </Link>
             </div>
             {tripItems.length > 0 ? (
@@ -277,10 +280,13 @@ export function Home() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-2xl font-bold text-text">Groups</h2>
               <Link
-                to="/trip/new"
-                className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
+                to="/trip/new?type=group"
+                className="text-accent hover:text-accent-hover transition-colors"
+                aria-label="New group"
               >
-                New
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
               </Link>
             </div>
             {groupItems.length > 0 ? (
