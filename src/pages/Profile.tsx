@@ -1,20 +1,16 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
-import { ImageCropper } from '../components/ImageCropper'
 import type { UserProfile } from '../lib/types'
 
 export function Profile() {
   const { user } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [displayName, setDisplayName] = useState('')
-  const [photoURL, setPhotoURL] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [cropperSrc, setCropperSrc] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -24,7 +20,6 @@ export function Profile() {
         const data = snap.data() as UserProfile
         setProfile(data)
         setDisplayName(data.displayName)
-        setPhotoURL(data.photoURL ?? '')
       }
       setLoading(false)
     }
@@ -38,7 +33,6 @@ export function Profile() {
   const googleName = profile.googleDisplayName ?? profile.displayName
   const googlePhoto = profile.googlePhotoURL ?? profile.photoURL
   const hasCustomName = displayName !== googleName
-  const hasCustomPhoto = photoURL !== (googlePhoto ?? '')
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -46,39 +40,10 @@ export function Profile() {
     setSaving(true)
     await updateDoc(doc(db, 'users', user.uid), {
       displayName: displayName.trim() || googleName,
-      photoURL: photoURL.trim() || googlePhoto,
     })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
-  }
-
-  function resetToGoogle() {
-    setDisplayName(googleName)
-    setPhotoURL(googlePhoto ?? '')
-  }
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type and size
-    if (!file.type.startsWith('image/')) return
-    if (file.size > 10 * 1024 * 1024) return // 10MB max
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      setCropperSrc(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-
-    // Reset input so the same file can be re-selected
-    e.target.value = ''
-  }
-
-  function handleCropComplete(croppedDataUrl: string) {
-    setPhotoURL(croppedDataUrl)
-    setCropperSrc(null)
   }
 
   const inputClasses = 'w-full border border-line rounded-lg px-3 py-2 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
@@ -89,14 +54,10 @@ export function Profile() {
 
       {/* Current avatar preview */}
       <div className="flex items-center gap-4 mb-6 p-4 bg-card rounded-lg border border-line">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 bg-muted bg-muted group"
-        >
-          {photoURL ? (
+        <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 bg-muted">
+          {googlePhoto ? (
             <img
-              src={photoURL}
+              src={googlePhoto}
               alt=""
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
@@ -105,22 +66,15 @@ export function Profile() {
               }}
             />
           ) : (
-            <div className="w-full h-full bg-primary-100 text-accent-text  flex items-center justify-center text-2xl font-medium">
+            <div className="w-full h-full bg-primary-100 text-accent-text flex items-center justify-center text-2xl font-medium">
               {displayName?.charAt(0)?.toUpperCase() || '?'}
             </div>
           )}
-          {/* Hover overlay */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-            <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-        </button>
+        </div>
         <div>
           <p className="font-medium text-text">{displayName || 'No name set'}</p>
           <p className="text-sm text-text-muted">{profile.email}</p>
-          {(hasCustomName || hasCustomPhoto) && (
+          {hasCustomName && (
             <p className="text-xs text-text-muted mt-0.5">
               Google name: {googleName}
             </p>
@@ -128,19 +82,10 @@ export function Profile() {
         </div>
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileSelect}
-      />
-
       <form onSubmit={handleSave} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Name
+            Display Name
           </label>
           <input
             type="text"
@@ -148,56 +93,20 @@ export function Profile() {
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder={googleName}
+            maxLength={50}
           />
+          <p className="text-xs text-text-muted mt-1">
+            This is how other members will see you in trips.
+          </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">
-            Photo
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 border border-line rounded-lg px-4 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              Upload photo
-            </button>
-            {photoURL && photoURL !== googlePhoto && (
-              <button
-                type="button"
-                onClick={() => setPhotoURL(googlePhoto ?? '')}
-                className="text-sm text-text-muted hover:text-text-secondary px-3 py-2 transition-colors"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">
-            Photo URL
-          </label>
-          <input
-            type="url"
-            className={inputClasses}
-            value={photoURL.startsWith('data:') ? '' : photoURL}
-            onChange={(e) => setPhotoURL(e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
-
-        {(hasCustomName || hasCustomPhoto) && (
+        {hasCustomName && (
           <button
             type="button"
-            onClick={resetToGoogle}
-            className="text-sm text-text-secondary hover:text-text-secondary transition-colors"
+            onClick={() => setDisplayName(googleName)}
+            className="text-sm text-text-secondary hover:text-text transition-colors"
           >
-            Reset to Google defaults
+            Reset to Google name
           </button>
         )}
 
@@ -209,15 +118,6 @@ export function Profile() {
           {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
         </button>
       </form>
-
-      {/* Image cropper modal */}
-      {cropperSrc && (
-        <ImageCropper
-          imageSrc={cropperSrc}
-          onCropComplete={handleCropComplete}
-          onCancel={() => setCropperSrc(null)}
-        />
-      )}
     </div>
   )
 }

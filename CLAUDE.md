@@ -52,8 +52,8 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 ### Branching
 
-- `main` — production, deployed to Firebase Hosting
-- `feature/groups` — **active branch** adding trip/group distinction, import-from-group, and related UI changes. Currently deployed for testing.
+- `main` — production, auto-deployed to Firebase Hosting via CI/CD on push
+- Feature branches merged via PR (e.g. `feature/groups` → PR #1)
 
 ### Firebase Constraints
 
