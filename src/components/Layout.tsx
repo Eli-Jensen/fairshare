@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useTheme } from '../hooks/useTheme'
+import { useTextScale, TEXT_SCALE_LEVELS } from '../hooks/useTextScale'
 import { hasUnseenActivity } from '../lib/activityNotification'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { level: textLevel, increase: textIncrease, decrease: textDecrease } = useTextScale()
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -104,6 +106,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           {opt.label}
                         </button>
                       ))}
+                    </div>
+                  </div>
+                  <div className="px-3 py-2 border-b border-line-light">
+                    <p className="text-sm text-text-muted mb-1.5">Text Size</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={textDecrease}
+                        disabled={textLevel <= 0}
+                        className="w-8 h-8 rounded-md bg-muted text-text-secondary hover:bg-card-hover flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors"
+                      >
+                        −
+                      </button>
+                      <div className="flex-1 flex justify-center gap-1">
+                        {TEXT_SCALE_LEVELS.map((_, i) => (
+                          <div
+                            key={i}
+                            className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                              i <= textLevel ? 'bg-accent' : 'bg-muted'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        onClick={textIncrease}
+                        disabled={textLevel >= TEXT_SCALE_LEVELS.length - 1}
+                        className="w-8 h-8 rounded-md bg-muted text-text-secondary hover:bg-card-hover flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors"
+                      >
+                        +
+                      </button>
                     </div>
                   </div>
                   <button

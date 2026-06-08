@@ -4,6 +4,7 @@ import './index.css'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { ThemeProvider } from './hooks/useTheme'
+import { TextScaleProvider } from './hooks/useTextScale'
 import { ProfileCacheProvider } from './hooks/useProfileCache'
 
 // Register service worker for offline support
@@ -16,11 +17,13 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <AuthProvider>
-        <ProfileCacheProvider>
-          <App />
-        </ProfileCacheProvider>
-      </AuthProvider>
+      <TextScaleProvider>
+        <AuthProvider>
+          <ProfileCacheProvider>
+            <App />
+          </ProfileCacheProvider>
+        </AuthProvider>
+      </TextScaleProvider>
     </ThemeProvider>
   </StrictMode>
 )

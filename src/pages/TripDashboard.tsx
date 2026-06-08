@@ -37,7 +37,6 @@ export function TripDashboard() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [undoSettlement, setUndoSettlement] = useState<{ id: string; description: string } | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
-  const exportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const state = location.state as { deletedExpenseId?: string; deletedExpenseDesc?: string } | null
@@ -154,7 +153,7 @@ export function TripDashboard() {
             {expenses.length !== 1 && 's'}
           </p>
           {expenses.length > 0 && (
-            <div className="relative" ref={exportRef}>
+            <div className="relative">
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 className="text-sm text-text-muted hover:text-text-secondary flex items-center gap-1 transition-colors"
@@ -165,6 +164,8 @@ export function TripDashboard() {
                 Export
               </button>
               {showExportMenu && (
+                <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
                     onClick={() => {
@@ -187,6 +188,7 @@ export function TripDashboard() {
                     Download CSV
                   </button>
                 </div>
+                </>
               )}
             </div>
           )}

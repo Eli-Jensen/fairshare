@@ -71,6 +71,9 @@ export function EditExpense() {
             customCategories: arrayUnion(cat),
           })
         }}
+        onUpdateCategories={async (cats: CustomCategory[]) => {
+          await updateDoc(doc(db!, 'trips', id!), { customCategories: cats })
+        }}
         existing={expense}
         onSubmit={async (data) => {
           // Run both writes in parallel

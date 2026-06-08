@@ -42,6 +42,7 @@ export function ExpenseForm({
   settlementCurrency: sc = 'USD',
   customCategories,
   onAddCategory,
+  onUpdateCategories,
   onSubmit,
   onDelete,
   existing,
@@ -54,6 +55,7 @@ export function ExpenseForm({
   settlementCurrency?: string
   customCategories?: CustomCategory[]
   onAddCategory?: (category: CustomCategory) => Promise<void>
+  onUpdateCategories?: (categories: CustomCategory[]) => Promise<void>
   onSubmit: (data: {
     description: string
     amount: number
@@ -623,6 +625,7 @@ export function ExpenseForm({
         customCategories={customCategories}
         onSelect={(value) => setForm((f) => ({ ...f, category: f.category === value ? '' : value }))}
         onAddCategory={onAddCategory}
+        onUpdateCategories={onUpdateCategories}
       />
 
       <div>
@@ -774,49 +777,64 @@ export function ExpenseForm({
 
 const MAX_LABEL_LENGTH = 20
 
+const EMOJI_GRID = [
+  '🍽️','🍕','🍺','☕','🛒','🚗','✈️','🚌','🏨','🏠',
+  '🎭','🎬','🎯','🎵','⛷️','🏖️','🎟️','💊','🛍️','💇',
+  '📱','💡','🔧','🎁','📦','💰','🧾','🎓','👶','🐾',
+]
+
+const RANDOM_EMOJIS = ['🏷️','📌','🔖','🎲','💫','⭐','🌟','✨']
+
 function CategoryPicker({
   category,
   customCategories,
   onSelect,
   onAddCategory,
+  onUpdateCategories,
 }: {
   category: string
   customCategories?: CustomCategory[]
   onSelect: (value: string) => void
   onAddCategory?: (category: CustomCategory) => Promise<void>
+  onUpdateCategories?: (categories: CustomCategory[]) => Promise<void>
 }) {
-  const [creating, setCreating] = useState(false)
+  const [mode, setMode] = useState<'pick' | 'create' | 'manage'>('pick')
   const [newEmoji, setNewEmoji] = useState('')
   const [newLabel, setNewLabel] = useState('')
+  const [showEmojiGrid, setShowEmojiGrid] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editEmoji, setEditEmoji] = useState('')
+  const [editLabel, setEditLabel] = useState('')
+  const [editEmojiGrid, setEditEmojiGrid] = useState(false)
   const labelRef = useRef<HTMLInputElement>(null)
 
   const allCategories = getAllCategories(customCategories)
 
   function handleStartCreate() {
-    setCreating(true)
+    setMode('create')
     setNewEmoji('')
     setNewLabel('')
+    setShowEmojiGrid(false)
     setError('')
     setTimeout(() => labelRef.current?.focus(), 50)
   }
 
   function handleCancel() {
-    setCreating(false)
+    setMode('pick')
     setNewEmoji('')
     setNewLabel('')
+    setShowEmojiGrid(false)
     setError('')
+    setEditingId(null)
   }
 
   async function handleSave() {
-    const emoji = newEmoji.trim()
     const label = newLabel.trim()
+    // If no emoji picked, assign a random one
+    const emoji = newEmoji.trim() || RANDOM_EMOJIS[Math.floor(Math.random() * RANDOM_EMOJIS.length)]
 
-    if (!emoji) {
-      setError('Pick an emoji')
-      return
-    }
     if (!label) {
       setError('Enter a name')
       return
@@ -831,13 +849,7 @@ function CategoryPicker({
     }
 
     const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
-    if (!id) {
-      setError('Enter a valid name')
-      return
-    }
-
-    // Check id collision too
-    if (allCategories.some((c) => c.value === id)) {
+    if (!id || allCategories.some((c) => c.value === id)) {
       setError('This category already exists')
       return
     }
@@ -846,92 +858,212 @@ function CategoryPicker({
     try {
       await onAddCategory?.({ id, label, emoji })
       onSelect(id)
-      setCreating(false)
-      setNewEmoji('')
-      setNewLabel('')
-      setError('')
+      handleCancel()
     } catch {
       setError('Failed to save')
     }
     setSaving(false)
   }
 
-  return (
-    <div>
-      <label className="block text-sm font-medium text-text-secondary mb-1">
-        Category <span className="font-normal text-text-muted">(optional)</span>
-      </label>
-      <div className="flex flex-wrap gap-1.5">
-        {allCategories.map((cat) => (
+  async function handleEditSave(oldId: string) {
+    if (!customCategories || !onUpdateCategories) return
+    const label = editLabel.trim()
+    const emoji = editEmoji.trim() || RANDOM_EMOJIS[Math.floor(Math.random() * RANDOM_EMOJIS.length)]
+    if (!label) return
+
+    const updated = customCategories.map((c) =>
+      c.id === oldId ? { ...c, label, emoji } : c
+    )
+    setSaving(true)
+    try {
+      await onUpdateCategories(updated)
+      setEditingId(null)
+      setEditEmojiGrid(false)
+    } catch {
+      setError('Failed to save')
+    }
+    setSaving(false)
+  }
+
+  async function handleMove(idx: number, dir: -1 | 1) {
+    if (!customCategories || !onUpdateCategories) return
+    const arr = [...customCategories]
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= arr.length) return
+    ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
+    await onUpdateCategories(arr)
+  }
+
+  async function handleDelete(id: string) {
+    if (!customCategories || !onUpdateCategories) return
+    await onUpdateCategories(customCategories.filter((c) => c.id !== id))
+  }
+
+  function EmojiGrid({ selected, onPick }: { selected: string; onPick: (e: string) => void }) {
+    return (
+      <div className="grid grid-cols-10 gap-1 mt-1 p-2 bg-muted rounded-lg">
+        {EMOJI_GRID.map((e) => (
           <button
-            key={cat.value}
+            key={e}
             type="button"
-            onClick={() => onSelect(cat.value)}
-            className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
-              category === cat.value
-                ? 'bg-accent-soft border-accent text-accent-text font-medium'
-                : 'bg-card border-line text-text-secondary hover:border-accent'
+            onClick={() => onPick(e)}
+            className={`w-8 h-8 flex items-center justify-center rounded text-base hover:bg-card-hover transition-colors ${
+              selected === e ? 'bg-accent-soft ring-1 ring-accent' : ''
             }`}
           >
-            {cat.emoji} {cat.label}
+            {e}
           </button>
         ))}
-        {onAddCategory && !creating && (
-          <button
-            type="button"
-            onClick={handleStartCreate}
-            className="text-xs px-2.5 py-1.5 rounded-full border border-dashed border-line text-text-muted hover:border-accent hover:text-accent-text transition-all"
-          >
-            +
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-sm font-medium text-text-secondary">
+          Category <span className="font-normal text-text-muted">(optional)</span>
+        </label>
+        {onUpdateCategories && customCategories && customCategories.length > 0 && mode !== 'manage' && (
+          <button type="button" onClick={() => setMode('manage')} className="text-xs text-accent-text hover:text-accent-hover">
+            Edit
+          </button>
+        )}
+        {mode === 'manage' && (
+          <button type="button" onClick={handleCancel} className="text-xs text-accent-text hover:text-accent-hover">
+            Done
           </button>
         )}
       </div>
 
-      {creating && (
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            type="text"
-            className="w-12 border border-line rounded-lg px-2 py-1.5 text-center text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="😀"
-            value={newEmoji}
-            onChange={(e) => {
-              // Allow only emoji-like input (take last grapheme cluster)
-              const val = e.target.value
-              const segments = [...new Intl.Segmenter().segment(val)]
-              const last = segments[segments.length - 1]?.segment ?? ''
-              setNewEmoji(last)
-              setError('')
-            }}
-          />
-          <input
-            ref={labelRef}
-            type="text"
-            className="flex-1 border border-line rounded-lg px-2.5 py-1.5 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Category name"
-            maxLength={MAX_LABEL_LENGTH}
-            value={newLabel}
-            onChange={(e) => { setNewLabel(e.target.value); setError('') }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave() } }}
-          />
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1.5 disabled:opacity-50"
-          >
-            {saving ? '...' : 'Add'}
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="text-xs text-text-muted hover:text-text-secondary px-1 py-1.5"
-          >
-            ✕
-          </button>
+      {/* Category pills (pick mode) */}
+      {mode !== 'manage' && (
+        <div className="flex flex-wrap gap-1.5">
+          {allCategories.map((cat) => (
+            <button
+              key={cat.value}
+              type="button"
+              onClick={() => onSelect(cat.value)}
+              className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
+                category === cat.value
+                  ? 'bg-accent-soft border-accent text-accent-text font-medium'
+                  : 'bg-card border-line text-text-secondary hover:border-accent'
+              }`}
+            >
+              {cat.emoji} {cat.label}
+            </button>
+          ))}
+          {onAddCategory && mode !== 'create' && (
+            <button
+              type="button"
+              onClick={handleStartCreate}
+              className="text-xs px-2.5 py-1.5 rounded-full border border-dashed border-line text-text-muted hover:border-accent hover:text-accent-text transition-all"
+            >
+              +
+            </button>
+          )}
         </div>
       )}
-      {error && creating && (
-        <p className="text-xs text-red-600 mt-1">{error}</p>
+
+      {/* Create mode */}
+      {mode === 'create' && (
+        <div className="mt-2 space-y-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowEmojiGrid(!showEmojiGrid)}
+              className="w-10 h-10 border border-line rounded-lg flex items-center justify-center text-lg bg-card hover:bg-card-hover transition-colors shrink-0"
+            >
+              {newEmoji || '😀'}
+            </button>
+            <input
+              ref={labelRef}
+              type="text"
+              className="flex-1 border border-line rounded-lg px-2.5 py-2 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Category name"
+              maxLength={MAX_LABEL_LENGTH}
+              value={newLabel}
+              onChange={(e) => { setNewLabel(e.target.value); setError('') }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave() } }}
+            />
+            <button type="button" onClick={handleSave} disabled={saving} className="text-sm font-medium text-accent-text hover:text-accent-hover px-2 py-1.5 disabled:opacity-50">
+              {saving ? '...' : 'Add'}
+            </button>
+            <button type="button" onClick={handleCancel} className="text-sm text-text-muted hover:text-text-secondary px-1 py-1.5">
+              ✕
+            </button>
+          </div>
+          {showEmojiGrid && (
+            <EmojiGrid selected={newEmoji} onPick={(e) => { setNewEmoji(e); setShowEmojiGrid(false); labelRef.current?.focus() }} />
+          )}
+          {!newEmoji && !showEmojiGrid && (
+            <p className="text-xs text-text-muted">Tap the emoji to pick one, or leave blank for a random one</p>
+          )}
+          {error && <p className="text-xs text-danger-text">{error}</p>}
+        </div>
+      )}
+
+      {/* Manage mode — edit/reorder custom categories */}
+      {mode === 'manage' && customCategories && (
+        <div className="space-y-1 mt-1">
+          {customCategories.length === 0 && (
+            <p className="text-sm text-text-muted py-2">No custom categories</p>
+          )}
+          {customCategories.map((cat, idx) => (
+            <div key={cat.id} className="flex items-center gap-1.5 bg-card border border-line rounded-lg px-2 py-1.5">
+              {editingId === cat.id ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEditEmojiGrid(!editEmojiGrid)}
+                    className="w-8 h-8 border border-line rounded flex items-center justify-center text-sm bg-card hover:bg-card-hover shrink-0"
+                  >
+                    {editEmoji || cat.emoji}
+                  </button>
+                  <input
+                    type="text"
+                    className="flex-1 border border-line rounded px-2 py-1 text-sm bg-card text-text focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    value={editLabel}
+                    maxLength={MAX_LABEL_LENGTH}
+                    onChange={(e) => setEditLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleEditSave(cat.id) } }}
+                  />
+                  <button type="button" onClick={() => handleEditSave(cat.id)} disabled={saving} className="text-xs text-accent-text font-medium px-1">
+                    {saving ? '...' : 'Save'}
+                  </button>
+                  <button type="button" onClick={() => { setEditingId(null); setEditEmojiGrid(false) }} className="text-xs text-text-muted px-1">✕</button>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm">{cat.emoji} {cat.label}</span>
+                  <div className="ml-auto flex items-center gap-0.5">
+                    <button type="button" onClick={() => handleMove(idx, -1)} disabled={idx === 0}
+                      className="w-6 h-6 flex items-center justify-center text-text-muted hover:text-text-secondary disabled:opacity-20 rounded hover:bg-card-hover">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button type="button" onClick={() => handleMove(idx, 1)} disabled={idx === customCategories.length - 1}
+                      className="w-6 h-6 flex items-center justify-center text-text-muted hover:text-text-secondary disabled:opacity-20 rounded hover:bg-card-hover">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <button type="button" onClick={() => { setEditingId(cat.id); setEditEmoji(cat.emoji); setEditLabel(cat.label); setEditEmojiGrid(false) }}
+                      className="w-6 h-6 flex items-center justify-center text-text-muted hover:text-accent-text rounded hover:bg-card-hover">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </button>
+                    <button type="button" onClick={() => handleDelete(cat.id)}
+                      className="w-6 h-6 flex items-center justify-center text-text-muted hover:text-danger-text rounded hover:bg-danger-bg">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </>
+              )}
+              {editingId === cat.id && editEmojiGrid && (
+                <div className="w-full">
+                  <EmojiGrid selected={editEmoji} onPick={(e) => { setEditEmoji(e); setEditEmojiGrid(false) }} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )

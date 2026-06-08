@@ -33,6 +33,9 @@ export function AddExpense() {
             customCategories: arrayUnion(cat),
           })
         }}
+        onUpdateCategories={async (cats: CustomCategory[]) => {
+          await updateDoc(doc(db!, 'trips', id!), { customCategories: cats })
+        }}
         onSubmit={async (data) => {
           // Run all writes in parallel — they're independent
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
