@@ -1,38 +1,18 @@
 import { useState, useEffect } from 'react'
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
-import { formatMoney, getMemberName, getCategoryInfo, BALANCE_THRESHOLD, DEFAULT_CURRENCY } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 import { CurrencyPicker } from './CurrencyPicker'
 import { fetchRates } from '../lib/rates'
 
 /** Compute all individual debtor→creditor pairs without simplification */
-function computeRawDebts(balances: Record<string, number>) {
-  const debts: { from: string; to: string; amount: number }[] = []
-  const creditors = Object.entries(balances).filter(([, b]) => b > BALANCE_THRESHOLD)
-  const debtors = Object.entries(balances).filter(([, b]) => b < -BALANCE_THRESHOLD)
-  for (const [fromUid, fromBal] of debtors) {
-    for (const [toUid, toBal] of creditors) {
-      // Each debtor owes each creditor proportionally
-      const totalDebt = -fromBal
-      const totalCredit = creditors.reduce((s, [, b]) => s + b, 0)
-      const amount = Math.round(totalDebt * (toBal / totalCredit) * 100) / 100
-      if (amount > BALANCE_THRESHOLD) {
-        debts.push({ from: fromUid, to: toUid, amount })
-      }
-    }
-  }
-  return debts
-}
-
 export function SettlementView({
   expenses,
   members,
   memberUids,
   settlementCurrency,
-  simplifyDebtsDefault = true,
   onRecordSettlement,
-  onToggleSimplify,
   customCategories,
   tripRates,
   tripLastCurrency,
@@ -42,16 +22,13 @@ export function SettlementView({
   members: Record<string, UserProfile>
   memberUids: string[]
   settlementCurrency?: string
-  simplifyDebtsDefault?: boolean
   onRecordSettlement?: (from: string, to: string, amount: number, method?: string, currency?: string, exchangeRate?: number) => Promise<void>
-  onToggleSimplify?: (value: boolean) => void
   customCategories?: CustomCategory[]
   tripRates?: Record<string, number>
   tripLastCurrency?: string
   currentUserUid?: string
 }) {
   const sc = settlementCurrency ?? DEFAULT_CURRENCY
-  const [simplify, setSimplify] = useState(simplifyDebtsDefault)
   const [recordingIdx, setRecordingIdx] = useState<number | null>(null)
   const [payMethod, setPayMethod] = useState('')
   const [showSettleAll, setShowSettleAll] = useState(false)
@@ -111,23 +88,11 @@ export function SettlementView({
       {/* Settle Up — most important, shown first */}
       {settlements.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide">
-              Settle Up
-            </h3>
-            <button
-              onClick={() => {
-                const next = !simplify
-                setSimplify(next)
-                onToggleSimplify?.(next)
-              }}
-              className="text-sm text-accent-text hover:text-accent-hover transition-colors"
-            >
-              {simplify ? 'Show all debts' : 'Simplify debts'}
-            </button>
-          </div>
+          <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
+            Settle Up
+          </h3>
           <div className="space-y-2">
-            {(simplify ? settlements : computeRawDebts(balances)).map((s, i) => (
+            {settlements.map((s, i) => (
               <div
                 key={i}
                 className="bg-accent-soft rounded-lg p-3 flex items-center gap-2 flex-wrap"
@@ -212,9 +177,8 @@ export function SettlementView({
                   onClick={async () => {
                     setSettlingAll(true)
                     try {
-                      const debts = simplify ? settlements : computeRawDebts(balances)
                       await Promise.all(
-                        debts.map((s) => onRecordSettlement!(s.from, s.to, s.amount))
+                        settlements.map((s) => onRecordSettlement!(s.from, s.to, s.amount))
                       )
                     } catch {
                       // Individual failures are handled by the parent
@@ -324,7 +288,7 @@ export function SettlementView({
                   <input
                     type="number"
                     inputMode="decimal"
-                    step="BALANCE_THRESHOLD"
+                    step="0.01"
                     min="0"
                     value={cpAmount}
                     onChange={(e) => setCpAmount(e.target.value)}
