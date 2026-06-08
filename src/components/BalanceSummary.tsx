@@ -35,7 +35,7 @@ export function BalanceSummary({
     return (
       <div className="bg-success-bg rounded-lg px-4 py-3 mb-6">
         <p className="text-sm font-medium text-success-text">
-          All settled up across all trips!
+          All settled up! ✓
         </p>
       </div>
     )

@@ -140,7 +140,7 @@ export function Profile() {
       <form onSubmit={handleSave} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Display Name
+            Name
           </label>
           <input
             type="text"
@@ -149,14 +149,11 @@ export function Profile() {
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder={googleName}
           />
-          <p className="text-xs text-text-muted mt-1">
-            This is how other trip members will see you.
-          </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Profile Photo
+            Photo
           </label>
           <div className="flex gap-2">
             <button
@@ -179,14 +176,11 @@ export function Profile() {
               </button>
             )}
           </div>
-          <p className="text-xs text-text-muted mt-1">
-            Upload a photo and crop it to fit. Click your avatar above to upload.
-          </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Or paste a photo URL
+            Photo URL
           </label>
           <input
             type="url"

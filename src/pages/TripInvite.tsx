@@ -139,7 +139,7 @@ export function TripInvite() {
     }
 
     if (isAlreadyInTrip(normalized)) {
-      setError('This person is already in the ${tl}')
+      setError(`Already in this ${tl}`)
       return
     }
 
@@ -236,7 +236,7 @@ export function TripInvite() {
           </button>
         </form>
         <p className="text-xs text-text-muted mt-1">
-          They'll see this ${tl} when they sign in
+          Appears after they sign in
         </p>
       </div>
 
@@ -297,7 +297,7 @@ export function TripInvite() {
                       }
                     }
                     if (added === 0) {
-                      setError('All members from this group are already in the ${tl}')
+                      setError(`All group members already in this ${tl}`)
                     }
                   }}
                   className="text-xs font-medium text-accent-text hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-soft transition-colors"
@@ -386,7 +386,7 @@ export function TripInvite() {
 
       {/* Invite link */}
       <div className="border-t border-line pt-4">
-        <label className={label}>Or share invite link</label>
+        <label className={label}>Invite link</label>
         <div className="flex gap-2">
           <input
             type="text"
@@ -402,7 +402,7 @@ export function TripInvite() {
           </button>
         </div>
         <p className="text-xs text-text-muted mt-1">
-          Anyone with this link can join after signing in
+          Anyone with this link can join
         </p>
       </div>
 
@@ -421,7 +421,7 @@ export function TripInvite() {
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                {e} — hasn't joined yet
+                {e}
               </div>
             ))}
           </div>

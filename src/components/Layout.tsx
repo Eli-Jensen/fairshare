@@ -116,7 +116,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
                   >
-                    View Recently Deleted
+                    Trash
                   </button>
                   <div className="border-t border-line-light">
                     <button

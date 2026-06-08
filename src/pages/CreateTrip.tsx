@@ -118,9 +118,6 @@ export function CreateTrip() {
           <label className="block text-sm font-medium text-text-secondary mb-1">
             Settlement currency
           </label>
-          <p className="text-xs text-text-muted mb-2">
-            Balances and settlements will be shown in this currency.
-          </p>
           <div className="flex gap-1.5 flex-wrap mb-2">
             {COMMON_SETTLEMENT.map((code) => (
               <button

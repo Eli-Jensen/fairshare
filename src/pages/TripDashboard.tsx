@@ -201,7 +201,7 @@ export function TripDashboard() {
             to={`/trip/${id}/invite`}
             className="text-xs text-accent-text hover:text-accent-hover font-medium"
           >
-            + Invite people
+            + Invite
           </Link>
           <span className="text-text-muted">|</span>
           <button
@@ -330,7 +330,7 @@ export function TripDashboard() {
                 to={`/trip/${id}/expense/new`}
                 className="text-accent-text font-medium hover:text-accent-hover"
               >
-                Add the first expense
+                Add an expense
               </Link>
             </div>
           ) : (
@@ -394,7 +394,7 @@ export function TripDashboard() {
       {showDeleteModal && (
         <DeleteModal
           title={`Delete this ${tl} for everyone?`}
-          message={`This will permanently delete "${trip.name}" and all its expenses for every member of this ${tl}, not just you. This action is moved to the trash for 24 hours before being permanently removed.`}
+          message={`"${trip.name}" and all expenses will be moved to trash for 24 hours, then permanently removed for all members.`}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={async () => {
             setShowDeleteModal(false)
@@ -411,7 +411,7 @@ export function TripDashboard() {
       {showLeaveModal && (
         <DeleteModal
           title={`Leave this ${tl}?`}
-          message="You'll no longer see this ${tl} or its expenses. Your past expenses will remain for other members."
+          message={`You'll no longer see this ${tl} or its expenses.`}
           onCancel={() => setShowLeaveModal(false)}
           onConfirm={() => {
             setShowLeaveModal(false)
@@ -423,7 +423,7 @@ export function TripDashboard() {
       {showLeaveConfirm && (
         <DeleteModal
           title="Are you sure?"
-          message="This cannot be undone. You will need to be re-invited to rejoin this ${tl}."
+          message={`This cannot be undone. You'll need a new invite to rejoin.`}
           onCancel={() => setShowLeaveConfirm(false)}
           onConfirm={async () => {
             setShowLeaveConfirm(false)

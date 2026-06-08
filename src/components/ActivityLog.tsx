@@ -58,7 +58,7 @@ export function ActivityLog({
   if (entries.length === 0) {
     return (
       <div className="text-center py-8 text-text-muted">
-        No activity yet.
+        No activity yet
       </div>
     )
   }

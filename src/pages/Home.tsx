@@ -200,7 +200,7 @@ export function Home() {
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-text">Your Trips</h1>
+        <h1 className="text-2xl font-bold text-text">Trips</h1>
         <Link
           to="/trip/new"
           className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
@@ -218,7 +218,7 @@ export function Home() {
             to="/trip/new"
             className="text-accent-text font-medium hover:text-accent-hover"
           >
-            Create your first one
+            Create one
           </Link>
         </div>
       ) : (
@@ -243,7 +243,7 @@ export function Home() {
                   onClick={() => setShowAllTrips(true)}
                   className="w-full mt-2 text-sm text-accent-text hover:text-accent-hover py-2 transition-colors"
                 >
-                  View all {tripItems.length} trips
+                  Show all ({tripItems.length})
                 </button>
               )}
               {showAllTrips && tripItems.length > 3 && (
@@ -260,7 +260,7 @@ export function Home() {
           {/* Groups section */}
           {groupItems.length > 0 && (
             <div className="mb-6">
-              <h2 className="text-lg font-bold text-text mb-3">Your Groups</h2>
+              <h2 className="text-lg font-bold text-text mb-3">Groups</h2>
               <div className="space-y-3">
                 {groupItems.map((trip) => (
                   <TripCard

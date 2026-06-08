@@ -157,9 +157,9 @@ export function DeletedItems() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-text mb-2">Recently Deleted</h1>
+      <h1 className="text-2xl font-bold text-text mb-2">Trash</h1>
       <p className="text-sm text-text-secondary mb-6">
-        Items are permanently removed after 24 hours.
+        Removed after 24 hours
       </p>
 
       {isEmpty ? (

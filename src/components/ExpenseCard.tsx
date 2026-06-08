@@ -77,7 +77,7 @@ export function ExpenseCard({
           </div>
           {!isSettlement && (
             <p className="text-xs text-text-muted mt-0.5">
-              Split: {Object.keys(expense.splits).length} people ({expense.splitType})
+              {Object.keys(expense.splits).length} people · {expense.splitType}
             </p>
           )}
           {expense.notes && (
