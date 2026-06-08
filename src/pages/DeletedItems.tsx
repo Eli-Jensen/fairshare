@@ -30,7 +30,6 @@ export function DeletedItems() {
   const [loading, setLoading] = useState(true)
   const [restoring, setRestoring] = useState<string | null>(null)
 
-  // Listen for soft-deleted trips
   useEffect(() => {
     if (!user) return
 
@@ -40,7 +39,11 @@ export function DeletedItems() {
       orderBy('createdAt', 'desc')
     )
 
-    return onSnapshot(q, (snap) => {
+    let unsubExpenses: (() => void)[] = []
+    const expensesByTrip = new Map<string, DeletedExpense[]>()
+
+    const unsubTrips = onSnapshot(q, (snap) => {
+      // Update deleted trips
       const deleted: DeletedTrip[] = []
       for (const d of snap.docs) {
         const data = d.data()
@@ -50,40 +53,15 @@ export function DeletedItems() {
       }
       setDeletedTrips(deleted)
       setLoading(false)
-    })
-  }, [user])
 
-  // Scan active trips for soft-deleted expenses
-  useEffect(() => {
-    if (!user) return
-
-    const q = query(
-      collection(db, 'trips'),
-      where('memberUids', 'array-contains', user.uid)
-    )
-
-    let unsubExpenses: (() => void)[] = []
-
-    const unsubTrips = onSnapshot(q, (tripSnap) => {
-      // Clean up previous expense listeners
+      // Rebuild expense listeners for active (non-deleted) trips
       unsubExpenses.forEach((u) => u())
       unsubExpenses = []
 
-      const allDeleted: DeletedExpense[] = []
-      let pending = tripSnap.docs.length
-
-      if (pending === 0) {
-        setDeletedExpenses([])
-        return
-      }
-
-      for (const tripDoc of tripSnap.docs) {
-        const tripData = tripDoc.data()
-        if (tripData.deletedAt) {
-          pending--
-          if (pending === 0) setDeletedExpenses(allDeleted)
-          continue
-        }
+      const activeTripIds = new Set<string>()
+      for (const tripDoc of snap.docs) {
+        if (tripDoc.data().deletedAt) continue
+        activeTripIds.add(tripDoc.id)
 
         const expQ = query(
           collection(db, 'trips', tripDoc.id, 'expenses'),
@@ -91,29 +69,26 @@ export function DeletedItems() {
         )
 
         const unsub = onSnapshot(expQ, (expSnap) => {
-          // Remove old entries for this trip
-          const others = allDeleted.filter((e) => e.tripId !== tripDoc.id)
-          const newDeleted = expSnap.docs
+          const tripDeleted = expSnap.docs
             .filter((d) => d.data().deletedAt)
-            .map(
-              (d) =>
-                ({
-                  id: d.id,
-                  tripId: tripDoc.id,
-                  tripName: tripData.name,
-                  ...d.data(),
-                }) as DeletedExpense
-            )
-          allDeleted.length = 0
-          allDeleted.push(...others, ...newDeleted)
-          setDeletedExpenses([...allDeleted])
+            .map((d) => ({
+              id: d.id,
+              tripId: tripDoc.id,
+              tripName: tripDoc.data().name,
+              ...d.data(),
+            }) as DeletedExpense)
+          expensesByTrip.set(tripDoc.id, tripDeleted)
+
+          const all = Array.from(expensesByTrip.values()).flat()
+          setDeletedExpenses(all)
         })
 
         unsubExpenses.push(unsub)
-        pending--
-        if (pending === 0 && allDeleted.length > 0) {
-          setDeletedExpenses([...allDeleted])
-        }
+      }
+
+      // Remove stale entries for trips no longer active
+      for (const id of expensesByTrip.keys()) {
+        if (!activeTripIds.has(id)) expensesByTrip.delete(id)
       }
     })
 
