@@ -346,7 +346,7 @@ export function TripDashboard() {
       </div>
 
       {tab === 'expenses' && (
-        <div>
+        <div className="max-w-lg mx-auto">
           {/* Category filter */}
           {expenses.length > 0 && (
             <>

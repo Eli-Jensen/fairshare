@@ -84,7 +84,7 @@ export function SettlementView({
   }
 
   return (
-    <div className="space-y-6 min-w-0">
+    <div className="space-y-6 min-w-0 max-w-lg mx-auto">
       {/* Settle Up — most important, shown first */}
       {settlements.length > 0 && (
         <div>
@@ -375,7 +375,7 @@ export function SettlementView({
         <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
           Total Spent
         </h3>
-        <div className="max-w-lg">
+        <div>
           <div className="space-y-1">
             {sortedSpending.map(({ uid, amount }) => (
               <div key={uid} className="flex items-center justify-between py-1">
@@ -403,7 +403,7 @@ export function SettlementView({
         <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
           Balances
         </h3>
-        <div className="max-w-lg space-y-1">
+        <div className="space-y-1">
           {/* Show all UIDs with balances, including removed members */}
           {Object.entries(balances)
             .sort(([, a], [, b]) => b - a)
@@ -453,7 +453,7 @@ export function SettlementView({
             <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-2">
               By Category
             </h3>
-            <div className="max-w-lg space-y-2">
+            <div className="space-y-2">
               {entries.map(([cat, amount]) => {
                 const info = getCategoryInfo(cat, customCategories)
                 return (
