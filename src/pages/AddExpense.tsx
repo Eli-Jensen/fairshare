@@ -42,7 +42,7 @@ export function AddExpense() {
           if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
-          await Promise.all([
+          const [expenseRef] = await Promise.all([
             addDoc(collection(db!, 'trips', id!, 'expenses'), {
               ...data,
               createdBy: user.uid,
@@ -56,6 +56,7 @@ export function AddExpense() {
             actorUid: user.uid,
             targetDescription: data.description,
             targetAmount: data.amountUSD,
+            targetExpenseId: expenseRef.id,
           })
           navigate(`/trip/${id}`)
         }}

@@ -442,6 +442,7 @@ export function TripDashboard() {
               targetPayeeUid: to,
               targetDescription: `${fromName} → ${toName}`,
               targetAmount: amount,
+              targetExpenseId: ref.id,
               paymentMethod: method,
             })
             setUndoSettlement({ id: ref.id, description: desc })
@@ -450,7 +451,7 @@ export function TripDashboard() {
       )}
 
       {tab === 'activity' && (
-        <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} />
+        <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} tripId={id} />
       )}
 
       {showDeleteModal && (

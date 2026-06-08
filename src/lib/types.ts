@@ -150,6 +150,7 @@ export interface ActivityLogEntry {
   actorUid: string
   targetDescription?: string
   targetAmount?: number
+  targetExpenseId?: string  // the expense doc id — enables undo from activity
   targetPayeeUid?: string   // for settlements: who received the payment
   paymentMethod?: string    // for settlements: e.g. "Venmo", "Cash"
   editDetails?: string[]    // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]

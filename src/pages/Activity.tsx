@@ -6,6 +6,10 @@ import {
   orderBy,
   limit,
   onSnapshot,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  deleteField,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -70,6 +74,14 @@ function describeAction(
   }
 }
 
+/** Which actions can be undone, and what the undo does */
+function getUndoAction(entry: ActivityLogEntry): 'soft-delete' | 'restore' | null {
+  if (!entry.targetExpenseId || !entry.tripId) return null
+  if (entry.action === 'expense_added' || entry.action === 'settlement_recorded') return 'soft-delete'
+  if (entry.action === 'expense_deleted') return 'restore'
+  return null
+}
+
 export function Activity() {
   const { user } = useAuth()
   const { getProfiles } = useProfileCache()
@@ -77,6 +89,8 @@ export function Activity() {
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [loading, setLoading] = useState(true)
   const [seenTimestamp, setSeenTimestamp] = useState(0)
+  const [undoneIds, setUndoneIds] = useState<Set<string>>(new Set())
+  const [loadingId, setLoadingId] = useState<string | null>(null)
 
   // Read the old "seen" timestamp for highlighting, then mark as seen now
   useEffect(() => {
@@ -177,6 +191,24 @@ export function Activity() {
     }
   }, [user?.uid])
 
+  async function handleUndo(entry: ActivityLogEntry, undoAction: 'soft-delete' | 'restore') {
+    if (!entry.tripId || !entry.targetExpenseId) return
+
+    setLoadingId(entry.id)
+    try {
+      const expenseRef = doc(db, 'trips', entry.tripId, 'expenses', entry.targetExpenseId)
+      if (undoAction === 'soft-delete') {
+        await updateDoc(expenseRef, { deletedAt: serverTimestamp() })
+      } else {
+        await updateDoc(expenseRef, { deletedAt: deleteField() })
+      }
+      setUndoneIds((prev) => new Set(prev).add(entry.id))
+    } catch {
+      // Silently fail — expense may already be deleted
+    }
+    setLoadingId(null)
+  }
+
   if (loading) {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
@@ -226,14 +258,18 @@ export function Activity() {
                 const isSettlement = entry.action === 'settlement_recorded'
                 const entryTime = time?.getTime() ?? 0
                 const isNew = seenTimestamp > 0 && entryTime > seenTimestamp
+                const undoAction = getUndoAction(entry)
+                const isUndone = undoneIds.has(entry.id)
+                const isUndoLoading = loadingId === entry.id
                 return (
-                  <a
+                  <div
                     key={entry.id}
-                    href={`/trip/${entry.tripId}`}
-                    className={`flex items-start gap-2.5 py-2.5 px-3 -mx-3 rounded-lg transition-colors ${
+                    className={`flex items-start gap-2.5 py-2.5 px-3 -mx-3 rounded-lg transition-colors group ${
+                      isUndone ? 'opacity-50' : ''
+                    } ${
                       isSettlement
-                        ? 'bg-accent-soft hover:bg-accent-soft/80'
-                        : 'hover:bg-card-hover'
+                        ? 'bg-accent-soft'
+                        : ''
                     } ${isNew ? 'animate-highlight' : ''}`}
                   >
                     {isSettlement && entry.targetPayeeUid ? (
@@ -248,9 +284,15 @@ export function Activity() {
                     ) : (
                       <MemberAvatar member={members[entry.actorUid]} size="sm" />
                     )}
-                    <div className="flex-1 min-w-0">
+                    <a
+                      href={`/trip/${entry.tripId}`}
+                      className="flex-1 min-w-0"
+                    >
                       <p className={`text-sm ${isSettlement ? 'text-text font-medium' : 'text-text-secondary'}`}>
-                        {describeAction(entry, members, 'USD')}
+                        {isUndone
+                          ? <span className="italic">Undone</span>
+                          : describeAction(entry, members, 'USD')
+                        }
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-sm text-accent-text">
@@ -260,8 +302,24 @@ export function Activity() {
                           <span className="text-sm text-text-muted">{relativeTime(time)}</span>
                         )}
                       </div>
-                    </div>
-                  </a>
+                    </a>
+                    {undoAction && !isUndone && (
+                      <button
+                        onClick={() => handleUndo(entry, undoAction)}
+                        disabled={isUndoLoading}
+                        className="shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 transition-opacity px-2 py-1 rounded-md text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-muted disabled:opacity-50 self-center"
+                        title={undoAction === 'restore' ? 'Restore' : 'Undo'}
+                      >
+                        {isUndoLoading ? (
+                          <span className="inline-block w-3.5 h-3.5 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 )
               })}
             </div>

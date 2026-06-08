@@ -111,6 +111,7 @@ export function EditExpense() {
             actorUid: user.uid,
             targetDescription: data.description,
             targetAmount: data.amountUSD,
+            targetExpenseId: eid!,
             editDetails: changes.length > 0 ? changes : undefined,
           })
           navigate(`/trip/${id}`)
@@ -125,6 +126,7 @@ export function EditExpense() {
             actorUid: user.uid,
             targetDescription: expense.description,
             targetAmount: expense.amountUSD,
+            targetExpenseId: eid!,
           })
           navigate(`/trip/${id}`, {
             state: {
