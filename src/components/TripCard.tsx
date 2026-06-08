@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
-import type { Trip, UserProfile, Expense } from '../lib/types'
-import { formatMoney, mapExpense, DEFAULT_CURRENCY } from '../lib/types'
+import type { Trip, UserProfile } from '../lib/types'
+import { formatMoney, DEFAULT_CURRENCY } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 import { useProfileCache } from '../hooks/useProfileCache'
-import { computeBalances } from '../lib/settlement'
 
 export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
   trip: Trip
@@ -20,50 +12,27 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
 }) {
   const { getProfiles } = useProfileCache()
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
-  const [totalSettled, setTotalSettled] = useState(0)
-  const [latestExpense, setLatestExpense] = useState<Expense | null>(null)
-  const [expenseCount, setExpenseCount] = useState(0)
 
   const dateStr = trip.createdAt?.toDate
     ? trip.createdAt.toDate().toLocaleDateString()
     : ''
 
+  const sc = trip.settlementCurrency ?? DEFAULT_CURRENCY
+  const totalSpent = trip.cachedTotalSpent ?? 0
+  const expenseCount = trip.cachedExpenseCount ?? 0
+  const latestDesc = trip.cachedLatestDesc
+  const latestAmount = trip.cachedLatestAmount
+
   useEffect(() => {
     getProfiles(trip.memberUids).then(setMembers)
   }, [trip.memberUids.join(','), getProfiles])
 
+  // Report cached balance to parent for cross-trip summary
   useEffect(() => {
-    const q = query(
-      collection(db, 'trips', trip.id, 'expenses'),
-      orderBy('createdAt', 'desc')
-    )
-    return onSnapshot(q, (snap) => {
-      let total = 0
-      let latest: Expense | null = null
-      let count = 0
-
-      for (const d of snap.docs) {
-        const data = d.data()
-        if (data.deletedAt) continue
-        total += data.amountUSD ?? 0  // Firestore field name
-        count++
-        if (!latest) latest = mapExpense({ id: d.id, ...data })
-      }
-
-      setTotalSettled(total)
-      setLatestExpense(latest)
-      setExpenseCount(count)
-
-      // Report user's balance to parent for cross-trip summary
-      if (currentUserUid && onBalanceComputed) {
-        const allExpenses = snap.docs
-          .filter((d) => !d.data().deletedAt)
-          .map((d) => mapExpense({ id: d.id, ...d.data() }))
-        const balances = computeBalances(allExpenses, trip.memberUids)
-        onBalanceComputed(trip.id, balances[currentUserUid] ?? 0)
-      }
-    })
-  }, [trip.id])
+    if (currentUserUid && onBalanceComputed && trip.cachedBalances) {
+      onBalanceComputed(trip.id, trip.cachedBalances[currentUserUid] ?? 0)
+    }
+  }, [trip.cachedBalances, currentUserUid, onBalanceComputed, trip.id])
 
   return (
     <Link
@@ -81,7 +50,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
       {/* Total and expense count */}
       <div className="flex items-baseline justify-between mt-2 mb-1.5">
         <span className="text-lg font-semibold text-text">
-          {formatMoney(totalSettled, trip.settlementCurrency ?? DEFAULT_CURRENCY)}
+          {formatMoney(totalSpent, sc)}
         </span>
         <span className="text-sm text-text-muted">
           {expenseCount} expense{expenseCount !== 1 && 's'}
@@ -89,13 +58,13 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
       </div>
 
       {/* Latest expense */}
-      {latestExpense && (
+      {latestDesc && latestAmount != null && (
         <div className="flex items-center justify-between text-sm bg-accent-soft border border-accent/20 rounded-md px-2.5 py-1.5 mb-2">
           <span className="truncate text-text">
-            Latest: {latestExpense.description}
+            Latest: {latestDesc}
           </span>
           <span className="shrink-0 ml-2 font-semibold text-accent-text">
-            {formatMoney(latestExpense.amountSettled, trip.settlementCurrency ?? DEFAULT_CURRENCY)}
+            {formatMoney(latestAmount, sc)}
           </span>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   doc,
   collection,
@@ -7,11 +7,13 @@ import {
   orderBy,
   limit,
   deleteDoc,
+  updateDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
 import { mapExpense } from '../lib/types'
 import { useProfileCache } from './useProfileCache'
+import { computeBalances } from '../lib/settlement'
 
 export function useTrip(tripId: string | undefined) {
   const { getProfiles } = useProfileCache()
@@ -20,13 +22,16 @@ export function useTrip(tripId: string | undefined) {
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const tripRef = useRef<Trip | null>(null)
 
   useEffect(() => {
     if (!tripId) return
 
     const unsub = onSnapshot(doc(db, 'trips', tripId), (snap) => {
       if (snap.exists()) {
-        setTrip({ id: snap.id, ...snap.data() } as Trip)
+        const t = { id: snap.id, ...snap.data() } as Trip
+        setTrip(t)
+        tripRef.current = t
       }
     })
 
@@ -61,6 +66,22 @@ export function useTrip(tripId: string | undefined) {
 
       setExpenses(active)
       setLoading(false)
+
+      // Fire-and-forget: update denormalized summary on the trip doc
+      // so TripCard on the home page doesn't need its own expense listener
+      const memberUids = tripRef.current?.memberUids
+      if (memberUids) {
+        const total = active.reduce((s, e) => s + e.amountSettled, 0)
+        const latest = active[0] ?? null
+        const balances = computeBalances(active, memberUids)
+        updateDoc(doc(db, 'trips', tripId), {
+          cachedExpenseCount: active.length,
+          cachedTotalSpent: total,
+          cachedLatestDesc: latest?.description ?? null,
+          cachedLatestAmount: latest?.amountSettled ?? null,
+          cachedBalances: balances,
+        }).catch(() => {}) // silently ignore (permission errors, etc.)
+      }
     })
   }, [tripId])
 

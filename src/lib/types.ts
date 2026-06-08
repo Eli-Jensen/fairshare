@@ -47,6 +47,12 @@ export interface Trip {
   simplifyDebts?: boolean // defaults to true
   customCategories?: CustomCategory[]
   createdAt: Timestamp
+  // Denormalized expense summary (updated by useTrip on each expense change)
+  cachedExpenseCount?: number
+  cachedTotalSpent?: number
+  cachedLatestDesc?: string | null
+  cachedLatestAmount?: number | null
+  cachedBalances?: Record<string, number>
 }
 
 export interface Expense {
