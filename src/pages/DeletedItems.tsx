@@ -173,38 +173,32 @@ export function DeletedItems() {
         </div>
       ) : (
         <>
-          {deletedTrips.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
-                Deleted Trips ({deletedTrips.length})
-              </h2>
-              <div className="space-y-2">
-                {deletedTrips.map((trip) => (
-                  <div
-                    key={trip.id}
-                    className="flex items-center justify-between bg-card border border-line rounded-lg px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-text-secondary line-through">
-                        {trip.name}
-                      </p>
-                      <p className="text-xs text-text-muted">
-                        {trip.memberUids.length} members
-                        {trip.deletedAt && ` · ${timeRemaining(trip.deletedAt)}`}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => restoreTrip(trip.id)}
-                      disabled={restoring === trip.id}
-                      className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors disabled:opacity-50"
-                    >
-                      {restoring === trip.id ? 'Restoring...' : 'Restore'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {(() => {
+            const trips = deletedTrips.filter((t) => (t.type ?? 'trip') === 'trip')
+            const groups = deletedTrips.filter((t) => t.type === 'group')
+            return (
+              <>
+                {trips.length > 0 && (
+                  <DeletedSection
+                    label={`Deleted Trips (${trips.length})`}
+                    items={trips}
+                    restoring={restoring}
+                    onRestore={restoreTrip}
+                    timeRemaining={timeRemaining}
+                  />
+                )}
+                {groups.length > 0 && (
+                  <DeletedSection
+                    label={`Deleted Groups (${groups.length})`}
+                    items={groups}
+                    restoring={restoring}
+                    onRestore={restoreTrip}
+                    timeRemaining={timeRemaining}
+                  />
+                )}
+              </>
+            )
+          })()}
 
           {deletedExpenses.length > 0 && (
             <div>
@@ -240,6 +234,53 @@ export function DeletedItems() {
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function DeletedSection({
+  label,
+  items,
+  restoring,
+  onRestore,
+  timeRemaining,
+}: {
+  label: string
+  items: DeletedTrip[]
+  restoring: string | null
+  onRestore: (id: string) => void
+  timeRemaining: (d: import('firebase/firestore').Timestamp) => string
+}) {
+  return (
+    <div className="mb-8">
+      <h2 className="text-sm font-medium text-text-secondary uppercase tracking-wide mb-3">
+        {label}
+      </h2>
+      <div className="space-y-2">
+        {items.map((trip) => (
+          <div
+            key={trip.id}
+            className="flex items-center justify-between bg-card border border-line rounded-lg px-4 py-3"
+          >
+            <div>
+              <p className="text-sm font-medium text-text-secondary line-through">
+                {trip.name}
+              </p>
+              <p className="text-xs text-text-muted">
+                {trip.memberUids.length} members
+                {trip.deletedAt && ` · ${timeRemaining(trip.deletedAt)}`}
+              </p>
+            </div>
+            <button
+              onClick={() => onRestore(trip.id)}
+              disabled={restoring === trip.id}
+              className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors disabled:opacity-50"
+            >
+              {restoring === trip.id ? 'Restoring...' : 'Restore'}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
