@@ -33,6 +33,7 @@ export function TripDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null)
+  const [removeMemberName, setRemoveMemberName] = useState('')
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<Set<string>>(new Set())
@@ -247,7 +248,10 @@ export function TripDashboard() {
                 key={uid}
                 type="button"
                 onClick={() => {
-                  if (canRemove) setRemoveMemberUid(uid)
+                  if (canRemove) {
+                    setRemoveMemberUid(uid)
+                    setRemoveMemberName(getMemberName(uid, members))
+                  }
                   if (canLeave) setShowLeaveModal(true)
                 }}
                 className={`flex items-center gap-1.5 rounded-full px-2 py-1 transition-all ${
@@ -536,8 +540,10 @@ export function TripDashboard() {
           onConfirm={async () => {
             setShowLeaveConfirm(false)
             if (user) {
+              const remainingCount = (trip.memberUids?.length ?? 1) - 1
               await updateDoc(doc(db, 'trips', id!), {
                 memberUids: arrayRemove(user.uid),
+                ...(remainingCount <= 0 ? { deletedAt: serverTimestamp() } : {}),
               })
               navigate('/')
             }
@@ -545,10 +551,10 @@ export function TripDashboard() {
         />
       )}
 
-      {removeMemberUid && members[removeMemberUid] && (
+      {removeMemberUid && (
         <DeleteModal
           title="Remove member?"
-          message={`Do you want to remove ${getMemberName(removeMemberUid, members)} from the ${tl}?`}
+          message={`Do you want to remove ${removeMemberName} from the ${tl}?`}
           onCancel={() => setRemoveMemberUid(null)}
           onConfirm={async () => {
             const uid = removeMemberUid
@@ -557,16 +563,19 @@ export function TripDashboard() {
 
             const removedEntry: RemovedMember = {
               uid,
-              email: member.email,
-              displayName: member.displayName,
+              email: member?.email ?? '',
+              displayName: member?.displayName ?? removeMemberName,
               removedAt: serverTimestamp() as unknown as import('firebase/firestore').Timestamp,
             }
             const updatedRemoved = [...(trip.removedMembers ?? []), removedEntry]
 
+            const remainingCount = (trip.memberUids?.length ?? 1) - 1
             await updateDoc(doc(db, 'trips', id!), {
               memberUids: arrayRemove(uid),
               removedMembers: updatedRemoved,
+              ...(remainingCount <= 0 ? { deletedAt: serverTimestamp() } : {}),
             })
+            if (remainingCount <= 0) navigate('/')
           }}
         />
       )}
