@@ -424,30 +424,43 @@ export function TripDashboard() {
           memberUids={trip.memberUids}
           settlementCurrency={sc}
           customCategories={trip.customCategories}
-          onRecordSettlement={async (from, to, amount, method) => {
+          tripRates={trip.lastRates}
+          tripLastCurrency={trip.lastCurrency}
+          currentUserUid={user!.uid}
+          onRecordSettlement={async (from, to, amount, method, currency, exchangeRate) => {
+            const cur = currency ?? sc
+            const rate = exchangeRate ?? 1
+            const amountInSC = cur === sc ? amount : Math.round(amount * rate * 100) / 100
             const fromName = getMemberName(from, members)
             const toName = getMemberName(to, members)
             const desc = `${fromName} paid ${toName}${method ? ` via ${method}` : ''}`
             const ref = await addDoc(collection(db, 'trips', id!, 'expenses'), {
               description: desc,
               amount,
-              currency: sc,
-              exchangeRate: 1,
-              amountUSD: amount,
+              currency: cur,
+              exchangeRate: rate,
+              amountUSD: amountInSC,
               paidBy: from,
               splitType: 'exact' as const,
-              splits: { [to]: amount },
+              splits: { [to]: amountInSC },
               date: Timestamp.now(),
               isSettlement: true,
               createdBy: user!.uid,
               createdAt: serverTimestamp(),
             })
+            // Save rate for future use if it's a foreign currency
+            if (cur !== sc) {
+              await updateDoc(doc(db, 'trips', id!), {
+                [`lastRates.${cur}`]: rate,
+                lastCurrency: cur,
+              })
+            }
             writeActivity(id!, {
               action: 'settlement_recorded',
               actorUid: from,
               targetPayeeUid: to,
               targetDescription: `${fromName} → ${toName}`,
-              targetAmount: amount,
+              targetAmount: amountInSC,
               targetExpenseId: ref.id,
               paymentMethod: method,
             })

@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
 import { formatMoney, getMemberName, getCategoryInfo } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
+import { CurrencyPicker } from './CurrencyPicker'
+import { fetchRates } from '../lib/rates'
 
 /** Compute all individual debtor→creditor pairs without simplification */
 function computeRawDebts(balances: Record<string, number>) {
@@ -32,15 +34,21 @@ export function SettlementView({
   onRecordSettlement,
   onToggleSimplify,
   customCategories,
+  tripRates,
+  tripLastCurrency,
+  currentUserUid,
 }: {
   expenses: Expense[]
   members: Record<string, UserProfile>
   memberUids: string[]
   settlementCurrency?: string
   simplifyDebtsDefault?: boolean
-  onRecordSettlement?: (from: string, to: string, amount: number, method?: string) => Promise<void>
+  onRecordSettlement?: (from: string, to: string, amount: number, method?: string, currency?: string, exchangeRate?: number) => Promise<void>
   onToggleSimplify?: (value: boolean) => void
   customCategories?: CustomCategory[]
+  tripRates?: Record<string, number>
+  tripLastCurrency?: string
+  currentUserUid?: string
 }) {
   const sc = settlementCurrency ?? 'USD'
   const [simplify, setSimplify] = useState(simplifyDebtsDefault)
@@ -50,6 +58,27 @@ export function SettlementView({
   const [settlingAll, setSettlingAll] = useState(false)
   const balances = computeBalances(expenses, memberUids)
   const settlements = simplifyDebts(balances)
+
+  // Custom payment form state
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [cpFrom, setCpFrom] = useState('')
+  const [cpTo, setCpTo] = useState('')
+  const [cpAmount, setCpAmount] = useState('')
+  const [cpCurrency, setCpCurrency] = useState(sc)
+  const [cpMethod, setCpMethod] = useState('')
+  const [cpSubmitting, setCpSubmitting] = useState(false)
+  const [rates, setRates] = useState<Record<string, number>>(tripRates ?? {})
+
+  // Fetch exchange rates when form opens with non-settlement currency
+  useEffect(() => {
+    if (!showPaymentForm) return
+    if (cpCurrency === sc && rates[cpCurrency]) return
+    fetchRates().then((r) => setRates((prev) => ({ ...prev, ...r })))
+  }, [showPaymentForm, cpCurrency, sc])
+
+  const cpRate = cpCurrency === sc ? 1 : (rates[cpCurrency] ?? tripRates?.[cpCurrency] ?? null)
+  const cpAmountNum = parseFloat(cpAmount) || 0
+  const cpAmountInSC = cpRate ? cpAmountNum * cpRate : 0
 
   // Per-person spending (exclude settlements)
   const spending: Record<string, number> = {}
@@ -213,6 +242,167 @@ export function SettlementView({
       {settlements.length === 0 && expenses.length > 0 && (
         <div className="text-center py-4 text-success-text font-medium">
           All settled up!
+        </div>
+      )}
+
+      {/* Record a payment (custom/partial) */}
+      {onRecordSettlement && expenses.length > 0 && (
+        <div>
+          {!showPaymentForm ? (
+            <button
+              onClick={() => {
+                setCpFrom(currentUserUid ?? memberUids[0])
+                setCpTo(memberUids.find((u) => u !== (currentUserUid ?? memberUids[0])) ?? '')
+                setCpAmount('')
+                setCpCurrency(tripLastCurrency ?? sc)
+                setCpMethod('')
+                setShowPaymentForm(true)
+              }}
+              className="w-full py-2.5 text-sm font-medium text-text-secondary border border-line rounded-lg hover:bg-card-hover transition-colors flex items-center justify-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Record a payment
+            </button>
+          ) : (
+            <div className="bg-card border border-line rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-text">Record a payment</h3>
+                <button
+                  onClick={() => setShowPaymentForm(false)}
+                  className="text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Payer → Payee */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-text-muted mb-1 block">From</label>
+                  <select
+                    value={cpFrom}
+                    onChange={(e) => {
+                      setCpFrom(e.target.value)
+                      if (e.target.value === cpTo) {
+                        setCpTo(memberUids.find((u) => u !== e.target.value) ?? '')
+                      }
+                    }}
+                    className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text"
+                  >
+                    {memberUids.map((uid) => (
+                      <option key={uid} value={uid}>{getMemberName(uid, members)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pt-5 text-text-muted">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-text-muted mb-1 block">To</label>
+                  <select
+                    value={cpTo}
+                    onChange={(e) => setCpTo(e.target.value)}
+                    className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text"
+                  >
+                    {memberUids.filter((u) => u !== cpFrom).map((uid) => (
+                      <option key={uid} value={uid}>{getMemberName(uid, members)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Amount + Currency */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-text-muted mb-1 block">Amount</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={cpAmount}
+                    onChange={(e) => setCpAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text"
+                    autoFocus
+                  />
+                </div>
+                <div className="shrink-0">
+                  <CurrencyPicker value={cpCurrency} onChange={setCpCurrency} />
+                </div>
+              </div>
+
+              {/* Exchange rate hint when in foreign currency */}
+              {cpCurrency !== sc && cpAmountNum > 0 && (
+                <div className="text-xs text-text-muted px-1">
+                  {cpRate
+                    ? `≈ ${formatMoney(cpAmountInSC, sc)} at 1 ${cpCurrency} = ${cpRate.toFixed(4)} ${sc}`
+                    : 'Loading exchange rate...'}
+                </div>
+              )}
+
+              {/* Payment method pills */}
+              <div>
+                <label className="text-xs text-text-muted mb-1 block">Method (optional)</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {['Cash', 'Venmo', 'Zelle', 'Bank', 'PayPal', 'Other'].map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setCpMethod(cpMethod === m ? '' : m)}
+                      className={`text-[11px] px-2 py-1 rounded-full border transition-all ${
+                        cpMethod === m
+                          ? 'bg-accent-soft border-accent text-accent-text'
+                          : 'bg-card border-line text-text-secondary'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Confirm / Cancel */}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={async () => {
+                    if (!cpFrom || !cpTo || cpAmountNum <= 0) return
+                    if (cpCurrency !== sc && !cpRate) return
+                    setCpSubmitting(true)
+                    try {
+                      await onRecordSettlement(
+                        cpFrom,
+                        cpTo,
+                        cpAmountNum,
+                        cpMethod || undefined,
+                        cpCurrency !== sc ? cpCurrency : undefined,
+                        cpCurrency !== sc ? cpRate! : undefined,
+                      )
+                      setShowPaymentForm(false)
+                    } catch {
+                      // handled by parent
+                    }
+                    setCpSubmitting(false)
+                  }}
+                  disabled={cpSubmitting || cpAmountNum <= 0 || !cpFrom || !cpTo || (cpCurrency !== sc && !cpRate)}
+                  className="flex-1 text-sm font-medium text-white bg-accent hover:bg-accent-hover px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {cpSubmitting ? 'Recording...' : 'Record payment'}
+                </button>
+                <button
+                  onClick={() => setShowPaymentForm(false)}
+                  className="text-sm text-text-muted hover:text-text-secondary px-4 py-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
