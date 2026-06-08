@@ -51,17 +51,21 @@ export function useTrip(tripId: string | undefined) {
       const DAY_MS = 24 * 60 * 60 * 1000
 
       const active: Expense[] = []
+      const toDelete: typeof snap.docs = []
       for (const d of snap.docs) {
         const data = d.data()
         if (data.deletedAt) {
-          // Permanently delete expenses soft-deleted more than 24h ago
           const deletedTime = data.deletedAt.toDate?.()
           if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
-            deleteDoc(d.ref)
+            toDelete.push(d)
           }
           continue // Skip soft-deleted expenses
         }
         active.push(mapExpense({ id: d.id, ...data }))
+      }
+      // Clean up expired soft-deletes after processing (fire-and-forget)
+      if (toDelete.length > 0) {
+        Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
       }
 
       setExpenses(active)
@@ -106,6 +110,7 @@ export function useTrip(tripId: string | undefined) {
     return onSnapshot(q, (snap) => {
       const now = Date.now()
       const active: ActivityLogEntry[] = []
+      const toDelete: typeof snap.docs = []
 
       for (const d of snap.docs) {
         const data = d.data()
@@ -115,7 +120,7 @@ export function useTrip(tripId: string | undefined) {
           const isSettlement = data.action === 'settlement_recorded'
           const maxAge = isSettlement ? TWO_WEEKS_MS : WEEK_MS
           if (age > maxAge) {
-            deleteDoc(d.ref)
+            toDelete.push(d)
             continue
           }
         }
@@ -123,6 +128,10 @@ export function useTrip(tripId: string | undefined) {
       }
 
       setActivityLog(active)
+      // Clean up expired entries after processing (fire-and-forget)
+      if (toDelete.length > 0) {
+        Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
+      }
     })
   }, [tripId])
 

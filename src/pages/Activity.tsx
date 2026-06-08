@@ -6,6 +6,7 @@ import {
   orderBy,
   limit,
   onSnapshot,
+  getDocs,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -123,15 +124,9 @@ export function Activity() {
       where('memberUids', 'array-contains', user.uid),
     )
 
-    let activityUnsubs: (() => void)[] = []
-    const entriesByTrip = new Map<string, ActivityLogEntry[]>()
+    let cancelled = false
 
-    const unsubTrips = onSnapshot(tripsQ, (tripSnap) => {
-      // Clean up old activity listeners
-      activityUnsubs.forEach((u) => u())
-      activityUnsubs = []
-      entriesByTrip.clear()
-
+    const unsubTrips = onSnapshot(tripsQ, async (tripSnap) => {
       const trips = tripSnap.docs
         .filter((d) => !d.data().deletedAt)
         .map((d) => ({ id: d.id, ...d.data() }) as Trip)
@@ -152,55 +147,47 @@ export function Activity() {
       setTripCurrencies(currencies)
       getProfiles(Array.from(allUids)).then(setMembers)
 
-      let loadedCount = 0
-
-      // Step 2: listen to activity for each trip
-      for (const trip of trips) {
+      // One-time reads for activity entries (no persistent per-trip listeners)
+      const allEntries: ActivityLogEntry[] = []
+      await Promise.all(trips.map(async (trip) => {
         const actQ = query(
           collection(db, 'trips', trip.id, 'activity'),
           orderBy('createdAt', 'desc'),
           limit(MAX_ENTRIES_PER_TRIP),
         )
-
-        const unsub = onSnapshot(actQ, (actSnap) => {
-          const tripEntries: ActivityLogEntry[] = actSnap.docs.map((d) => ({
+        const actSnap = await getDocs(actQ)
+        for (const d of actSnap.docs) {
+          allEntries.push({
             id: d.id,
             ...d.data(),
             tripId: trip.id,
             tripName: trip.name,
-          }) as ActivityLogEntry)
+          } as ActivityLogEntry)
+        }
+      }))
 
-          entriesByTrip.set(trip.id, tripEntries)
+      if (cancelled) return
 
-          // Merge and sort all entries
-          const all = Array.from(entriesByTrip.values())
-            .flat()
-            .sort((a, b) => {
-              const aTime = a.createdAt?.toDate?.()?.getTime() ?? 0
-              const bTime = b.createdAt?.toDate?.()?.getTime() ?? 0
-              return bTime - aTime
-            })
-          setEntries(all)
+      allEntries.sort((a, b) => {
+        const aTime = a.createdAt?.toDate?.()?.getTime() ?? 0
+        const bTime = b.createdAt?.toDate?.()?.getTime() ?? 0
+        return bTime - aTime
+      })
+      setEntries(allEntries)
+      setLoading(false)
 
-          // Update latest timestamp for notification dot
-          if (all.length > 0 && user?.uid) {
-            const latestTime = all[0].createdAt?.toDate?.()?.getTime() ?? 0
-            if (latestTime > 0) {
-              setActivityLatestTimestamp(user.uid, latestTime)
-            }
-          }
-
-          loadedCount++
-          if (loadedCount >= trips.length) setLoading(false)
-        })
-
-        activityUnsubs.push(unsub)
+      // Update latest timestamp for notification dot
+      if (allEntries.length > 0 && user?.uid) {
+        const latestTime = allEntries[0].createdAt?.toDate?.()?.getTime() ?? 0
+        if (latestTime > 0) {
+          setActivityLatestTimestamp(user.uid, latestTime)
+        }
       }
     })
 
     return () => {
+      cancelled = true
       unsubTrips()
-      activityUnsubs.forEach((u) => u())
     }
   }, [user?.uid])
 

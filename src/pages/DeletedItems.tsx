@@ -4,6 +4,7 @@ import {
   query,
   where,
   onSnapshot,
+  getDocs,
   orderBy,
   doc,
   updateDoc,
@@ -40,62 +41,43 @@ export function DeletedItems() {
       orderBy('createdAt', 'desc')
     )
 
-    let unsubExpenses: (() => void)[] = []
-    const expensesByTrip = new Map<string, DeletedExpense[]>()
+    let cancelled = false
 
-    let hasServerData = false
-
-    const unsubTrips = onSnapshot(q, (snap) => {
+    const unsubTrips = onSnapshot(q, async (snap) => {
       const deleted: DeletedTrip[] = []
+      const activeTripDocs: { id: string; name: string }[] = []
+
       for (const d of snap.docs) {
         const data = d.data()
         if (data.deletedAt) {
           deleted.push({ id: d.id, ...data } as DeletedTrip)
+        } else {
+          activeTripDocs.push({ id: d.id, name: data.name })
         }
       }
 
-      if (!snap.metadata.fromCache) hasServerData = true
+      setDeletedTrips(deleted)
 
-      // Don't let a stale cache snapshot clear data we already have from the server
-      if (deleted.length > 0 || !snap.metadata.fromCache || !hasServerData) {
-        setDeletedTrips(deleted)
-      }
-      setLoading(false)
-
-      // Rebuild expense listeners for active (non-deleted) trips
-      unsubExpenses.forEach((u) => u())
-      unsubExpenses = []
-
-      const activeTripIds = new Set<string>()
-      for (const tripDoc of snap.docs) {
-        if (tripDoc.data().deletedAt) continue
-        activeTripIds.add(tripDoc.id)
-
-        const expQ = query(
-          collection(db, 'trips', tripDoc.id, 'expenses'),
-          orderBy('createdAt', 'desc')
+      // One-time reads for deleted expenses (no persistent listeners)
+      const allDeleted: DeletedExpense[] = []
+      await Promise.all(activeTripDocs.map(async (trip) => {
+        const expSnap = await getDocs(
+          query(collection(db, 'trips', trip.id, 'expenses'), orderBy('createdAt', 'desc'))
         )
-
-        const unsub = onSnapshot(expQ, (expSnap) => {
-          const tripDeleted = expSnap.docs
-            .filter((d) => d.data().deletedAt)
-            .map((d) => ({
+        for (const d of expSnap.docs) {
+          if (d.data().deletedAt) {
+            allDeleted.push({
               ...mapExpense({ id: d.id, ...d.data() }),
-              tripId: tripDoc.id,
-              tripName: tripDoc.data().name,
-            }) as DeletedExpense)
-          expensesByTrip.set(tripDoc.id, tripDeleted)
+              tripId: trip.id,
+              tripName: trip.name,
+            } as DeletedExpense)
+          }
+        }
+      }))
 
-          const all = Array.from(expensesByTrip.values()).flat()
-          setDeletedExpenses(all)
-        })
-
-        unsubExpenses.push(unsub)
-      }
-
-      // Remove stale entries for trips no longer active
-      for (const id of expensesByTrip.keys()) {
-        if (!activeTripIds.has(id)) expensesByTrip.delete(id)
+      if (!cancelled) {
+        setDeletedExpenses(allDeleted)
+        setLoading(false)
       }
     }, (err) => {
       console.error('DeletedItems listener error:', err)
@@ -103,8 +85,8 @@ export function DeletedItems() {
     })
 
     return () => {
+      cancelled = true
       unsubTrips()
-      unsubExpenses.forEach((u) => u())
     }
   }, [user?.uid])
 
