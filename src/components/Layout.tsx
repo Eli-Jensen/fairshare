@@ -26,14 +26,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-page text-text transition-colors">
       <header className="bg-card border-b border-line sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-accent-text ">
-            <svg className="w-6 h-6" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <rect width="32" height="32" rx="7" fill="currentColor"/>
-              <circle cx="13" cy="16" r="7.5" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
-              <circle cx="19" cy="16" r="7.5" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
-            </svg>
-            fairshare
-          </Link>
+          <div className="flex items-center gap-1">
+            {location.pathname !== '/' && (
+              <button
+                onClick={() => navigate(-1)}
+                className="p-1.5 -ml-1.5 rounded-lg text-text-muted hover:text-text hover:bg-card-hover transition-colors"
+                aria-label="Go back"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            <Link to="/" className="flex items-center gap-1.5 text-xl font-bold text-accent-text">
+              <svg className="w-6 h-6" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                <rect width="32" height="32" rx="7" fill="currentColor"/>
+                <circle cx="13" cy="16" r="7.5" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
+                <circle cx="19" cy="16" r="7.5" fill="none" stroke="white" strokeWidth="2" opacity="0.9"/>
+              </svg>
+              fairshare
+            </Link>
+          </div>
           {user && (
             <div className="relative">
               <button

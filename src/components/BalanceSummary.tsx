@@ -91,16 +91,22 @@ function BalanceLine({
           {count} trip{count !== 1 ? 's' : ''}
         </span>
         {showTooltip && (
-          <span className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-2 z-50 w-48 max-w-[calc(100vw-2rem)] animate-slide-up">
-            {tripDetails.map((t, i) => (
-              <span key={i} className="flex items-center justify-between text-xs py-0.5">
-                <span className="text-text-secondary truncate mr-2">{t.name}</span>
-                <span className={`font-medium shrink-0 ${textColor}`}>
-                  {formatMoney(t.amount, settlementCurrency)}
+          <>
+            <span
+              className="fixed inset-0 z-40"
+              onClick={(e) => { e.stopPropagation(); setShowTooltip(false); }}
+            />
+            <span className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-2 z-50 w-48 max-w-[calc(100vw-2rem)] animate-slide-up">
+              {tripDetails.map((t, i) => (
+                <span key={i} className="flex items-center justify-between text-xs py-0.5">
+                  <span className="text-text-secondary truncate mr-2">{t.name}</span>
+                  <span className={`font-medium shrink-0 ${textColor}`}>
+                    {formatMoney(t.amount, settlementCurrency)}
+                  </span>
                 </span>
-              </span>
-            ))}
-          </span>
+              ))}
+            </span>
+          </>
         )}
       </span>
     </p>
