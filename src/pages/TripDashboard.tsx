@@ -319,10 +319,15 @@ export function TripDashboard() {
                     key={cat.value}
                     onClick={() => {
                       if (isLongPress.current) return
-                      // Short press: single select (replaces current filter)
-                      if (isActive && categoryFilter.size === 1) {
-                        setCategoryFilter(new Set())
+                      // Short press on already-selected pill: deselect it
+                      if (isActive) {
+                        setCategoryFilter((prev) => {
+                          const next = new Set(prev)
+                          next.delete(cat.value)
+                          return next
+                        })
                       } else {
+                        // Short press on unselected pill: single select
                         setCategoryFilter(new Set([cat.value]))
                       }
                     }}
@@ -330,7 +335,8 @@ export function TripDashboard() {
                       isLongPress.current = false
                       longPressTimer.current = setTimeout(() => {
                         isLongPress.current = true
-                        // Long press: toggle this category while keeping others
+                        // Long press on already-selected pill: deselect it
+                        // Long press on unselected pill: add it to selection
                         setCategoryFilter((prev) => {
                           const next = new Set(prev)
                           if (next.has(cat.value)) {
@@ -340,7 +346,7 @@ export function TripDashboard() {
                           }
                           return next
                         })
-                      }, 400)
+                      }, 250)
                     }}
                     onPointerUp={() => {
                       if (longPressTimer.current) {
