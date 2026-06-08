@@ -48,7 +48,7 @@ export function MemberAvatar({
         {avatar}
       </button>
       {showInfo && (
-        <div className="absolute left-0 top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-3 z-50 w-56 animate-slide-up">
+        <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-3 z-50 w-56 max-w-[calc(100vw-2rem)] animate-slide-up">
           <div className="flex items-center gap-2 mb-2">
             {googlePhoto && (
               <img

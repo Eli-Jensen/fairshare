@@ -91,7 +91,7 @@ function BalanceLine({
           {count} trip{count !== 1 ? 's' : ''}
         </span>
         {showTooltip && (
-          <span className="absolute left-0 top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-2 z-50 w-48 animate-slide-up">
+          <span className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-2 z-50 w-48 max-w-[calc(100vw-2rem)] animate-slide-up">
             {tripDetails.map((t, i) => (
               <span key={i} className="flex items-center justify-between text-xs py-0.5">
                 <span className="text-text-secondary truncate mr-2">{t.name}</span>
