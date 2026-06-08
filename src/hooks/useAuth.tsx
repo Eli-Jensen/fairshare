@@ -39,37 +39,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
+      setLoading(false)
       if (firebaseUser?.email && db) {
-        const userRef = doc(db, 'users', firebaseUser.uid)
-        const existing = await getDoc(userRef)
-        const googleName = firebaseUser.displayName ?? ''
-        const googlePhoto = firebaseUser.photoURL ?? null
+        try {
+          const userRef = doc(db, 'users', firebaseUser.uid)
+          const existing = await getDoc(userRef)
+          const googleName = firebaseUser.displayName ?? ''
+          const googlePhoto = firebaseUser.photoURL ?? null
 
-        if (existing.exists()) {
-          // Update Google-provided fields, keep custom display values
-          await setDoc(
-            userRef,
-            {
+          if (existing.exists()) {
+            await setDoc(
+              userRef,
+              {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                googleDisplayName: googleName,
+                googlePhotoURL: googlePhoto,
+              },
+              { merge: true }
+            )
+          } else {
+            await setDoc(userRef, {
               uid: firebaseUser.uid,
+              displayName: googleName,
               email: firebaseUser.email,
+              photoURL: googlePhoto,
               googleDisplayName: googleName,
               googlePhotoURL: googlePhoto,
-            },
-            { merge: true }
-          )
-        } else {
-          // First sign-in: set display values from Google
-          await setDoc(userRef, {
-            uid: firebaseUser.uid,
-            displayName: googleName,
-            email: firebaseUser.email,
-            photoURL: googlePhoto,
-            googleDisplayName: googleName,
-            googlePhotoURL: googlePhoto,
-          })
+            })
+          }
+        } catch (err) {
+          console.error('Failed to sync user profile:', err)
         }
       }
-      setLoading(false)
     })
   }, [])
 
