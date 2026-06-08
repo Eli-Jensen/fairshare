@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
-import { formatMoney } from '../lib/types'
+import { formatMoney, mapExpense } from '../lib/types'
 import type { Trip, Expense } from '../lib/types'
 
 interface DeletedTrip extends Trip {
@@ -79,10 +79,9 @@ export function DeletedItems() {
           const tripDeleted = expSnap.docs
             .filter((d) => d.data().deletedAt)
             .map((d) => ({
-              id: d.id,
+              ...mapExpense({ id: d.id, ...d.data() }),
               tripId: tripDoc.id,
               tripName: tripDoc.data().name,
-              ...d.data(),
             }) as DeletedExpense)
           expensesByTrip.set(tripDoc.id, tripDeleted)
 
@@ -201,7 +200,7 @@ export function DeletedItems() {
                         {exp.description}
                       </p>
                       <p className="text-sm text-text-muted">
-                        {formatMoney(exp.amountUSD)} in {exp.tripName}
+                        {formatMoney(exp.amountSettled)} in {exp.tripName}
                         {exp.deletedAt && ` · ${timeRemaining(exp.deletedAt)}`}
                       </p>
                     </div>

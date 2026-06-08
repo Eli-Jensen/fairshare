@@ -6,6 +6,7 @@ import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { writeActivity } from '../lib/activity'
 import type { CustomCategory } from '../lib/types'
+import { DEFAULT_CURRENCY } from '../lib/types'
 
 export function AddExpense() {
   const { id } = useParams<{ id: string }>()
@@ -39,7 +40,7 @@ export function AddExpense() {
         onSubmit={async (data) => {
           // Run all writes in parallel — they're independent
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
-          if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
+          if (data.currency !== (trip.settlementCurrency ?? DEFAULT_CURRENCY)) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           const [expenseRef] = await Promise.all([

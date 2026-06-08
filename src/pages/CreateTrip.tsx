@@ -6,10 +6,11 @@ import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
 import { CurrencyPicker } from '../components/CurrencyPicker'
 import type { TripType } from '../lib/types'
+import { DEFAULT_CURRENCY } from '../lib/types'
 
 const MAX_TRIPS = 100
 
-const COMMON_SETTLEMENT = ['USD', 'EUR', 'GBP', 'CAD', 'AUD']
+const COMMON_SETTLEMENT = [DEFAULT_CURRENCY, 'EUR', 'GBP', 'CAD', 'AUD']
 
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
@@ -23,7 +24,7 @@ export function CreateTrip() {
   const navigate = useNavigate()
   const [tripType, setTripType] = useState<TripType>('trip')
   const [name, setName] = useState('')
-  const [currency, setCurrency] = useState('USD')
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
   const [submitting, setSubmitting] = useState(false)
 
   const atLimit = trips.length >= MAX_TRIPS

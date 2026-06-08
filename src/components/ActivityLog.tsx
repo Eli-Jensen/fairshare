@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { ActivityLogEntry, UserProfile, TripType } from '../lib/types'
-import { formatMoney, getMemberName, tripLabel } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel, DEFAULT_CURRENCY } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 function relativeTime(date: Date): string {
@@ -23,7 +23,7 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
   const tl = tripLabel(type)
   const actor = getMemberName(entry.actorUid, members)
   const desc = entry.targetDescription ?? ''
-  const sc = settlementCurrency ?? 'USD'
+  const sc = settlementCurrency ?? DEFAULT_CURRENCY
   const amt = entry.targetAmount ? formatMoney(entry.targetAmount, sc) : ''
 
   switch (entry.action) {
@@ -118,7 +118,7 @@ export function ActivityLog({
               <p className="text-sm text-text-secondary">
                 {isUndone
                   ? <span className="italic">Undone</span>
-                  : describeAction(entry, members, settlementCurrency ?? 'USD', tripType)
+                  : describeAction(entry, members, settlementCurrency ?? DEFAULT_CURRENCY, tripType)
                 }
               </p>
               {!isUndone && entry.editDetails && entry.editDetails.length > 0 && (

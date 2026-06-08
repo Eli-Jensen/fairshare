@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
-import { formatMoney, getMemberName, getCategoryInfo } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo, BALANCE_THRESHOLD, DEFAULT_CURRENCY } from '../lib/types'
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 import { CurrencyPicker } from './CurrencyPicker'
@@ -9,15 +9,15 @@ import { fetchRates } from '../lib/rates'
 /** Compute all individual debtor→creditor pairs without simplification */
 function computeRawDebts(balances: Record<string, number>) {
   const debts: { from: string; to: string; amount: number }[] = []
-  const creditors = Object.entries(balances).filter(([, b]) => b > 0.01)
-  const debtors = Object.entries(balances).filter(([, b]) => b < -0.01)
+  const creditors = Object.entries(balances).filter(([, b]) => b > BALANCE_THRESHOLD)
+  const debtors = Object.entries(balances).filter(([, b]) => b < -BALANCE_THRESHOLD)
   for (const [fromUid, fromBal] of debtors) {
     for (const [toUid, toBal] of creditors) {
       // Each debtor owes each creditor proportionally
       const totalDebt = -fromBal
       const totalCredit = creditors.reduce((s, [, b]) => s + b, 0)
       const amount = Math.round(totalDebt * (toBal / totalCredit) * 100) / 100
-      if (amount > 0.01) {
+      if (amount > BALANCE_THRESHOLD) {
         debts.push({ from: fromUid, to: toUid, amount })
       }
     }
@@ -50,7 +50,7 @@ export function SettlementView({
   tripLastCurrency?: string
   currentUserUid?: string
 }) {
-  const sc = settlementCurrency ?? 'USD'
+  const sc = settlementCurrency ?? DEFAULT_CURRENCY
   const [simplify, setSimplify] = useState(simplifyDebtsDefault)
   const [recordingIdx, setRecordingIdx] = useState<number | null>(null)
   const [payMethod, setPayMethod] = useState('')
@@ -90,7 +90,7 @@ export function SettlementView({
         spending[uid] = (spending[uid] ?? 0) + amt
       }
     } else {
-      spending[exp.paidBy] = (spending[exp.paidBy] ?? 0) + exp.amountUSD
+      spending[exp.paidBy] = (spending[exp.paidBy] ?? 0) + exp.amountSettled
     }
   }
   const sortedSpending = memberUids
@@ -324,7 +324,7 @@ export function SettlementView({
                   <input
                     type="number"
                     inputMode="decimal"
-                    step="0.01"
+                    step="BALANCE_THRESHOLD"
                     min="0"
                     value={cpAmount}
                     onChange={(e) => setCpAmount(e.target.value)}
@@ -477,7 +477,7 @@ export function SettlementView({
         for (const exp of expenses) {
           if (exp.isSettlement) continue
           const cat = exp.category || 'uncategorized'
-          catTotals[cat] = (catTotals[cat] ?? 0) + exp.amountUSD
+          catTotals[cat] = (catTotals[cat] ?? 0) + exp.amountSettled
         }
         const entries = Object.entries(catTotals).sort(([, a], [, b]) => b - a)
         if (entries.length <= 1 && entries[0]?.[0] === 'uncategorized') return null

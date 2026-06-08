@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatMoney } from '../lib/types'
+import { formatMoney, BALANCE_THRESHOLD } from '../lib/types'
 import type { Trip } from '../lib/types'
 
 export function BalanceSummary({
@@ -21,9 +21,9 @@ export function BalanceSummary({
     const rounded = Math.round(bal * 100) / 100
     const trip = trips.find((t) => t.id === tripId)
     const name = trip?.name ?? 'Unknown trip'
-    if (rounded > 0.01) {
+    if (rounded > BALANCE_THRESHOLD) {
       owedTrips.push({ name, amount: rounded })
-    } else if (rounded < -0.01) {
+    } else if (rounded < -BALANCE_THRESHOLD) {
       oweTrips.push({ name, amount: -rounded })
     }
   }
@@ -31,7 +31,7 @@ export function BalanceSummary({
   const totalOwe = oweTrips.reduce((s, t) => s + t.amount, 0)
   const totalOwed = owedTrips.reduce((s, t) => s + t.amount, 0)
 
-  if (totalOwed < 0.01 && totalOwe < 0.01) {
+  if (totalOwed < BALANCE_THRESHOLD && totalOwe < BALANCE_THRESHOLD) {
     return (
       <div className="bg-success-bg rounded-lg px-4 py-3 mb-6">
         <p className="text-sm font-medium text-success-text">
@@ -43,7 +43,7 @@ export function BalanceSummary({
 
   return (
     <div className="rounded-lg border border-line bg-card px-4 py-3 mb-6 space-y-1">
-      {totalOwe > 0.01 && (
+      {totalOwe > BALANCE_THRESHOLD && (
         <BalanceLine
           text={`You owe ${formatMoney(totalOwe, settlementCurrency)} across `}
           tripDetails={oweTrips}
@@ -51,7 +51,7 @@ export function BalanceSummary({
           color="warn"
         />
       )}
-      {totalOwed > 0.01 && (
+      {totalOwed > BALANCE_THRESHOLD && (
         <BalanceLine
           text={`You are owed ${formatMoney(totalOwed, settlementCurrency)} across `}
           tripDetails={owedTrips}

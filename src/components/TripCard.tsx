@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, UserProfile, Expense } from '../lib/types'
-import { formatMoney } from '../lib/types'
+import { formatMoney, mapExpense, DEFAULT_CURRENCY } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 import { useProfileCache } from '../hooks/useProfileCache'
 import { computeBalances } from '../lib/settlement'
@@ -20,7 +20,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
 }) {
   const { getProfiles } = useProfileCache()
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
-  const [totalUSD, setTotalUSD] = useState(0)
+  const [totalSettled, setTotalSettled] = useState(0)
   const [latestExpense, setLatestExpense] = useState<Expense | null>(null)
   const [expenseCount, setExpenseCount] = useState(0)
 
@@ -45,12 +45,12 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
       for (const d of snap.docs) {
         const data = d.data()
         if (data.deletedAt) continue
-        total += data.amountUSD ?? 0
+        total += data.amountUSD ?? 0  // Firestore field name
         count++
-        if (!latest) latest = { id: d.id, ...data } as Expense
+        if (!latest) latest = mapExpense({ id: d.id, ...data })
       }
 
-      setTotalUSD(total)
+      setTotalSettled(total)
       setLatestExpense(latest)
       setExpenseCount(count)
 
@@ -58,7 +58,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
       if (currentUserUid && onBalanceComputed) {
         const allExpenses = snap.docs
           .filter((d) => !d.data().deletedAt)
-          .map((d) => ({ id: d.id, ...d.data() }) as Expense)
+          .map((d) => mapExpense({ id: d.id, ...d.data() }))
         const balances = computeBalances(allExpenses, trip.memberUids)
         onBalanceComputed(trip.id, balances[currentUserUid] ?? 0)
       }
@@ -81,7 +81,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
       {/* Total and expense count */}
       <div className="flex items-baseline justify-between mt-2 mb-1.5">
         <span className="text-lg font-semibold text-text">
-          {formatMoney(totalUSD, trip.settlementCurrency ?? 'USD')}
+          {formatMoney(totalSettled, trip.settlementCurrency ?? DEFAULT_CURRENCY)}
         </span>
         <span className="text-sm text-text-muted">
           {expenseCount} expense{expenseCount !== 1 && 's'}
@@ -95,7 +95,7 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
             Latest: {latestExpense.description}
           </span>
           <span className="shrink-0 ml-2 font-semibold text-accent-text">
-            {formatMoney(latestExpense.amountUSD, trip.settlementCurrency ?? 'USD')}
+            {formatMoney(latestExpense.amountSettled, trip.settlementCurrency ?? DEFAULT_CURRENCY)}
           </span>
         </div>
       )}

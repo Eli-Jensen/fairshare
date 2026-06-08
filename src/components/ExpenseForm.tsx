@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
-import { getMemberName, formatMoney, getAllCategories, categoryExists } from '../lib/types'
+import { getMemberName, formatMoney, getAllCategories, categoryExists, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getRate } from '../lib/rates'
@@ -40,7 +40,7 @@ export function ExpenseForm({
   currentUserUid,
   tripRates,
   tripLastCurrency,
-  settlementCurrency: sc = 'USD',
+  settlementCurrency: sc = DEFAULT_CURRENCY,
   customCategories,
   onAddCategory,
   onUpdateCategories,
@@ -159,7 +159,7 @@ export function ExpenseForm({
   const [error, setError] = useState('')
   const [liveRates, setLiveRates] = useState<Record<string, number>>({})
   const [rateSource, setRateSource] = useState<'live' | 'trip' | 'custom' | ''>('')
-  const initializedCurrency = useRef(existing?.currency ?? 'USD')
+  const initializedCurrency = useRef(existing?.currency ?? DEFAULT_CURRENCY)
 
   useEffect(() => {
     fetchRates().then(setLiveRates)
@@ -206,13 +206,13 @@ export function ExpenseForm({
 
   // resetToAutoRate kept for reference — inline version used in JSX
 
-  const amountUSD = form.amount * form.exchangeRate
+  const amountSettled = form.amount * form.exchangeRate
 
   function computeSplits(): Record<string, number> {
     const splits: Record<string, number> = {}
 
     if (form.splitType === 'equal') {
-      const perPerson = amountUSD / form.splitAmong.length
+      const perPerson = amountSettled / form.splitAmong.length
       for (const uid of form.splitAmong) {
         splits[uid] = Math.round(perPerson * 100) / 100
       }
@@ -225,7 +225,7 @@ export function ExpenseForm({
     } else if (form.splitType === 'percentage') {
       for (const uid of form.splitAmong) {
         const pct = parseFloat(form.percentages[uid] || '0') || 0
-        splits[uid] = Math.round(amountUSD * (pct / 100) * 100) / 100
+        splits[uid] = Math.round(amountSettled * (pct / 100) * 100) / 100
       }
     } else if (form.splitType === 'shares') {
       const totalShares = form.splitAmong.reduce(
@@ -235,7 +235,7 @@ export function ExpenseForm({
       if (totalShares > 0) {
         for (const uid of form.splitAmong) {
           const s = parseFloat(form.shares[uid] || '0') || 0
-          splits[uid] = Math.round(amountUSD * (s / totalShares) * 100) / 100
+          splits[uid] = Math.round(amountSettled * (s / totalShares) * 100) / 100
         }
       }
     }
@@ -284,7 +284,7 @@ export function ExpenseForm({
         setError('Enter how much each person paid')
         return
       }
-      if (Math.abs(rawPaidTotal - form.amount) > 0.02) {
+      if (Math.abs(rawPaidTotal - form.amount) > AMOUNT_TOLERANCE) {
         setError(
           `Paid amounts total (${rawPaidTotal.toFixed(2)}) doesn't match expense (${form.amount.toFixed(2)})`
         )
@@ -298,7 +298,7 @@ export function ExpenseForm({
       const rawSplitTotal = form.splitAmong.reduce(
         (sum, uid) => sum + (parseFloat(form.exactAmounts[uid] || '0') || 0), 0
       )
-      if (Math.abs(rawSplitTotal - form.amount) > 0.02) {
+      if (Math.abs(rawSplitTotal - form.amount) > AMOUNT_TOLERANCE) {
         setError(
           `Split total (${rawSplitTotal.toFixed(2)}) doesn't match expense (${form.amount.toFixed(2)})`
         )
@@ -306,9 +306,9 @@ export function ExpenseForm({
       }
     } else if (form.splitType !== 'equal') {
       const splitTotal = Object.values(splits).reduce((a, b) => a + b, 0)
-      if (Math.abs(splitTotal - amountUSD) > 0.02) {
+      if (Math.abs(splitTotal - amountSettled) > AMOUNT_TOLERANCE) {
         setError(
-          `Split total (${splitTotal.toFixed(2)}) doesn't match expense (${amountUSD.toFixed(2)})`
+          `Split total (${splitTotal.toFixed(2)}) doesn't match expense (${amountSettled.toFixed(2)})`
         )
         return
       }
@@ -322,7 +322,7 @@ export function ExpenseForm({
         amount: form.amount,
         currency: form.currency,
         exchangeRate: form.exchangeRate,
-        amountUSD,
+        amountUSD: amountSettled,
         paidBy: form.multiPayer
           ? Object.entries(paidByAmounts ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? currentUserUid
           : form.paidBy,
@@ -434,7 +434,7 @@ export function ExpenseForm({
         </div>
         {form.currency !== sc && form.amount > 0 && form.exchangeRate > 0 && (
           <p className="text-xs text-accent-text mt-1 font-medium">
-            = {formatMoney(amountUSD, sc)}
+            = {formatMoney(amountSettled, sc)}
           </p>
         )}
       </div>
@@ -554,9 +554,9 @@ export function ExpenseForm({
           )}
 
           <div className="flex items-center justify-between">
-            {amountUSD > 0 && (
+            {amountSettled > 0 && (
               <p className="text-xs text-text-secondary">
-                {form.amount} {form.currency} = {formatMoney(amountUSD, sc)}
+                {form.amount} {form.currency} = {formatMoney(amountSettled, sc)}
               </p>
             )}
             <p className="text-xs text-text-muted">
@@ -609,8 +609,8 @@ export function ExpenseForm({
               </div>
             ))}
             {form.amount > 0 && (
-              <p className={`text-xs ${Math.abs(paidRemaining) < 0.02 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {Math.abs(paidRemaining) < 0.02
+              <p className={`text-xs ${Math.abs(paidRemaining) < AMOUNT_TOLERANCE ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {Math.abs(paidRemaining) < AMOUNT_TOLERANCE
                   ? 'Paid amounts match total'
                   : paidRemaining > 0
                     ? `${currencySymbol}${paidRemaining.toFixed(2)} remaining to assign`
@@ -754,7 +754,7 @@ export function ExpenseForm({
 
               {form.splitType === 'equal' && form.splitAmong.includes(uid) && (
                 <span className="text-sm text-text-muted">
-                  {formatMoney(amountUSD / form.splitAmong.length, sc)}
+                  {formatMoney(amountSettled / form.splitAmong.length, sc)}
                 </span>
               )}
             </div>

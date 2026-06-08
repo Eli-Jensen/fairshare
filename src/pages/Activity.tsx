@@ -14,7 +14,7 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useProfileCache } from '../hooks/useProfileCache'
-import { formatMoney, getMemberName, tripLabel } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel, DEFAULT_CURRENCY } from '../lib/types'
 import type { ActivityLogEntry, UserProfile, Trip } from '../lib/types'
 import { MemberAvatar } from '../components/MemberAvatar'
 import {
@@ -91,6 +91,7 @@ export function Activity() {
   const [seenTimestamp, setSeenTimestamp] = useState(0)
   const [undoneIds, setUndoneIds] = useState<Set<string>>(new Set())
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [tripCurrencies, setTripCurrencies] = useState<Record<string, string>>({})
 
   // Read the old "seen" timestamp for highlighting, then mark as seen now
   useEffect(() => {
@@ -132,11 +133,14 @@ export function Activity() {
         return
       }
 
-      // Collect all member UIDs for profile loading
+      // Collect all member UIDs and settlement currencies
       const allUids = new Set<string>()
+      const currencies: Record<string, string> = {}
       for (const trip of trips) {
         for (const uid of trip.memberUids) allUids.add(uid)
+        currencies[trip.id] = trip.settlementCurrency ?? DEFAULT_CURRENCY
       }
+      setTripCurrencies(currencies)
       getProfiles(Array.from(allUids)).then(setMembers)
 
       let loadedCount = 0
@@ -291,7 +295,7 @@ export function Activity() {
                       <p className={`text-sm ${isSettlement ? 'text-text font-medium' : 'text-text-secondary'}`}>
                         {isUndone
                           ? <span className="italic">Undone</span>
-                          : describeAction(entry, members, 'USD')
+                          : describeAction(entry, members, tripCurrencies[entry.tripId!] ?? DEFAULT_CURRENCY)
                         }
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">

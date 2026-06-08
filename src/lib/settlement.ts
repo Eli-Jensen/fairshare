@@ -1,4 +1,5 @@
 import type { Expense, Settlement } from './types'
+import { BALANCE_THRESHOLD } from './types'
 
 export function computeBalances(
   expenses: Expense[],
@@ -16,7 +17,7 @@ export function computeBalances(
         balances[uid] = (balances[uid] ?? 0) + amount
       }
     } else {
-      balances[expense.paidBy] = (balances[expense.paidBy] ?? 0) + expense.amountUSD
+      balances[expense.paidBy] = (balances[expense.paidBy] ?? 0) + expense.amountSettled
     }
 
     // Debit everyone's share
@@ -34,9 +35,9 @@ export function simplifyDebts(balances: Record<string, number>): Settlement[] {
 
   for (const [uid, balance] of Object.entries(balances)) {
     const rounded = Math.round(balance * 100) / 100
-    if (rounded > 0.01) {
+    if (rounded > BALANCE_THRESHOLD) {
       creditors.push({ uid, amount: rounded })
-    } else if (rounded < -0.01) {
+    } else if (rounded < -BALANCE_THRESHOLD) {
       debtors.push({ uid, amount: -rounded })
     }
   }
@@ -63,8 +64,8 @@ export function simplifyDebts(balances: Record<string, number>): Settlement[] {
     debtors[i].amount -= amount
     creditors[j].amount -= amount
 
-    if (debtors[i].amount < 0.01) i++
-    if (creditors[j].amount < 0.01) j++
+    if (debtors[i].amount < BALANCE_THRESHOLD) i++
+    if (creditors[j].amount < BALANCE_THRESHOLD) j++
   }
 
   return settlements

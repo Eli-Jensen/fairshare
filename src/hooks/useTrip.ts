@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
+import { mapExpense } from '../lib/types'
 import { useProfileCache } from './useProfileCache'
 
 export function useTrip(tripId: string | undefined) {
@@ -55,7 +56,7 @@ export function useTrip(tripId: string | undefined) {
           }
           continue // Skip soft-deleted expenses
         }
-        active.push({ id: d.id, ...data } as Expense)
+        active.push(mapExpense({ id: d.id, ...data }))
       }
 
       setExpenses(active)

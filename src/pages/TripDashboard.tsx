@@ -4,7 +4,7 @@ import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { useAuth } from '../hooks/useAuth'
-import { formatMoney, getMemberName, tripLabel, getAllCategories } from '../lib/types'
+import { formatMoney, getMemberName, tripLabel, getAllCategories, DEFAULT_CURRENCY } from '../lib/types'
 import type { RemovedMember } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
@@ -13,6 +13,7 @@ import { ActivityLog } from '../components/ActivityLog'
 import { UndoToast } from '../components/UndoToast'
 import { DeleteModal } from '../components/DeleteModal'
 import { tripToCsv, downloadCsv, openInGoogleSheets } from '../lib/export'
+import { CurrencyPicker } from '../components/CurrencyPicker'
 import { writeActivity } from '../lib/activity'
 import { arrayRemove, addDoc, collection, Timestamp } from 'firebase/firestore'
 
@@ -79,8 +80,8 @@ export function TripDashboard() {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
-  const sc = trip.settlementCurrency ?? 'USD'
-  const totalUSD = expenses.reduce((sum, e) => sum + e.amountUSD, 0)
+  const sc = trip.settlementCurrency ?? DEFAULT_CURRENCY
+  const totalSettled = expenses.reduce((sum, e) => sum + e.amountSettled, 0)
   const tl = tripLabel(trip.type)
 
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
@@ -149,9 +150,20 @@ export function TripDashboard() {
             Add Expense
           </Link>
         </div>
+        {editingName && (
+          <div className="flex items-center gap-2 mt-2 mb-1">
+            <label className="text-sm text-text-secondary">Settlement currency:</label>
+            <CurrencyPicker
+              value={sc}
+              onChange={async (code) => {
+                await updateDoc(doc(db, 'trips', id!), { settlementCurrency: code })
+              }}
+            />
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <p className="text-sm text-text-secondary">
-            Total: {formatMoney(totalUSD, sc)} across {expenses.length} expense
+            Total: {formatMoney(totalSettled, sc)} across {expenses.length} expense
             {expenses.length !== 1 && 's'}
           </p>
           {expenses.length > 0 && (
@@ -376,7 +388,7 @@ export function TripDashboard() {
               const filtered = expenses.filter((exp) =>
                 categoryFilter.size === 0 || (exp.category && categoryFilter.has(exp.category))
               )
-              const sum = filtered.reduce((s, e) => s + e.amountUSD, 0)
+              const sum = filtered.reduce((s, e) => s + e.amountSettled, 0)
               const isFiltered = categoryFilter.size > 0
               return (
                 <p className="text-sm text-text-muted pb-2 mb-1">

@@ -1,5 +1,5 @@
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
-import { formatMoney, getMemberName, getCategoryInfo } from '../lib/types'
+import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from '../lib/types'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
@@ -59,7 +59,7 @@ export function ExpenseCard({
               </p>
             </div>
             <p className="font-semibold text-text shrink-0">
-              {formatMoney(expense.amountUSD, settlementCurrency ?? 'USD')}
+              {formatMoney(expense.amountSettled, settlementCurrency ?? DEFAULT_CURRENCY)}
             </p>
           </div>
           <div className="flex items-center justify-between mt-0.5">
@@ -69,7 +69,7 @@ export function ExpenseCard({
                     .map(([uid, amt]) => `${getMemberName(uid, members)} $${amt.toFixed(2)}`)
                     .join(', ')
                 : `${getMemberName(expense.paidBy, members)} paid`}
-              {expense.currency !== (settlementCurrency ?? 'USD') && (
+              {expense.currency !== (settlementCurrency ?? DEFAULT_CURRENCY) && (
                 <span className="ml-1 text-sm text-text-muted">
                   ({expense.amount} {expense.currency})
                 </span>

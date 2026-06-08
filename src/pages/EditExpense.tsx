@@ -8,7 +8,7 @@ import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { writeActivity } from '../lib/activity'
-import { getMemberName, formatMoney } from '../lib/types'
+import { getMemberName, formatMoney, DEFAULT_CURRENCY, BALANCE_THRESHOLD } from '../lib/types'
 
 function relativeTime(date: Date): string {
   const diff = Date.now() - date.getTime()
@@ -78,7 +78,7 @@ export function EditExpense() {
         onSubmit={async (data) => {
           // Run both writes in parallel
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
-          if (data.currency !== (trip.settlementCurrency ?? 'USD')) {
+          if (data.currency !== (trip.settlementCurrency ?? DEFAULT_CURRENCY)) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           await Promise.all([
@@ -87,13 +87,13 @@ export function EditExpense() {
           ])
 
           // Compute what changed for the activity log
-          const sc = trip.settlementCurrency ?? 'USD'
+          const sc = trip.settlementCurrency ?? DEFAULT_CURRENCY
           const changes: string[] = []
           if (expense.description !== data.description) {
             changes.push(`description: "${expense.description}" → "${data.description}"`)
           }
-          if (Math.abs(expense.amountUSD - data.amountUSD) > 0.01) {
-            changes.push(`amount: ${formatMoney(expense.amountUSD, sc)} → ${formatMoney(data.amountUSD, sc)}`)
+          if (Math.abs(expense.amountSettled - data.amountUSD) > BALANCE_THRESHOLD) {
+            changes.push(`amount: ${formatMoney(expense.amountSettled, sc)} → ${formatMoney(data.amountUSD, sc)}`)
           }
           if (expense.currency !== data.currency) {
             changes.push(`currency: ${expense.currency} → ${data.currency}`)
@@ -125,7 +125,7 @@ export function EditExpense() {
             action: 'expense_deleted',
             actorUid: user.uid,
             targetDescription: expense.description,
-            targetAmount: expense.amountUSD,
+            targetAmount: expense.amountSettled,
             targetExpenseId: eid!,
           })
           navigate(`/trip/${id}`, {

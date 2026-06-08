@@ -1,5 +1,13 @@
 import type { Timestamp } from 'firebase/firestore'
 
+// ── Constants ──────────────────────────────────────────────────────────
+/** Default settlement currency for trips that don't specify one */
+export const DEFAULT_CURRENCY = 'USD'
+/** Tolerance for comparing monetary amounts (e.g. split totals) */
+export const AMOUNT_TOLERANCE = 0.02
+/** Threshold below which a balance is considered zero */
+export const BALANCE_THRESHOLD = 0.01
+
 export interface UserProfile {
   uid: string
   displayName: string
@@ -44,12 +52,12 @@ export interface Trip {
 export interface Expense {
   id: string
   description: string
-  amount: number
-  currency: string
-  exchangeRate: number
-  /** Amount in the trip's settlement currency. Field is named amountUSD
-   *  for backward compatibility with existing Firestore docs. */
-  amountUSD: number
+  amount: number       // amount in the original currency
+  currency: string     // the currency the expense was entered in
+  exchangeRate: number // multiplier: amount × exchangeRate = amountSettled
+  /** Amount converted to the trip's settlement currency.
+   *  Stored as `amountUSD` in Firestore for backward compatibility. */
+  amountSettled: number
   paidBy: string
   paidByAmounts?: Record<string, number>
   splitType: 'equal' | 'exact' | 'percentage' | 'shares'
@@ -63,6 +71,19 @@ export interface Expense {
   createdAt: Timestamp
   deletedAt?: Timestamp | null
 }
+
+/**
+ * Map a raw Firestore expense document to the Expense interface.
+ * Handles the `amountUSD` → `amountSettled` field rename.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function mapExpense(doc: { id: string } & Record<string, any>): Expense {
+  const { amountUSD, ...rest } = doc
+  return { ...rest, amountSettled: amountUSD ?? 0 } as Expense
+}
+
+/** The Firestore field name for amountSettled (legacy, do not rename in Firestore) */
+export const FIRESTORE_AMOUNT_FIELD = 'amountUSD'
 
 export type ExpenseCategory = string
 
@@ -163,7 +184,7 @@ export interface ActivityLogEntry {
  * Format a monetary amount in any currency using the browser's Intl API.
  * Falls back gracefully if the currency code is unknown.
  */
-export function formatMoney(amount: number, currencyCode: string = 'USD'): string {
+export function formatMoney(amount: number, currencyCode: string = DEFAULT_CURRENCY): string {
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

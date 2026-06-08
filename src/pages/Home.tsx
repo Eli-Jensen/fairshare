@@ -18,6 +18,7 @@ import { TripCard } from '../components/TripCard'
 import { BalanceSummary } from '../components/BalanceSummary'
 import { UndoToast } from '../components/UndoToast'
 import type { Trip } from '../lib/types'
+import { DEFAULT_CURRENCY } from '../lib/types'
 
 export function Home() {
   const { user, signIn, firebaseReady, loading: authLoading } = useAuth()
@@ -195,7 +196,7 @@ export function Home() {
         <BalanceSummary
           tripBalances={tripBalances}
           trips={allTrips}
-          settlementCurrency="USD"
+          settlementCurrency={DEFAULT_CURRENCY}
         />
       )}
 

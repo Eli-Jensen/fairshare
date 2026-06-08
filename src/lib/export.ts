@@ -1,5 +1,5 @@
 import type { Expense, UserProfile, CustomCategory } from './types'
-import { formatMoney, getMemberName, getCategoryInfo } from './types'
+import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from './types'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -19,7 +19,7 @@ export function tripToCsv(
   expenses: Expense[],
   members: Record<string, UserProfile>,
   memberUids: string[],
-  settlementCurrency: string = 'USD',
+  settlementCurrency: string = DEFAULT_CURRENCY,
   customCategories?: CustomCategory[]
 ): string {
   const fmt = (n: number) => formatMoney(n, settlementCurrency)
@@ -68,7 +68,7 @@ export function tripToCsv(
         catInfo ? catInfo.label : '',
         exp.description,
         exp.notes ?? '',
-        fmt(exp.amountUSD),
+        fmt(exp.amountSettled),
         exp.currency,
         exp.currency !== settlementCurrency ? `${exp.amount}` : '',
         payer,
@@ -82,7 +82,7 @@ export function tripToCsv(
 
   // Total row (expenses only, exclude settlements)
   const expensesOnly = expenses.filter((e) => !e.isSettlement)
-  const total = expensesOnly.reduce((s, e) => s + e.amountUSD, 0)
+  const total = expensesOnly.reduce((s, e) => s + e.amountSettled, 0)
   const pad = memberUids.map(() => '')
   lines.push(
     ['', '', '', 'TOTAL (expenses)', '', fmt(total), '', '', '', '', ...pad]
@@ -102,7 +102,7 @@ export function tripToCsv(
       if (exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 0) {
         spent += exp.paidByAmounts[uid] ?? 0
       } else if (exp.paidBy === uid) {
-        spent += exp.amountUSD
+        spent += exp.amountSettled
       }
     }
     lines.push([getMemberName(uid, members), fmt(spent)].map(escapeCsv).join(','))

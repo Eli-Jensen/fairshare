@@ -4,11 +4,11 @@ import type { Expense } from '../types'
 import { Timestamp } from 'firebase/firestore'
 
 // Helper to create a minimal expense for testing
-function expense(overrides: Partial<Expense> & Pick<Expense, 'amountUSD' | 'paidBy' | 'splits'>): Expense {
+function expense(overrides: Partial<Expense> & Pick<Expense, 'amountSettled' | 'paidBy' | 'splits'>): Expense {
   return {
     id: 'e1',
     description: 'Test',
-    amount: overrides.amountUSD,
+    amount: overrides.amountSettled,
     currency: 'USD',
     exchangeRate: 1,
     splitType: 'equal',
@@ -24,7 +24,7 @@ describe('computeBalances', () => {
     const members = ['alice', 'bob']
     const expenses = [
       expense({
-        amountUSD: 100,
+        amountSettled: 100,
         paidBy: 'alice',
         splits: { alice: 50, bob: 50 },
       }),
@@ -39,13 +39,13 @@ describe('computeBalances', () => {
     const expenses = [
       expense({
         id: 'e1',
-        amountUSD: 100,
+        amountSettled: 100,
         paidBy: 'alice',
         splits: { alice: 50, bob: 50 },
       }),
       expense({
         id: 'e2',
-        amountUSD: 60,
+        amountSettled: 60,
         paidBy: 'bob',
         splits: { alice: 30, bob: 30 },
       }),
@@ -61,7 +61,7 @@ describe('computeBalances', () => {
     const members = ['alice', 'bob', 'carol']
     const expenses = [
       expense({
-        amountUSD: 90,
+        amountSettled: 90,
         paidBy: 'alice',
         splits: { alice: 30, bob: 30, carol: 30 },
       }),
@@ -76,7 +76,7 @@ describe('computeBalances', () => {
     const members = ['alice', 'bob']
     const expenses = [
       expense({
-        amountUSD: 100,
+        amountSettled: 100,
         paidBy: 'alice',
         splitType: 'exact',
         splits: { alice: 70, bob: 30 },
@@ -91,7 +91,7 @@ describe('computeBalances', () => {
     const members = ['alice', 'bob', 'carol']
     const expenses = [
       expense({
-        amountUSD: 100,
+        amountSettled: 100,
         paidBy: 'alice',
         paidByAmounts: { alice: 60, bob: 40 },
         splits: { alice: 34, bob: 33, carol: 33 },
@@ -112,14 +112,14 @@ describe('computeBalances', () => {
       // Original expense: alice paid, split equally
       expense({
         id: 'e1',
-        amountUSD: 100,
+        amountSettled: 100,
         paidBy: 'alice',
         splits: { alice: 50, bob: 50 },
       }),
       // Settlement: bob pays alice 50
       expense({
         id: 'e2',
-        amountUSD: 50,
+        amountSettled: 50,
         paidBy: 'bob',
         isSettlement: true,
         splits: { alice: 50 },
@@ -135,7 +135,7 @@ describe('computeBalances', () => {
     const members = ['alice'] // bob was removed
     const expenses = [
       expense({
-        amountUSD: 100,
+        amountSettled: 100,
         paidBy: 'alice',
         splits: { alice: 50, bob: 50 },
       }),
@@ -155,7 +155,7 @@ describe('computeBalances', () => {
   it('handles single member trip', () => {
     const expenses = [
       expense({
-        amountUSD: 50,
+        amountSettled: 50,
         paidBy: 'alice',
         splits: { alice: 50 },
       }),
