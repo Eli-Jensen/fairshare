@@ -25,7 +25,12 @@ export function TripDashboard() {
   const { trip, expenses, members, activityLog, loading } = useTrip(id)
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('expenses')
+  const [tab, setTab] = useState<Tab>(() => {
+    const params = new URLSearchParams(location.search)
+    const t = params.get('tab')
+    if (t === 'settle' || t === 'activity') return t
+    return 'expenses'
+  })
   const [copied, setCopied] = useState(false)
   const [undoInfo, setUndoInfo] = useState<{ id: string; description: string } | null>(null)
   const [editingName, setEditingName] = useState(false)

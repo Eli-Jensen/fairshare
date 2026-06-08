@@ -114,7 +114,7 @@ export function SettlementView({
                     onClick={() => { setRecordingIdx(i); setPayMethod('') }}
                     className="ml-auto text-sm font-medium text-accent-text bg-accent/20 hover:bg-accent/30 px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    Record payment
+                    Pay in full
                   </button>
                 )}
                 {onRecordSettlement && recordingIdx === i && (

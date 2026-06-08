@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { formatMoney, BALANCE_THRESHOLD } from '../lib/types'
 import type { Trip } from '../lib/types'
 
@@ -14,17 +15,17 @@ export function BalanceSummary({
   const entries = Object.entries(tripBalances)
   if (entries.length === 0) return null
 
-  const oweTrips: { name: string; amount: number }[] = []
-  const owedTrips: { name: string; amount: number }[] = []
+  const oweTrips: { id: string; name: string; amount: number }[] = []
+  const owedTrips: { id: string; name: string; amount: number }[] = []
 
   for (const [tripId, bal] of entries) {
     const rounded = Math.round(bal * 100) / 100
     const trip = trips.find((t) => t.id === tripId)
     const name = trip?.name ?? 'Unknown trip'
     if (rounded > BALANCE_THRESHOLD) {
-      owedTrips.push({ name, amount: rounded })
+      owedTrips.push({ id: tripId, name, amount: rounded })
     } else if (rounded < -BALANCE_THRESHOLD) {
-      oweTrips.push({ name, amount: -rounded })
+      oweTrips.push({ id: tripId, name, amount: -rounded })
     }
   }
 
@@ -70,7 +71,7 @@ function BalanceLine({
   color,
 }: {
   text: string
-  tripDetails: { name: string; amount: number }[]
+  tripDetails: { id: string; name: string; amount: number }[]
   settlementCurrency: string
   color: 'warn' | 'success'
 }) {
@@ -98,12 +99,17 @@ function BalanceLine({
             />
             <span className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-2 z-50 w-48 max-w-[calc(100vw-2rem)] animate-slide-up">
               {tripDetails.map((t, i) => (
-                <span key={i} className="flex items-center justify-between text-xs py-0.5">
+                <Link
+                  key={i}
+                  to={`/trip/${t.id}?tab=settle`}
+                  className="flex items-center justify-between text-xs py-1 px-1 -mx-1 rounded hover:bg-card-hover transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <span className="text-text-secondary truncate mr-2">{t.name}</span>
                   <span className={`font-medium shrink-0 ${textColor}`}>
                     {formatMoney(t.amount, settlementCurrency)}
                   </span>
-                </span>
+                </Link>
               ))}
             </span>
           </>
