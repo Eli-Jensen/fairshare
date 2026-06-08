@@ -199,16 +199,6 @@ export function Home() {
         />
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-text">Trips</h1>
-        <Link
-          to="/trip/new"
-          className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
-        >
-          New
-        </Link>
-      </div>
-
       {tripsLoading ? (
         <div className="text-center py-10 text-text-muted">Loading...</div>
       ) : tripItems.length === 0 && groupItems.length === 0 ? (
@@ -222,45 +212,66 @@ export function Home() {
           </Link>
         </div>
       ) : (
-        <>
-          {/* Trips section */}
-          {tripItems.length > 0 && (
-            <div className="mb-8">
-              <div className="space-y-3">
-                {(showAllTrips ? tripItems : tripItems.slice(0, 3)).map((trip) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    currentUserUid={user.uid}
-                    onBalanceComputed={(tripId, balance) =>
-                      setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
-                    }
-                  />
-                ))}
-              </div>
-              {tripItems.length > 3 && !showAllTrips && (
-                <button
-                  onClick={() => setShowAllTrips(true)}
-                  className="w-full mt-2 text-sm text-accent-text hover:text-accent-hover py-2 transition-colors"
-                >
-                  Show all ({tripItems.length})
-                </button>
-              )}
-              {showAllTrips && tripItems.length > 3 && (
-                <button
-                  onClick={() => setShowAllTrips(false)}
-                  className="w-full mt-2 text-sm text-text-muted hover:text-text-secondary py-2 transition-colors"
-                >
-                  Show less
-                </button>
-              )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Trips column */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-2xl font-bold text-text">Trips</h1>
+              <Link
+                to="/trip/new"
+                className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
+              >
+                New
+              </Link>
             </div>
-          )}
+            {tripItems.length > 0 ? (
+              <>
+                <div className="space-y-3">
+                  {(showAllTrips ? tripItems : tripItems.slice(0, 3)).map((trip) => (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      currentUserUid={user.uid}
+                      onBalanceComputed={(tripId, balance) =>
+                        setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
+                      }
+                    />
+                  ))}
+                </div>
+                {tripItems.length > 3 && !showAllTrips && (
+                  <button
+                    onClick={() => setShowAllTrips(true)}
+                    className="w-full mt-2 text-sm text-accent-text hover:text-accent-hover py-2 transition-colors"
+                  >
+                    Show all ({tripItems.length})
+                  </button>
+                )}
+                {showAllTrips && tripItems.length > 3 && (
+                  <button
+                    onClick={() => setShowAllTrips(false)}
+                    className="w-full mt-2 text-sm text-text-muted hover:text-text-secondary py-2 transition-colors"
+                  >
+                    Show less
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-text-muted">No trips yet</div>
+            )}
+          </div>
 
-          {/* Groups section */}
-          {groupItems.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-lg font-bold text-text mb-3">Groups</h2>
+          {/* Groups column */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-2xl font-bold text-text">Groups</h2>
+              <Link
+                to="/trip/new"
+                className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
+              >
+                New
+              </Link>
+            </div>
+            {groupItems.length > 0 ? (
               <div className="space-y-3">
                 {groupItems.map((trip) => (
                   <TripCard
@@ -273,9 +284,11 @@ export function Home() {
                   />
                 ))}
               </div>
-            </div>
-          )}
-        </>
+            ) : (
+              <div className="text-center py-8 text-text-muted">No groups yet</div>
+            )}
+          </div>
+        </div>
       )}
 
       {undoTrip && (
