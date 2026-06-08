@@ -7,8 +7,10 @@ import {
 } from 'react'
 
 const STORAGE_KEY = 'fairshare-text-scale'
-const LEVELS = [87.5, 93.75, 100, 106.25, 112.5] // 14px, 15px, 16px, 17px, 18px
-const DEFAULT_LEVEL = 2 // index into LEVELS → 100%
+const VERSION_KEY = 'fairshare-text-scale-v'
+const LEVELS = [81.25, 87.5, 93.75, 100, 106.25, 112.5, 118.75] // ~13px → ~19px
+const DEFAULT_LEVEL = 3 // index into LEVELS → 100%
+const CURRENT_VERSION = 2
 
 interface TextScaleState {
   level: number
@@ -28,6 +30,13 @@ export function TextScaleProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved !== null) {
         const n = parseInt(saved, 10)
+        const ver = parseInt(localStorage.getItem(VERSION_KEY) ?? '1', 10)
+        if (ver < CURRENT_VERSION) {
+          // Migrate: old 5-level [87.5..112.5] → new 7-level (shift index +1)
+          const migrated = Math.min(n + 1, LEVELS.length - 1)
+          localStorage.setItem(VERSION_KEY, String(CURRENT_VERSION))
+          return migrated
+        }
         if (n >= 0 && n < LEVELS.length) return n
       }
     } catch { /* ignore */ }
@@ -38,6 +47,7 @@ export function TextScaleProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--text-scale', `${LEVELS[level]}%`)
     try {
       localStorage.setItem(STORAGE_KEY, String(level))
+      localStorage.setItem(VERSION_KEY, String(CURRENT_VERSION))
     } catch { /* ignore */ }
   }, [level])
 

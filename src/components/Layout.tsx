@@ -108,30 +108,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       ))}
                     </div>
                   </div>
-                  <div className="px-3 py-2 border-b border-line-light">
-                    <p className="text-sm text-text-muted mb-1.5">Text Size</p>
+                  <div className="px-3 py-2 border-b border-line-light" style={{ fontSize: '16px' }}>
+                    <p className="text-text-muted mb-1.5" style={{ fontSize: '14px' }}>Text Size</p>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={textDecrease}
                         disabled={textLevel <= 0}
-                        className="w-8 h-8 rounded-md bg-muted text-text-secondary hover:bg-card-hover flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors"
+                        className="rounded-md bg-muted text-text-secondary hover:bg-card-hover flex items-center justify-center font-bold disabled:opacity-30 transition-colors"
+                        style={{ width: '32px', height: '32px', fontSize: '14px' }}
                       >
                         −
                       </button>
-                      <div className="flex-1 flex justify-center gap-1">
+                      <div className="flex-1 flex items-end justify-center" style={{ gap: '3px', height: '24px' }}>
                         {TEXT_SCALE_LEVELS.map((_, i) => (
-                          <div
+                          <span
                             key={i}
-                            className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                              i <= textLevel ? 'bg-accent' : 'bg-muted'
+                            className={`font-semibold leading-none transition-colors ${
+                              i <= textLevel ? 'text-accent' : 'text-muted'
                             }`}
-                          />
+                            style={{ fontSize: `${10 + i * 2}px` }}
+                          >
+                            A
+                          </span>
                         ))}
                       </div>
                       <button
                         onClick={textIncrease}
                         disabled={textLevel >= TEXT_SCALE_LEVELS.length - 1}
-                        className="w-8 h-8 rounded-md bg-muted text-text-secondary hover:bg-card-hover flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors"
+                        className="rounded-md bg-muted text-text-secondary hover:bg-card-hover flex items-center justify-center font-bold disabled:opacity-30 transition-colors"
+                        style={{ width: '32px', height: '32px', fontSize: '14px' }}
                       >
                         +
                       </button>
