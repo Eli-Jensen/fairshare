@@ -22,7 +22,7 @@ type Tab = 'expenses' | 'settle' | 'activity'
 export function TripDashboard() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const { trip, expenses, members, activityLog, loading } = useTrip(id)
+  const { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, activityLog, loading } = useTrip(id)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>(() => {
@@ -97,7 +97,9 @@ export function TripDashboard() {
   }
 
   const sc = trip.settlementCurrency ?? DEFAULT_CURRENCY
-  const totalSettled = expenses.reduce((sum, e) => sum + e.amountSettled, 0)
+  // Use cached totals (accurate even when paginated)
+  const totalSettled = trip.cachedTotalSpent ?? expenses.reduce((sum, e) => sum + e.amountSettled, 0)
+  const totalCount = trip.cachedExpenseCount ?? expenses.length
   const tl = tripLabel(trip.type)
 
   const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
@@ -197,8 +199,8 @@ export function TripDashboard() {
         )}
         <div className="flex items-center justify-between">
           <p className="text-sm text-text-secondary">
-            Total: {formatMoney(totalSettled, sc)} across {expenses.length} expense
-            {expenses.length !== 1 && 's'}
+            Total: {formatMoney(totalSettled, sc)} across {totalCount} expense
+            {totalCount !== 1 && 's'}
           </p>
           {expenses.length > 0 && (
             <div className="relative">
@@ -447,29 +449,43 @@ export function TripDashboard() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-2">
-              {expenses
-                .filter((exp) => categoryFilter.size === 0 || getExpenseCategories(exp).some((c) => categoryFilter.has(c)))
-                .map((exp) => (
-                  <ExpenseCard
-                    key={exp.id}
-                    expense={exp} settlementCurrency={sc}
-                    members={members}
-                    customCategories={trip.customCategories}
-                    onEdit={() =>
-                      navigate(`/trip/${id}/expense/${exp.id}`)
-                    }
-                  />
-                ))}
-            </div>
+            <>
+              <div className="space-y-2">
+                {expenses
+                  .filter((exp) => categoryFilter.size === 0 || getExpenseCategories(exp).some((c) => categoryFilter.has(c)))
+                  .map((exp) => (
+                    <ExpenseCard
+                      key={exp.id}
+                      expense={exp} settlementCurrency={sc}
+                      members={members}
+                      customCategories={trip.customCategories}
+                      onEdit={() =>
+                        navigate(`/trip/${id}/expense/${exp.id}`)
+                      }
+                    />
+                  ))}
+              </div>
+              {hasMore && (
+                <button
+                  onClick={loadAllExpenses}
+                  className="w-full mt-3 py-2.5 text-sm font-medium text-accent-text border border-line rounded-lg hover:bg-card-hover transition-colors"
+                >
+                  Show all expenses
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {tab === 'settle' && (
+      {tab === 'settle' && (() => {
+        // Load all expenses for accurate settlement math
+        if (!allExpenses) loadAllExpenses()
+        const settleExpenses = allExpenses ?? expenses
+        return (
         <div className="min-w-0">
         <SettlementView
-          expenses={expenses}
+          expenses={settleExpenses}
           members={members}
           memberUids={trip.memberUids}
           settlementCurrency={sc}
@@ -518,7 +534,8 @@ export function TripDashboard() {
           }}
         />
         </div>
-      )}
+        )
+      })()}
 
       {tab === 'activity' && (
         <div className="min-w-0">

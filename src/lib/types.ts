@@ -46,12 +46,14 @@ export interface Trip {
   settlementCurrency: string // e.g. 'USD', 'EUR', 'GBP'
   customCategories?: CustomCategory[]
   createdAt: Timestamp
-  // Denormalized expense summary (updated by useTrip on each expense change)
+  // Denormalized expense summary (updated by useTrip when full data is loaded)
   cachedExpenseCount?: number
   cachedTotalSpent?: number
   cachedLatestDesc?: string | null
   cachedLatestAmount?: number | null
   cachedBalances?: Record<string, number>
+  cachedMemberSpending?: Record<string, number>
+  cachedCategoryTotals?: Record<string, number>
 }
 
 export interface Expense {
