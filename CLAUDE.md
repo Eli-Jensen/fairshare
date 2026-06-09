@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run build          # TypeScript check + Vite production build (output: dist/)
 npm run dev            # Dev server (port 5174, configured in parent .claude/launch.json)
-npm test               # Run Vitest test suite (26 tests, ~150ms)
+npm test               # Run Vitest test suite (93 tests, ~150ms)
 npm run test:watch     # Vitest in watch mode
 npm run lint           # ESLint
 npx firebase deploy --only hosting              # Deploy app to Firebase Hosting
@@ -19,7 +19,7 @@ npx firebase deploy --only hosting,firestore    # Deploy both + indexes
 
 **Stack**: React 19 + TypeScript + Vite + Tailwind CSS v4 + Firebase (Auth, Firestore, Hosting)
 
-**Live**: https://fairshare-split.web.app | **Repo**: github.com/Eli-Jensen/fairshare
+**Production**: https://fairshare-split.web.app | **Dev**: https://fairshare-split-dev.web.app | **Repo**: github.com/Eli-Jensen/fairshare
 
 ### Firestore Data Model
 
@@ -50,10 +50,13 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 **Exchange rates** (`src/lib/rates.ts`): Fetched from open.er-api.com, cached in localStorage for 6h. Per-trip rates saved in `trip.lastRates`. The trip's `lastCurrency` field auto-sets the default currency for new expenses.
 
-### Branching
+### Branching & Deployment
 
-- `main` — production, auto-deployed to Firebase Hosting via CI/CD on push
+- `main` — production, auto-deployed to `fairshare-split.web.app` on push (open access)
+- `dev` — staging, auto-deployed to `fairshare-split-dev.web.app` on push (email-gated via `VITE_ALLOWED_EMAILS` GitHub secret)
 - Feature branches merged via PR (e.g. `feature/groups` → PR #1)
+
+**Access gating** (`src/App.tsx`): When the `VITE_ALLOWED_EMAILS` env var is set (comma-separated emails), only those users can use the app after sign-in. Production builds omit this var — everyone can sign in. Dev builds include it via the GitHub secret.
 
 ### Firebase Constraints
 

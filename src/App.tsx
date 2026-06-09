@@ -13,6 +13,37 @@ import { DeletedItems } from './pages/DeletedItems'
 import { Profile } from './pages/Profile'
 import { Activity } from './pages/Activity'
 
+/** Comma-separated email whitelist — when set, only these users can access the app */
+const ALLOWED_EMAILS: string[] | null = import.meta.env.VITE_ALLOWED_EMAILS
+  ? (import.meta.env.VITE_ALLOWED_EMAILS as string).split(',').map((e) => e.trim().toLowerCase())
+  : null
+
+function AccessGate({ children }: { children: React.ReactNode }) {
+  const { user, loading, signOut } = useAuth()
+
+  if (!ALLOWED_EMAILS || loading || !user) return <>{children}</>
+
+  if (!ALLOWED_EMAILS.includes(user.email?.toLowerCase() ?? '')) {
+    return (
+      <div className="text-center py-20 px-4">
+        <h1 className="text-2xl font-bold text-text mb-2">Access Restricted</h1>
+        <p className="text-text-secondary mb-1">
+          This environment is restricted to authorized testers.
+        </p>
+        <p className="text-sm text-text-muted mb-6">{user.email}</p>
+        <button
+          onClick={signOut}
+          className="text-accent-text font-medium hover:text-accent-hover transition-colors"
+        >
+          Sign out
+        </button>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
 
@@ -36,6 +67,7 @@ export default function App() {
     <ErrorBoundary>
     <BrowserRouter>
       <Layout>
+        <AccessGate>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/join/:inviteCode" element={<JoinTrip />} />
@@ -116,6 +148,7 @@ export default function App() {
             }
           />
         </Routes>
+        </AccessGate>
       </Layout>
     </BrowserRouter>
     </ErrorBoundary>
