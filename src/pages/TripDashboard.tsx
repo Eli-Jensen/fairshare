@@ -218,8 +218,10 @@ export function TripDashboard() {
                 <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
-                    onClick={() => {
-                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc, trip.customCategories)
+                    onClick={async () => {
+                      if (!allExpenses) await loadAllExpenses()
+                      const all = allExpenses ?? expenses
+                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
@@ -228,8 +230,10 @@ export function TripDashboard() {
                     Export to Google Sheets
                   </button>
                   <button
-                    onClick={() => {
-                      const csv = tripToCsv(trip.name, expenses, members, trip.memberUids, sc, trip.customCategories)
+                    onClick={async () => {
+                      if (!allExpenses) await loadAllExpenses()
+                      const all = allExpenses ?? expenses
+                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories)
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
@@ -281,28 +285,28 @@ export function TripDashboard() {
                 }}
                 className={`flex items-center gap-1.5 rounded-full px-2 py-1 transition-all ${
                   canRemove
-                    ? 'bg-red-50 border border-red-200 cursor-pointer hover:bg-red-100'
+                    ? 'bg-danger-bg border border-danger-text/20 cursor-pointer hover:bg-danger-bg/80'
                     : canLeave
-                      ? 'bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100'
+                      ? 'bg-warn-bg border border-warn-border cursor-pointer hover:bg-warn-bg/80'
                       : 'bg-card border border-line cursor-default'
                 }`}
               >
                 <MemberAvatar member={members[uid]} size="sm" showInfoOnClick={!editingName} />
                 <span className={`text-sm ${
-                  canRemove ? 'text-red-700' : canLeave ? 'text-amber-700' : 'text-text-secondary'
+                  canRemove ? 'text-danger-text' : canLeave ? 'text-warn-text' : 'text-text-secondary'
                 }`}>
                   {getMemberName(uid, members)}
                   {isCurrentUser && (
-                    <span className={canLeave ? 'text-amber-500' : 'text-text-muted'}> (you)</span>
+                    <span className={canLeave ? 'text-warn-text' : 'text-text-muted'}> (you)</span>
                   )}
                 </span>
                 {canRemove && (
-                  <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 text-danger-text/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 )}
                 {canLeave && (
-                  <svg className="w-3 h-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 text-warn-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                 )}
@@ -314,14 +318,14 @@ export function TripDashboard() {
               {trip.invitedEmails.map((email) => (
                 <div
                   key={email}
-                  className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-2 py-1"
+                  className="flex items-center gap-1.5 bg-warn-bg border border-warn-border rounded-full px-2 py-1"
                 >
-                  <div className="w-5 h-5 rounded-full bg-amber-200 flex items-center justify-center text-[10px] text-amber-700 font-medium">
+                  <div className="w-5 h-5 rounded-full bg-warn-border flex items-center justify-center text-[10px] text-warn-text font-medium">
                     {email[0].toUpperCase()}
                   </div>
-                  <span className="text-sm text-amber-700">
+                  <span className="text-sm text-warn-text">
                     {email}
-                    <span className="text-amber-400 ml-1">(invited)</span>
+                    <span className="text-warn-text/60 ml-1">(invited)</span>
                   </span>
                 </div>
               ))}

@@ -29,7 +29,7 @@ export function DeleteModal({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-white bg-danger-text rounded-lg hover:bg-danger-text/90 transition-colors"
           >
             Yes, delete
           </button>

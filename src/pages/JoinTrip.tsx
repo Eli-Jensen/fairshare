@@ -119,7 +119,7 @@ export function JoinTrip() {
   if (status === 'error') {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-red-600">{error}</p>
+        <p className="text-danger-text">{error}</p>
         <button
           onClick={() => navigate('/')}
           className="text-accent-text font-medium hover:text-accent-hover"

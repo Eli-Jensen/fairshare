@@ -613,7 +613,7 @@ export function ExpenseForm({
               </div>
             ))}
             {form.amount > 0 && (
-              <p className={`text-xs ${Math.abs(paidRemaining) < AMOUNT_TOLERANCE ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <p className={`text-xs ${Math.abs(paidRemaining) < AMOUNT_TOLERANCE ? 'text-success-text' : 'text-warn-text'}`}>
                 {Math.abs(paidRemaining) < AMOUNT_TOLERANCE
                   ? 'Paid amounts match total'
                   : paidRemaining > 0
@@ -772,7 +772,7 @@ export function ExpenseForm({
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-danger-bg rounded-lg px-3 py-2">
+        <p className="text-sm text-danger-text bg-danger-bg rounded-lg px-3 py-2">
           {error}
         </p>
       )}
@@ -797,7 +797,7 @@ export function ExpenseForm({
           <button
             type="button"
             onClick={onDelete}
-            className="px-4 py-2.5 text-sm text-red-600 hover:bg-danger-bg rounded-lg transition-colors"
+            className="px-4 py-2.5 text-sm text-danger-text hover:bg-danger-bg rounded-lg transition-colors"
           >
             Delete
           </button>

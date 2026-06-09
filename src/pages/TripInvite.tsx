@@ -276,7 +276,7 @@ export function TripInvite() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">
+        <p className="text-sm text-danger-text bg-danger-bg rounded-lg px-3 py-2 mb-4">
           {error}
         </p>
       )}
@@ -289,7 +289,7 @@ export function TripInvite() {
             {justInvited.map((e) => (
               <div
                 key={e}
-                className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2"
+                className="flex items-center gap-2 text-sm text-success-text bg-success-bg rounded-lg px-3 py-2"
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -424,7 +424,7 @@ export function TripInvite() {
                   </button>
                   <button
                     onClick={() => forgetContact(contact.email)}
-                    className="text-xs text-text-muted hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                    className="text-xs text-text-muted hover:text-danger-text px-2 py-1 rounded hover:bg-danger-bg transition-colors"
                   >
                     Forget
                   </button>
@@ -468,8 +468,8 @@ export function TripInvite() {
                     label="Remove"
                     confirmLabel="Confirm?"
                     onConfirm={() => removeMember(uid)}
-                    className="text-xs text-text-muted hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                    confirmClassName="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded transition-colors"
+                    className="text-xs text-text-muted hover:text-danger-text px-2 py-1 rounded hover:bg-danger-bg transition-colors"
+                    confirmClassName="text-xs font-medium text-danger-text bg-danger-bg px-2 py-1 rounded transition-colors"
                   />
                 )}
               </div>
@@ -510,7 +510,7 @@ export function TripInvite() {
             {trip.invitedEmails.map((e) => (
               <div
                 key={e}
-                className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2"
+                className="flex items-center gap-2 text-sm text-warn-text bg-warn-bg rounded-lg px-3 py-2"
               >
                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

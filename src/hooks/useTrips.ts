@@ -67,13 +67,17 @@ export function useTrips() {
   return { trips, loading }
 }
 
-/** Permanently delete a trip and all its expenses */
+/** Permanently delete a trip and all its subcollections */
 async function purgeTrip(tripId: string) {
   try {
-    const expSnap = await getDocs(collection(db, 'trips', tripId, 'expenses'))
-    for (const expDoc of expSnap.docs) {
-      await deleteDoc(expDoc.ref)
-    }
+    const [expSnap, actSnap] = await Promise.all([
+      getDocs(collection(db, 'trips', tripId, 'expenses')),
+      getDocs(collection(db, 'trips', tripId, 'activity')),
+    ])
+    await Promise.all([
+      ...expSnap.docs.map((d) => deleteDoc(d.ref)),
+      ...actSnap.docs.map((d) => deleteDoc(d.ref)),
+    ])
     await deleteDoc(doc(db, 'trips', tripId))
   } catch {
     // Silently fail — will retry next load

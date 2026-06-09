@@ -84,8 +84,6 @@ function BalanceLine({
       {text}
       <span
         className="relative inline-block"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
         onClick={() => setShowTooltip(!showTooltip)}
       >
         <span className="underline decoration-dotted cursor-help">

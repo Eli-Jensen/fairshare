@@ -103,6 +103,18 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="*"
+            element={
+              <div className="text-center py-20">
+                <h1 className="text-4xl font-bold text-text-muted mb-2">404</h1>
+                <p className="text-text-secondary mb-4">Page not found</p>
+                <a href="/" className="text-accent-text font-medium hover:text-accent-hover">
+                  Go home
+                </a>
+              </div>
+            }
+          />
         </Routes>
       </Layout>
     </BrowserRouter>
