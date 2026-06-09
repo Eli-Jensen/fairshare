@@ -227,7 +227,7 @@ export function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Trips column */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 mb-3">
               <h1 className="text-2xl font-bold text-text">Trips</h1>
               <Link
                 to="/trip/new"
@@ -277,7 +277,7 @@ export function Home() {
 
           {/* Groups column */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 mb-3">
               <h2 className="text-2xl font-bold text-text">Groups</h2>
               <Link
                 to="/trip/new?type=group"
@@ -336,10 +336,7 @@ function InviteCard({
   return (
     <div className="bg-accent-soft border border-primary-200 rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          {label === 'group' && <span className="text-sm">👥</span>}
-          <h3 className="font-semibold text-text">{invite.name}</h3>
-        </div>
+        <h3 className="font-semibold text-text">{invite.name}</h3>
         <span className="text-sm text-text-muted">
           {invite.memberUids.length} member{invite.memberUids.length !== 1 ? 's' : ''}
         </span>
