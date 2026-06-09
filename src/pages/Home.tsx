@@ -31,6 +31,14 @@ export function Home() {
   const [tripBalances, setTripBalances] = useState<Record<string, number>>({})
   const [showAllTrips, setShowAllTrips] = useState(false)
 
+  // Stable callback — avoids infinite re-render loop between Home ↔ TripCard
+  const handleBalanceComputed = useCallback((tripId: string, balance: number) => {
+    setTripBalances((prev) => {
+      if (prev[tripId] === balance) return prev // same value → same reference → no re-render
+      return { ...prev, [tripId]: balance }
+    })
+  }, [])
+
   // Separate trips from groups
   const tripItems = allTrips.filter((t) => (t.type ?? 'trip') === 'trip')
   const groupItems = allTrips.filter((t) => t.type === 'group')
@@ -247,9 +255,7 @@ export function Home() {
                       key={trip.id}
                       trip={trip}
                       currentUserUid={user.uid}
-                      onBalanceComputed={(tripId, balance) =>
-                        setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
-                      }
+                      onBalanceComputed={handleBalanceComputed}
                     />
                   ))}
                 </div>
