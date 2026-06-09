@@ -231,10 +231,10 @@ export function Home() {
               <h1 className="text-2xl font-bold text-text">Trips</h1>
               <Link
                 to="/trip/new"
-                className="text-accent hover:text-accent-hover transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
                 aria-label="New trip"
               >
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </Link>
@@ -281,10 +281,10 @@ export function Home() {
               <h2 className="text-2xl font-bold text-text">Groups</h2>
               <Link
                 to="/trip/new?type=group"
-                className="text-accent hover:text-accent-hover transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
                 aria-label="New group"
               >
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </Link>
