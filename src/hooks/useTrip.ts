@@ -101,11 +101,23 @@ export function useTrip(tripId: string | undefined) {
       orderBy('createdAt', 'desc')
     )
     const snap = await getDocs(q)
+    const now = Date.now()
+    const DAY_MS = 24 * 60 * 60 * 1000
     const active: Expense[] = []
+    const toDelete: typeof snap.docs = []
     for (const d of snap.docs) {
-      if (!d.data().deletedAt) {
-        active.push(mapExpense({ id: d.id, ...d.data() }))
+      const data = d.data()
+      if (data.deletedAt) {
+        const deletedTime = data.deletedAt.toDate?.()
+        if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+          toDelete.push(d)
+        }
+        continue
       }
+      active.push(mapExpense({ id: d.id, ...data }))
+    }
+    if (toDelete.length > 0) {
+      Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
     }
     allLoadedRef.current = true
     setAllExpenses(active)
