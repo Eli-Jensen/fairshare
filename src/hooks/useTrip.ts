@@ -73,18 +73,31 @@ export function useTrip(tripId: string | undefined) {
 
       // Fire-and-forget: update denormalized summary on the trip doc
       // so TripCard on the home page doesn't need its own expense listener
-      const memberUids = tripRef.current?.memberUids
-      if (memberUids) {
+      const t = tripRef.current
+      if (t?.memberUids) {
         const total = active.reduce((s, e) => s + e.amountSettled, 0)
         const latest = active[0] ?? null
-        const balances = computeBalances(active, memberUids)
-        updateDoc(doc(db, 'trips', tripId), {
-          cachedExpenseCount: active.length,
-          cachedTotalSpent: total,
-          cachedLatestDesc: latest?.description ?? null,
-          cachedLatestAmount: latest?.amountSettled ?? null,
-          cachedBalances: balances,
-        }).catch(() => {}) // silently ignore (permission errors, etc.)
+        const balances = computeBalances(active, t.memberUids)
+        const newDesc = latest?.description ?? null
+        const newAmount = latest?.amountSettled ?? null
+
+        // Only write if something actually changed (avoid wasting writes)
+        const changed =
+          t.cachedExpenseCount !== active.length ||
+          t.cachedTotalSpent !== total ||
+          t.cachedLatestDesc !== newDesc ||
+          t.cachedLatestAmount !== newAmount ||
+          JSON.stringify(t.cachedBalances ?? {}) !== JSON.stringify(balances)
+
+        if (changed) {
+          updateDoc(doc(db, 'trips', tripId), {
+            cachedExpenseCount: active.length,
+            cachedTotalSpent: total,
+            cachedLatestDesc: newDesc,
+            cachedLatestAmount: newAmount,
+            cachedBalances: balances,
+          }).catch(() => {})
+        }
       }
     })
   }, [tripId])

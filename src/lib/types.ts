@@ -44,7 +44,6 @@ export interface Trip {
   lastRates?: Record<string, number>
   lastCurrency?: string
   settlementCurrency: string // e.g. 'USD', 'EUR', 'GBP'
-  simplifyDebts?: boolean // defaults to true
   customCategories?: CustomCategory[]
   createdAt: Timestamp
   // Denormalized expense summary (updated by useTrip on each expense change)

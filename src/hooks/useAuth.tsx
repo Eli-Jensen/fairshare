@@ -48,16 +48,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const googlePhoto = firebaseUser.photoURL ?? null
 
           if (existing.exists()) {
-            await setDoc(
-              userRef,
-              {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                googleDisplayName: googleName,
-                googlePhotoURL: googlePhoto,
-              },
-              { merge: true }
-            )
+            // Only write if Google data actually changed (avoids wasting
+            // a write on every token refresh / tab focus)
+            const data = existing.data()
+            if (
+              data.email !== firebaseUser.email ||
+              data.googleDisplayName !== googleName ||
+              data.googlePhotoURL !== googlePhoto
+            ) {
+              await setDoc(
+                userRef,
+                {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  googleDisplayName: googleName,
+                  googlePhotoURL: googlePhoto,
+                },
+                { merge: true }
+              )
+            }
           } else {
             await setDoc(userRef, {
               uid: firebaseUser.uid,
