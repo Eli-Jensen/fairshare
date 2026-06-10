@@ -52,8 +52,10 @@ export interface Trip {
   cachedLatestDesc?: string | null
   cachedLatestAmount?: number | null
   cachedBalances?: Record<string, number>
-  cachedMemberSpending?: Record<string, number>
-  cachedCategoryTotals?: Record<string, number>
+  // Stamped by writeActivity — powers the unseen-activity dot and lets the
+  // global Activity page skip refetching unchanged trips
+  lastActivityAt?: Timestamp
+  lastActivityBy?: string
 }
 
 export interface Expense {

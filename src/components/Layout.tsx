@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useTrips } from '../hooks/useTrips'
 import { useTheme } from '../hooks/useTheme'
 import { useTextScale, TEXT_SCALE_LEVELS } from '../hooks/useTextScale'
 import { hasUnseenActivity } from '../lib/activityNotification'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
+  // Shares the same query (and billing) as the Home page's listener; the
+  // lastActivityAt stamps on trip docs drive the unseen dot
+  const { trips } = useTrips()
   const { theme, setTheme } = useTheme()
   const { level: textLevel, increase: textIncrease, decrease: textDecrease, setLevel: textSetLevel } = useTextScale()
   const navigate = useNavigate()
@@ -18,9 +22,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMenuOpen(false)
     if (user?.uid) {
-      setHasUnseen(hasUnseenActivity(user.uid))
+      setHasUnseen(hasUnseenActivity(user.uid, trips))
     }
-  }, [location.pathname, user?.uid])
+  }, [location.pathname, user?.uid, trips])
 
   return (
     <div className="min-h-screen flex flex-col bg-page text-text transition-colors">
@@ -46,6 +50,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </svg>
               fairshare
             </Link>
+            {import.meta.env.VITE_BUILD_ENV === 'dev' && (
+              <span className="text-[10px] font-bold tracking-wider bg-warn-bg text-warn-text border border-warn-border rounded px-1.5 py-0.5 select-none">
+                DEV
+              </span>
+            )}
           </div>
           {user && (
             <div className="relative">
@@ -201,6 +210,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       Sign out
                     </button>
                   </div>
+                  <p className="px-3 pt-1.5 pb-1 text-[11px] text-text-muted border-t border-line-light">
+                    v{__APP_VERSION__} · {__GIT_SHA__} · {__BUILD_DATE__}
+                    {import.meta.env.VITE_BUILD_ENV === 'dev' && ' · dev'}
+                  </p>
                 </div>
                 </>
               )}

@@ -48,7 +48,7 @@ export function useTrips() {
           const deletedTime = data.deletedAt.toDate?.()
           if (deletedTime && now - deletedTime.getTime() > DAY_MS && !purged.has(d.id)) {
             purged.add(d.id)
-            purgeTrip(d.id)
+            purgeTrip(d.id, data.inviteCode)
           }
           continue
         }
@@ -67,8 +67,10 @@ export function useTrips() {
   return { trips, loading }
 }
 
-/** Permanently delete a trip and all its subcollections */
-async function purgeTrip(tripId: string) {
+/** Permanently delete a trip, its subcollections, and its invite-code doc.
+ *  Must run while the caller is still a member (rules gate every delete on
+ *  membership, checked against the trip doc — so the trip doc goes last). */
+export async function purgeTrip(tripId: string, inviteCode?: string) {
   try {
     const [expSnap, actSnap] = await Promise.all([
       getDocs(collection(db, 'trips', tripId, 'expenses')),
@@ -78,6 +80,10 @@ async function purgeTrip(tripId: string) {
       ...expSnap.docs.map((d) => deleteDoc(d.ref)),
       ...actSnap.docs.map((d) => deleteDoc(d.ref)),
     ])
+    if (inviteCode) {
+      // Legacy trips may have no code doc; deleting one is best-effort
+      await deleteDoc(doc(db, 'inviteCodes', inviteCode)).catch(() => {})
+    }
     await deleteDoc(doc(db, 'trips', tripId))
   } catch {
     // Silently fail — will retry next load

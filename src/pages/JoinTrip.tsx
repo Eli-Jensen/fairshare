@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  collection,
-  query,
-  where,
-  getDocs,
+  getDoc,
   updateDoc,
   arrayUnion,
+  arrayRemove,
   doc,
   setDoc,
 } from 'firebase/firestore'
@@ -52,37 +50,44 @@ export function JoinTrip() {
         { merge: true }
       )
 
-      const q = query(
-        collection(db, 'trips'),
-        where('inviteCode', '==', inviteCode)
-      )
-      const snap = await getDocs(q)
-
-      if (snap.empty) {
+      // Trips aren't readable until you're a member, so invite codes
+      // resolve through the open /inviteCodes lookup collection
+      const codeSnap = await getDoc(doc(db, 'inviteCodes', inviteCode))
+      if (!codeSnap.exists()) {
         setError('Invalid invite link')
         setStatus('error')
         return
       }
+      const { tripId, type } = codeSnap.data() as { tripId: string; type?: TripType }
+      setJoinType(type ?? 'trip')
 
-      const tripDoc = snap.docs[0]
-      const tripData = tripDoc.data()
-      setJoinType(tripData.type ?? 'trip')
-
-      if (tripData.memberUids.includes(user.uid)) {
-        navigate(`/trip/${tripDoc.id}`, { replace: true })
-        return
+      // Members (and email invitees) can read the trip — skip the join write
+      try {
+        const tripSnap = await getDoc(doc(db, 'trips', tripId))
+        if (tripSnap.exists() && tripSnap.data().memberUids?.includes(user.uid)) {
+          navigate(`/trip/${tripId}`, { replace: true })
+          return
+        }
+      } catch {
+        // Permission denied — not a member yet, proceed with the self-join
       }
 
-      await updateDoc(doc(db, 'trips', tripDoc.id), {
+      await updateDoc(doc(db, 'trips', tripId), {
         memberUids: arrayUnion(user.uid),
       })
-      writeActivity(tripDoc.id, {
+      // Now a member: clear any pending email invite for this user
+      if (user.email) {
+        updateDoc(doc(db, 'trips', tripId), {
+          invitedEmails: arrayRemove(user.email.toLowerCase()),
+        }).catch(() => {})
+      }
+      writeActivity(tripId, {
         action: 'member_joined',
         actorUid: user.uid,
         targetMemberUid: user.uid,
       })
 
-      navigate(`/trip/${tripDoc.id}`, { replace: true })
+      navigate(`/trip/${tripId}`, { replace: true })
     } catch {
       setError('Failed to join trip')
       setStatus('error')

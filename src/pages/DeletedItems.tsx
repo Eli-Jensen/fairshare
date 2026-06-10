@@ -8,13 +8,20 @@ import {
   orderBy,
   doc,
   updateDoc,
+  deleteDoc,
   deleteField,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
+import { purgeTrip } from '../hooks/useTrips'
 import { formatMoney, mapExpense } from '../lib/types'
 import type { Trip, Expense } from '../lib/types'
 import { writeActivity } from '../lib/activity'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Module-level so a remount doesn't re-attempt purges in the same session
+const purgedTripIds = new Set<string>()
 
 interface DeletedTrip extends Trip {
   deletedAt: import('firebase/firestore').Timestamp
@@ -44,13 +51,24 @@ export function DeletedItems() {
     let cancelled = false
 
     const unsubTrips = onSnapshot(q, async (snap) => {
+      const now = Date.now()
       const deleted: DeletedTrip[] = []
       const activeTripDocs: { id: string; name: string }[] = []
 
       for (const d of snap.docs) {
         const data = d.data()
         if (data.deletedAt) {
-          deleted.push({ id: d.id, ...data } as DeletedTrip)
+          const deletedTime = data.deletedAt.toDate?.()
+          if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+            // Expired — don't offer a restore for a trip whose expenses
+            // may already be purged; finish the purge instead
+            if (!purgedTripIds.has(d.id)) {
+              purgedTripIds.add(d.id)
+              purgeTrip(d.id, data.inviteCode)
+            }
+          } else {
+            deleted.push({ id: d.id, ...data } as DeletedTrip)
+          }
         } else {
           activeTripDocs.push({ id: d.id, name: data.name })
         }
@@ -58,20 +76,24 @@ export function DeletedItems() {
 
       setDeletedTrips(deleted)
 
-      // One-time reads for deleted expenses (no persistent listeners)
+      // Fetch only soft-deleted expenses instead of scanning every doc
       const allDeleted: DeletedExpense[] = []
       await Promise.all(activeTripDocs.map(async (trip) => {
         const expSnap = await getDocs(
-          query(collection(db, 'trips', trip.id, 'expenses'), orderBy('createdAt', 'desc'))
+          query(collection(db, 'trips', trip.id, 'expenses'), where('deletedAt', '!=', null))
         )
         for (const d of expSnap.docs) {
-          if (d.data().deletedAt) {
-            allDeleted.push({
-              ...mapExpense({ id: d.id, ...d.data() }),
-              tripId: trip.id,
-              tripName: trip.name,
-            } as DeletedExpense)
+          const data = d.data()
+          const deletedTime = data.deletedAt?.toDate?.()
+          if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+            deleteDoc(d.ref).catch(() => {})
+            continue
           }
+          allDeleted.push({
+            ...mapExpense({ id: d.id, ...data }),
+            tripId: trip.id,
+            tripName: trip.name,
+          } as DeletedExpense)
         }
       }))
 

@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { doc, updateDoc, serverTimestamp, arrayUnion, Timestamp } from 'firebase/firestore'
-import type { CustomCategory } from '../lib/types'
-import { getExpenseCategories } from '../lib/types'
+import { doc, getDoc, updateDoc, deleteField, serverTimestamp, arrayUnion, Timestamp } from 'firebase/firestore'
+import type { CustomCategory, Expense } from '../lib/types'
+import { getExpenseCategories, mapExpense } from '../lib/types'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
@@ -31,10 +31,29 @@ export function EditExpense() {
   const navigate = useNavigate()
   const [commentText, setCommentText] = useState('')
   const [addingComment, setAddingComment] = useState(false)
+  const [fetchedExpense, setFetchedExpense] = useState<Expense | null>(null)
+  const [fetchFailed, setFetchFailed] = useState(false)
 
-  const expense = expenses.find((e) => e.id === eid)
+  // The paginated listener only covers the newest expenses — older ones
+  // (deep links, post-"show all" clicks) need a direct read
+  const listed = expenses.find((e) => e.id === eid)
+  const expense = listed ?? fetchedExpense ?? undefined
+  const isListed = Boolean(listed)
 
-  if (loading || !trip || !user) {
+  useEffect(() => {
+    if (loading || isListed || !id || !eid) return
+    getDoc(doc(db, 'trips', id, 'expenses', eid))
+      .then((snap) => {
+        if (snap.exists() && !snap.data().deletedAt) {
+          setFetchedExpense(mapExpense({ id: snap.id, ...snap.data() }))
+        } else {
+          setFetchFailed(true)
+        }
+      })
+      .catch(() => setFetchFailed(true))
+  }, [loading, isListed, id, eid])
+
+  if (loading || !trip || !user || (!expense && !fetchFailed)) {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
   }
 
@@ -43,17 +62,31 @@ export function EditExpense() {
   }
 
   async function addComment() {
-    if (!commentText.trim() || !user || !id || !eid) return
+    if (!commentText.trim() || !user || !id || !eid || !expense) return
     setAddingComment(true)
-    await updateDoc(doc(db, 'trips', id, 'expenses', eid), {
-      comments: arrayUnion({
-        uid: user.uid,
-        text: commentText.trim(),
-        createdAt: Timestamp.now(),
-      }),
-    })
-    setCommentText('')
-    setAddingComment(false)
+    try {
+      await updateDoc(doc(db, 'trips', id, 'expenses', eid), {
+        comments: arrayUnion({
+          uid: user.uid,
+          text: commentText.trim(),
+          createdAt: Timestamp.now(),
+        }),
+      })
+      writeActivity(id, {
+        action: 'comment_added',
+        actorUid: user.uid,
+        targetDescription: expense.description,
+        targetExpenseId: eid,
+      })
+      setCommentText('')
+      if (!isListed) {
+        // No live listener covers this expense — refresh it directly
+        const snap = await getDoc(doc(db, 'trips', id, 'expenses', eid))
+        if (snap.exists()) setFetchedExpense(mapExpense({ id: snap.id, ...snap.data() }))
+      }
+    } finally {
+      setAddingComment(false)
+    }
   }
 
   return (
@@ -77,13 +110,30 @@ export function EditExpense() {
         }}
         existing={expense}
         onSubmit={async (data) => {
-          // Run both writes in parallel
+          // updateDoc merges, so optional fields the user cleared have to
+          // be deleted explicitly or stale values keep driving balances
+          const expenseUpdate: Record<string, unknown> = { ...data }
+          if (!data.paidByAmounts && expense.paidByAmounts) {
+            expenseUpdate.paidByAmounts = deleteField()
+          }
+          if (!data.notes && expense.notes) {
+            expenseUpdate.notes = deleteField()
+          }
+          const newCats = data.categories ?? []
+          if (newCats.length === 0 && getExpenseCategories(expense).length > 0) {
+            expenseUpdate.categories = deleteField()
+            expenseUpdate.category = deleteField()
+          } else if (expense.category) {
+            // Migrate the legacy single-category field on any edit
+            expenseUpdate.category = deleteField()
+          }
+
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
           if (data.currency !== (trip.settlementCurrency ?? DEFAULT_CURRENCY)) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           await Promise.all([
-            updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), data),
+            updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), expenseUpdate),
             updateDoc(doc(db!, 'trips', id!), tripUpdate),
           ])
 
@@ -116,15 +166,19 @@ export function EditExpense() {
           if (expense.paidBy !== data.paidBy) prev.paidBy = expense.paidBy
           if (expense.splitType !== data.splitType) prev.splitType = expense.splitType
           if (JSON.stringify(expense.splits) !== JSON.stringify(data.splits)) prev.splits = expense.splits
-          if (expense.paidByAmounts && JSON.stringify(expense.paidByAmounts) !== JSON.stringify(data.paidByAmounts)) prev.paidByAmounts = expense.paidByAmounts
-          const oldCats = getExpenseCategories(expense)
-          const newCats = data.categories ?? (data.category ? [data.category] : [])
-          if (JSON.stringify(oldCats) !== JSON.stringify(newCats)) {
-            prev.categories = oldCats.length > 0 ? oldCats : []
-            // Clean up legacy field on edit
-            prev.category = undefined
+          if (expense.paidByAmounts && JSON.stringify(expense.paidByAmounts) !== JSON.stringify(data.paidByAmounts)) {
+            prev.paidByAmounts = expense.paidByAmounts
+          } else if (!expense.paidByAmounts && data.paidByAmounts) {
+            // Empty map reads as "single payer" everywhere balances are computed
+            prev.paidByAmounts = {}
           }
-          if (expense.notes !== data.notes) prev.notes = expense.notes
+          const oldCats = getExpenseCategories(expense)
+          if (JSON.stringify(oldCats) !== JSON.stringify(newCats)) {
+            // Firestore rejects undefined values, so previousValues must
+            // only ever contain real values (empty array = "no categories")
+            prev.categories = oldCats
+          }
+          if ((expense.notes ?? '') !== (data.notes ?? '')) prev.notes = expense.notes ?? ''
 
           // Activity log is fire-and-forget
           writeActivity(id!, {

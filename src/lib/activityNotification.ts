@@ -1,5 +1,6 @@
+import type { Trip } from './types'
+
 const SEEN_KEY_PREFIX = 'fairshare-activity-seen-'
-const LATEST_KEY_PREFIX = 'fairshare-activity-latest-'
 
 export function getActivitySeenTimestamp(uid: string): number {
   try {
@@ -18,25 +19,15 @@ export function setActivitySeenTimestamp(uid: string, timestamp: number): void {
   }
 }
 
-export function getActivityLatestTimestamp(uid: string): number {
-  try {
-    const raw = localStorage.getItem(LATEST_KEY_PREFIX + uid)
-    return raw ? parseInt(raw, 10) : 0
-  } catch {
-    return 0
-  }
-}
-
-export function setActivityLatestTimestamp(uid: string, timestamp: number): void {
-  try {
-    localStorage.setItem(LATEST_KEY_PREFIX + uid, String(timestamp))
-  } catch {
-    // localStorage full or unavailable
-  }
-}
-
-export function hasUnseenActivity(uid: string): boolean {
+/**
+ * True when any trip has activity from someone else newer than the last
+ * time this user opened the Activity page on this device.
+ */
+export function hasUnseenActivity(uid: string, trips: Trip[]): boolean {
   const seen = getActivitySeenTimestamp(uid)
-  const latest = getActivityLatestTimestamp(uid)
-  return latest > seen && latest > 0
+  return trips.some((trip) => {
+    if (trip.lastActivityBy === uid) return false
+    const last = trip.lastActivityAt?.toMillis?.() ?? 0
+    return last > seen
+  })
 }

@@ -7,30 +7,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run build          # TypeScript check + Vite production build (output: dist/)
 npm run dev            # Dev server (port 5174, configured in parent .claude/launch.json)
-npm test               # Run Vitest test suite (93 tests, ~150ms)
+npm test               # Run Vitest test suite (~120 tests)
 npm run test:watch     # Vitest in watch mode
 npm run lint           # ESLint
-npx firebase deploy --only hosting              # Deploy app to Firebase Hosting
-npx firebase deploy --only firestore:rules      # Deploy Firestore security rules
-npx firebase deploy --only hosting,firestore    # Deploy both + indexes
+```
+
+Deployment and release operations live in the **Makefile** (`make help` lists everything):
+
+```bash
+make versions          # What's running on prod / dev (via /version.json) vs local HEAD
+make promote           # Merge dev → main (CI deploys prod hosting) + deploy prod rules
+make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
+make deploy-rules-dev  # Deploy Firestore rules + indexes to the dev project (CI uses this too)
+make deploy-rules-prod # Deploy Firestore rules + indexes to prod
+make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
 
 ## Architecture
 
 **Stack**: React 19 + TypeScript + Vite + Tailwind CSS v4 + Firebase (Auth, Firestore, Hosting)
 
-**Production**: https://fairshare-split.web.app | **Dev**: https://fairshare-split-dev.web.app | **Repo**: github.com/Eli-Jensen/fairshare
+**Production**: https://fairshare-split.web.app (project `fairshare-4c9a2`) | **Dev**: https://dev-fairshare-split.web.app (separate project `fairshare-split-dev`) | **Repo**: github.com/Eli-Jensen/fairshare
 
 ### Firestore Data Model
 
 ```
-/users/{uid}              — UserProfile (displayName, email, photoURL, googleDisplayName, recentContacts[])
-/trips/{tripId}           — Trip (name, type, memberUids[], inviteCode, invitedEmails[], settlementCurrency, lastRates{}, ...)
-/trips/{tripId}/expenses  — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, category?, notes?, comments[], isSettlement?, deletedAt?)
-/trips/{tripId}/activity  — ActivityLogEntry (action, actorUid, targetDescription?, editDetails?)
+/users/{uid}                  — UserProfile (displayName, email, photoURL, googleDisplayName)
+/users/{uid}/private/contacts — owner-only data ({ contacts: RecentContact[] })
+/inviteCodes/{code}           — invite-link lookup ({ tripId, type }); get-only for authed users, no list
+/trips/{tripId}               — Trip (name, type, memberUids[], inviteCode, invitedEmails[], settlementCurrency, lastRates{}, lastActivityAt, lastActivityBy, cached* fields, ...)
+/trips/{tripId}/expenses      — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, categories?, notes?, comments[], isSettlement?, deletedAt?)
+/trips/{tripId}/activity      — ActivityLogEntry (action, actorUid, targetDescription?, editDetails?)
 ```
 
-The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency.
+The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency. The settlement currency is **locked once a trip has expenses** (stored amounts are never converted).
+
+Trip reads are restricted to members and email invitees, so invite links resolve through `/inviteCodes/{code}` and join via a rules-validated "self-join" update (only change = adding your own uid to `memberUids`). `TripDashboard` lazily backfills code docs for pre-existing trips. **Rules changes require `npx firebase deploy --only firestore` — CI only deploys hosting.**
 
 Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (or undefined for old data), a group has `type: 'group'`. Use `tripLabel(trip.type)` from `src/lib/types.ts` for user-facing text — never hardcode "trip".
 
@@ -44,19 +56,28 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 **Settlement algorithm** (`src/lib/settlement.ts`): `computeBalances()` credits payers and debits splits. `simplifyDebts()` uses greedy matching to minimize payment count. Settlements are stored as regular expenses with `isSettlement: true` — the algorithm handles them automatically.
 
+**Split math** (`src/lib/splits.ts`): all split computation goes through this module — it works in integer cents and distributes leftover cents by largest remainder so splits always sum exactly to the total. Never round per-member shares independently.
+
+**Dates** (`src/lib/dates.ts`): expense dates are date-only values stored at local midnight. Always use `parseDateString`/`timestampToDateString`/`formatDateOnly` — naive `new Date('YYYY-MM-DD')` parses as UTC and shifts a day in US timezones.
+
 **Multi-payer expenses**: `paidByAmounts` is an optional `Record<string, number>` on expenses. When present, it overrides `paidBy` for balance calculations. When absent, `paidBy` is the single payer for the full amount. Never write `paidByAmounts: undefined` to Firestore — omit the field entirely.
 
-**Activity logging** (`src/lib/activity.ts`): `writeActivity()` is fire-and-forget (no `await`) to avoid blocking saves. Edit activities include `editDetails: string[]` showing what changed.
+**Activity logging** (`src/lib/activity.ts`): `writeActivity()` is fire-and-forget (no `await`) to avoid blocking saves. Edit activities include `editDetails: string[]` showing what changed. It also stamps `lastActivityAt`/`lastActivityBy` on the trip doc, which powers the unseen-activity dot in the header and lets the global Activity page refetch only trips whose stamp moved.
 
 **Exchange rates** (`src/lib/rates.ts`): Fetched from open.er-api.com, cached in localStorage for 6h. Per-trip rates saved in `trip.lastRates`. The trip's `lastCurrency` field auto-sets the default currency for new expenses.
 
 ### Branching & Deployment
 
-- `main` — production, auto-deployed to `fairshare-split.web.app` on push (open access)
-- `dev` — staging, auto-deployed to `fairshare-split-dev.web.app` on push (email-gated via `VITE_ALLOWED_EMAILS` GitHub secret)
-- Feature branches merged via PR (e.g. `feature/groups` → PR #1)
+Dev and prod are **separate Firebase projects** — separate Firestore data, separate Auth users, separate rules. Dev is a safe sandbox; nothing done there can touch production data.
+
+- `main` — production, CI deploys **hosting only** to `fairshare-split.web.app` (project `fairshare-4c9a2`, open access). **Prod rules/indexes are deployed manually** (`npx firebase deploy --only firestore --project prod`) — do this whenever `firestore.rules`/`firestore.indexes.json` change.
+- `dev` — staging, CI deploys **hosting + Firestore rules + indexes** to `dev-fairshare-split.web.app` (project `fairshare-split-dev`, email-gated via `VITE_ALLOWED_EMAILS`, marked with a DEV badge). Rules changes rehearse here before prod.
+- Feature branches merged via PR into `dev`, then `dev` → `main` once verified.
+- The old default site `fairshare-4c9a2.web.app` is disabled — don't re-enable it.
 
 **Access gating** (`src/App.tsx`): When the `VITE_ALLOWED_EMAILS` env var is set (comma-separated emails), only those users can use the app after sign-in. Production builds omit this var — everyone can sign in. Dev builds include it via the GitHub secret.
+
+**Versioning**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`) and shown at the bottom of the avatar menu. Bump the version manually when something meaningful ships.
 
 ### Firebase Constraints
 

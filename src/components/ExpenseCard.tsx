@@ -1,5 +1,6 @@
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
 import { formatMoney, getMemberName, getCategoryInfo, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
+import { formatDateOnly } from '../lib/dates'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
@@ -16,9 +17,8 @@ export function ExpenseCard({
   customCategories?: CustomCategory[]
 }) {
   const payer = members[expense.paidBy]
-  const dateStr = expense.date?.toDate
-    ? expense.date.toDate().toLocaleDateString()
-    : ''
+  const sc = settlementCurrency ?? DEFAULT_CURRENCY
+  const dateStr = formatDateOnly(expense.date)
 
   const expenseCategories = getExpenseCategories(expense)
     .map((c) => getCategoryInfo(c, customCategories))
@@ -61,17 +61,17 @@ export function ExpenseCard({
               </p>
             </div>
             <p className="font-semibold text-text shrink-0">
-              {formatMoney(expense.amountSettled, settlementCurrency ?? DEFAULT_CURRENCY)}
+              {formatMoney(expense.amountSettled, sc)}
             </p>
           </div>
           <div className="flex items-center justify-between mt-0.5">
             <p className="text-sm text-text-secondary">
               {expense.paidByAmounts && Object.keys(expense.paidByAmounts).length > 1
                 ? Object.entries(expense.paidByAmounts)
-                    .map(([uid, amt]) => `${getMemberName(uid, members)} $${amt.toFixed(2)}`)
+                    .map(([uid, amt]) => `${getMemberName(uid, members)} ${formatMoney(amt, sc)}`)
                     .join(', ')
                 : `${getMemberName(expense.paidBy, members)} paid`}
-              {expense.currency !== (settlementCurrency ?? DEFAULT_CURRENCY) && (
+              {expense.currency !== sc && (
                 <span className="ml-1 text-sm text-text-muted">
                   ({expense.amount} {expense.currency})
                 </span>

@@ -4,7 +4,7 @@ import { formatMoney, getMemberName, getCategoryInfo, getExpenseCategories, DEFA
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 import { CurrencyPicker } from './CurrencyPicker'
-import { fetchRates } from '../lib/rates'
+import { fetchRates, getCrossRate } from '../lib/rates'
 
 /** Compute all individual debtor→creditor pairs without simplification */
 export function SettlementView({
@@ -44,16 +44,19 @@ export function SettlementView({
   const [cpCurrency, setCpCurrency] = useState(sc)
   const [cpMethod, setCpMethod] = useState('')
   const [cpSubmitting, setCpSubmitting] = useState(false)
-  const [rates, setRates] = useState<Record<string, number>>(tripRates ?? {})
+  const [liveRates, setLiveRates] = useState<Record<string, number>>({})
 
   // Fetch exchange rates when form opens with non-settlement currency
   useEffect(() => {
-    if (!showPaymentForm) return
-    if (cpCurrency === sc && rates[cpCurrency]) return
-    fetchRates().then((r) => setRates((prev) => ({ ...prev, ...r })))
+    if (!showPaymentForm || cpCurrency === sc) return
+    fetchRates().then(setLiveRates)
   }, [showPaymentForm, cpCurrency, sc])
 
-  const cpRate = cpCurrency === sc ? 1 : (rates[cpCurrency] ?? tripRates?.[cpCurrency] ?? null)
+  // Trip rates are already settlement-relative; live API rates are
+  // USD-based and need the cross-rate through USD
+  const cpRate = cpCurrency === sc
+    ? 1
+    : (tripRates?.[cpCurrency] ?? getCrossRate(liveRates, cpCurrency, sc))
   const cpAmountNum = parseFloat(cpAmount) || 0
   const cpAmountInSC = cpRate ? cpAmountNum * cpRate : 0
 

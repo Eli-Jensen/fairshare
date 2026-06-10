@@ -1,5 +1,6 @@
-import type { Expense, UserProfile, CustomCategory } from './types'
+import type { Expense, UserProfile, CustomCategory, RemovedMember } from './types'
 import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from './types'
+import { formatDateOnly } from './dates'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -9,28 +10,45 @@ function escapeCsv(value: string): string {
   return value
 }
 
-function formatDate(ts: import('firebase/firestore').Timestamp): string {
-  if (!ts?.toDate) return ''
-  return ts.toDate().toLocaleDateString('en-US')
-}
-
 export function tripToCsv(
   tripName: string,
   expenses: Expense[],
   members: Record<string, UserProfile>,
   memberUids: string[],
   settlementCurrency: string = DEFAULT_CURRENCY,
-  customCategories?: CustomCategory[]
+  customCategories?: CustomCategory[],
+  removedMembers?: RemovedMember[]
 ): string {
   const fmt = (n: number) => formatMoney(n, settlementCurrency)
   const lines: string[] = []
+
+  // Removed members who paid or owe still belong in the books — otherwise
+  // the exported balances don't sum to zero
+  const involved = new Set<string>()
+  for (const exp of expenses) {
+    involved.add(exp.paidBy)
+    for (const uid of Object.keys(exp.splits)) involved.add(uid)
+    for (const uid of Object.keys(exp.paidByAmounts ?? {})) involved.add(uid)
+  }
+  const extraUids = Array.from(involved).filter((u) => !memberUids.includes(u))
+  const columnUids = [...memberUids, ...extraUids]
+
+  function nameFor(uid: string): string {
+    if (members[uid]) {
+      const n = getMemberName(uid, members)
+      return memberUids.includes(uid) ? n : `${n} (removed)`
+    }
+    const rm = removedMembers?.find((r) => r.uid === uid)
+    if (rm) return `${rm.displayName || rm.email} (removed)`
+    return uid
+  }
 
   // Header
   lines.push(`Trip: ${escapeCsv(tripName)}`)
   lines.push('')
 
   // Expenses table
-  const memberNames = memberUids.map((uid) => getMemberName(uid, members))
+  const memberNames = columnUids.map(nameFor)
   lines.push(
     [
       'Date',
@@ -52,10 +70,10 @@ export function tripToCsv(
   for (const exp of expenses) {
     const payer = exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 1
       ? Object.entries(exp.paidByAmounts)
-          .map(([uid, amt]) => `${getMemberName(uid, members)} ${fmt(amt)}`)
+          .map(([uid, amt]) => `${nameFor(uid)} ${fmt(amt)}`)
           .join(' + ')
-      : getMemberName(exp.paidBy, members)
-    const shares = memberUids.map((uid) =>
+      : nameFor(exp.paidBy)
+    const shares = columnUids.map((uid) =>
       exp.splits[uid] !== undefined ? fmt(exp.splits[uid]) : ''
     )
     const cats = (exp.categories && exp.categories.length > 0)
@@ -67,7 +85,7 @@ export function tripToCsv(
       .join(', ')
     lines.push(
       [
-        formatDate(exp.date),
+        formatDateOnly(exp.date, 'en-US'),
         exp.isSettlement ? 'Settlement' : 'Expense',
         catLabel,
         exp.description,
@@ -87,7 +105,7 @@ export function tripToCsv(
   // Total row (expenses only, exclude settlements)
   const expensesOnly = expenses.filter((e) => !e.isSettlement)
   const total = expensesOnly.reduce((s, e) => s + e.amountSettled, 0)
-  const pad = memberUids.map(() => '')
+  const pad = columnUids.map(() => '')
   lines.push(
     ['', '', '', 'TOTAL (expenses)', '', fmt(total), '', '', '', '', ...pad]
       .map(escapeCsv)
@@ -100,7 +118,7 @@ export function tripToCsv(
   // Per-person spending
   lines.push('Per-Person Spending')
   lines.push(['Person', 'Total Paid'].map(escapeCsv).join(','))
-  for (const uid of memberUids) {
+  for (const uid of columnUids) {
     let spent = 0
     for (const exp of expensesOnly) {
       if (exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 0) {
@@ -109,7 +127,7 @@ export function tripToCsv(
         spent += exp.amountSettled
       }
     }
-    lines.push([getMemberName(uid, members), fmt(spent)].map(escapeCsv).join(','))
+    lines.push([nameFor(uid), fmt(spent)].map(escapeCsv).join(','))
   }
 
   lines.push('')
@@ -118,10 +136,9 @@ export function tripToCsv(
   lines.push('Balances')
   lines.push(['Person', 'Balance'].map(escapeCsv).join(','))
   const balances = computeBalances(expenses, memberUids)
-  for (const uid of memberUids) {
-    const name = getMemberName(uid, members)
+  for (const uid of columnUids) {
     const bal = balances[uid] ?? 0
-    lines.push([name, fmt(bal)].map(escapeCsv).join(','))
+    lines.push([nameFor(uid), fmt(bal)].map(escapeCsv).join(','))
   }
 
   lines.push('')
@@ -132,13 +149,7 @@ export function tripToCsv(
   const debts = simplifyDebts(balances)
   for (const d of debts) {
     lines.push(
-      [
-        getMemberName(d.from, members),
-        getMemberName(d.to, members),
-        fmt(d.amount),
-      ]
-        .map(escapeCsv)
-        .join(',')
+      [nameFor(d.from), nameFor(d.to), fmt(d.amount)].map(escapeCsv).join(',')
     )
   }
 

@@ -1,12 +1,18 @@
 {
   "projects": {
-    "default": "fairshare-4c9a2"
+    "default": "fairshare-4c9a2",
+    "prod": "fairshare-4c9a2",
+    "dev": "fairshare-split-dev"
   },
   "targets": {
     "fairshare-4c9a2": {
       "hosting": {
-        "app": ["fairshare-split"],
-        "dev": ["fairshare-split-dev"]
+        "app": ["fairshare-split"]
+      }
+    },
+    "fairshare-split-dev": {
+      "hosting": {
+        "dev": ["dev-fairshare-split"]
       }
     }
   }

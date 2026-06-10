@@ -80,6 +80,12 @@
 html {
   font-size: var(--text-scale, 100%);
   scrollbar-gutter: stable;
+  /* Native widgets (date pickers, scrollbars, unstyled inputs) follow the theme */
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {

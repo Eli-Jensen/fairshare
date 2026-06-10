@@ -36,7 +36,7 @@ export function UndoToast({
           <div className="flex items-center gap-2 ml-3 shrink-0">
             <button
               onClick={onUndo}
-              className="text-sm font-semibold text-primary-300 hover:text-primary-200 transition-colors"
+              className="text-sm font-semibold text-accent-text hover:text-accent-hover transition-colors"
             >
               Undo
             </button>
