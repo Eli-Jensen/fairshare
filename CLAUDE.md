@@ -7,19 +7,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run build          # TypeScript check + Vite production build (output: dist/)
 npm run dev            # Dev server (port 5174, configured in parent .claude/launch.json)
-npm test               # Run Vitest test suite (93 tests, ~150ms)
+npm test               # Run Vitest test suite (~120 tests)
 npm run test:watch     # Vitest in watch mode
 npm run lint           # ESLint
-npx firebase deploy --only hosting              # Deploy app to Firebase Hosting
-npx firebase deploy --only firestore:rules      # Deploy Firestore security rules
-npx firebase deploy --only hosting,firestore    # Deploy both + indexes
+npx firebase deploy --only hosting:app --project prod   # Manually deploy app to PROD hosting
+npx firebase deploy --only firestore --project prod     # Deploy rules + indexes to PROD
+npx firebase deploy --only firestore --project dev      # Deploy rules + indexes to DEV
 ```
 
 ## Architecture
 
 **Stack**: React 19 + TypeScript + Vite + Tailwind CSS v4 + Firebase (Auth, Firestore, Hosting)
 
-**Production**: https://fairshare-split.web.app | **Dev**: https://fairshare-split-dev.web.app | **Repo**: github.com/Eli-Jensen/fairshare
+**Production**: https://fairshare-split.web.app (project `fairshare-4c9a2`) | **Dev**: https://dev-fairshare-split.web.app (separate project `fairshare-split-dev`) | **Repo**: github.com/Eli-Jensen/fairshare
 
 ### Firestore Data Model
 
@@ -60,11 +60,16 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 ### Branching & Deployment
 
-- `main` — production, auto-deployed to `fairshare-split.web.app` on push (open access)
-- `dev` — staging, auto-deployed to `fairshare-split-dev.web.app` on push (email-gated via `VITE_ALLOWED_EMAILS` GitHub secret)
-- Feature branches merged via PR (e.g. `feature/groups` → PR #1)
+Dev and prod are **separate Firebase projects** — separate Firestore data, separate Auth users, separate rules. Dev is a safe sandbox; nothing done there can touch production data.
+
+- `main` — production, CI deploys **hosting only** to `fairshare-split.web.app` (project `fairshare-4c9a2`, open access). **Prod rules/indexes are deployed manually** (`npx firebase deploy --only firestore --project prod`) — do this whenever `firestore.rules`/`firestore.indexes.json` change.
+- `dev` — staging, CI deploys **hosting + Firestore rules + indexes** to `dev-fairshare-split.web.app` (project `fairshare-split-dev`, email-gated via `VITE_ALLOWED_EMAILS`, marked with a DEV badge). Rules changes rehearse here before prod.
+- Feature branches merged via PR into `dev`, then `dev` → `main` once verified.
+- The old default site `fairshare-4c9a2.web.app` is disabled — don't re-enable it.
 
 **Access gating** (`src/App.tsx`): When the `VITE_ALLOWED_EMAILS` env var is set (comma-separated emails), only those users can use the app after sign-in. Production builds omit this var — everyone can sign in. Dev builds include it via the GitHub secret.
+
+**Versioning**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`) and shown at the bottom of the avatar menu. Bump the version manually when something meaningful ships.
 
 ### Firebase Constraints
 

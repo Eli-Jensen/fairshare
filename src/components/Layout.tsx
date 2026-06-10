@@ -50,6 +50,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </svg>
               fairshare
             </Link>
+            {import.meta.env.VITE_BUILD_ENV === 'dev' && (
+              <span className="text-[10px] font-bold tracking-wider bg-warn-bg text-warn-text border border-warn-border rounded px-1.5 py-0.5 select-none">
+                DEV
+              </span>
+            )}
           </div>
           {user && (
             <div className="relative">
@@ -205,6 +210,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       Sign out
                     </button>
                   </div>
+                  <p className="px-3 pt-1.5 pb-1 text-[11px] text-text-muted border-t border-line-light">
+                    v{__APP_VERSION__} · {__GIT_SHA__} · {__BUILD_DATE__}
+                    {import.meta.env.VITE_BUILD_ENV === 'dev' && ' · dev'}
+                  </p>
                 </div>
                 </>
               )}
