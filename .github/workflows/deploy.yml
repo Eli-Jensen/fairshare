@@ -75,14 +75,13 @@ jobs:
           VITE_BUILD_ENV: dev
 
       # Rules and indexes rehearse on the isolated dev project before
-      # they're ever deployed to prod (prod rules stay a manual step)
+      # they're ever deployed to prod (prod rules go out via `make promote`)
       - name: Deploy Firestore rules + indexes to dev
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
         run: |
           printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa.json"
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" \
-            npx firebase deploy --only firestore --project fairshare-split-dev --non-interactive
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" make deploy-rules-dev
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

@@ -14,8 +14,28 @@ function gitSha(): string {
   }
 }
 
+// Served at /version.json so `make versions` can ask each site what it runs
+function emitVersionJson() {
+  return {
+    name: 'emit-version-json',
+    apply: 'build' as const,
+    generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: string }) => void }) {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({
+          version: pkg.version,
+          sha: gitSha(),
+          builtAt: new Date().toISOString(),
+          env: process.env.VITE_BUILD_ENV === 'dev' ? 'dev' : 'prod',
+        }),
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), emitVersionJson()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __GIT_SHA__: JSON.stringify(gitSha()),

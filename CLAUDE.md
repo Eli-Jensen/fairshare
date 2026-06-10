@@ -10,9 +10,17 @@ npm run dev            # Dev server (port 5174, configured in parent .claude/lau
 npm test               # Run Vitest test suite (~120 tests)
 npm run test:watch     # Vitest in watch mode
 npm run lint           # ESLint
-npx firebase deploy --only hosting:app --project prod   # Manually deploy app to PROD hosting
-npx firebase deploy --only firestore --project prod     # Deploy rules + indexes to PROD
-npx firebase deploy --only firestore --project dev      # Deploy rules + indexes to DEV
+```
+
+Deployment and release operations live in the **Makefile** (`make help` lists everything):
+
+```bash
+make versions          # What's running on prod / dev (via /version.json) vs local HEAD
+make promote           # Merge dev → main (CI deploys prod hosting) + deploy prod rules
+make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
+make deploy-rules-dev  # Deploy Firestore rules + indexes to the dev project (CI uses this too)
+make deploy-rules-prod # Deploy Firestore rules + indexes to prod
+make watch             # Watch the latest GitHub Actions run
 ```
 
 ## Architecture
