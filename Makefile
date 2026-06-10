@@ -65,8 +65,24 @@ deploy-rules-dev: ## Deploy Firestore rules + indexes to the DEV project
 deploy-rules-prod: ## Deploy Firestore rules + indexes to PROD
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
 
-watch: ## Watch the latest GitHub Actions run
-	gh run watch $$(gh run list -L1 --json databaseId -q '.[0].databaseId')
+watch: ## Watch the latest CI run, then report what (if anything) it deployed
+	@ID=$$(gh run list -L1 --json databaseId -q '.[0].databaseId'); \
+	gh run watch $$ID; \
+	echo; \
+	gh run view $$ID --json headBranch,headSha,event,conclusion,jobs -q \
+		'"\(.headBranch) @ \(.headSha[0:7]) (\(.event) run) — \(.conclusion)\n" + ([.jobs[] | "  \(.name): \(.conclusion)"] | join("\n"))'; \
+	BRANCH=$$(gh run view $$ID --json headBranch -q '.headBranch'); \
+	EVENT=$$(gh run view $$ID --json event -q '.event'); \
+	CONC=$$(gh run view $$ID --json conclusion -q '.conclusion'); \
+	if [ "$$EVENT" = "push" ] && [ "$$CONC" = "success" ] && [ "$$BRANCH" = "main" ]; then \
+		echo "→ deployed PROD: $(PROD_URL)"; \
+	elif [ "$$EVENT" = "push" ] && [ "$$CONC" = "success" ] && [ "$$BRANCH" = "dev" ]; then \
+		echo "→ deployed DEV:  $(DEV_URL)"; \
+	else \
+		echo "→ nothing deployed (PR/test-only run, or the deploy didn't succeed)"; \
+	fi; \
+	echo; \
+	$(MAKE) -s versions
 
 open-prod: ## Open the prod site
 	open $(PROD_URL)

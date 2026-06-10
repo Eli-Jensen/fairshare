@@ -20,7 +20,7 @@ make promote           # Merge dev → main (CI deploys prod hosting) + deploy p
 make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
 make deploy-rules-dev  # Deploy Firestore rules + indexes to the dev project (CI uses this too)
 make deploy-rules-prod # Deploy Firestore rules + indexes to prod
-make watch             # Watch the latest GitHub Actions run
+make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
 
 ## Architecture
