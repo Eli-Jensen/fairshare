@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
@@ -39,16 +39,20 @@ export function CreateTrip() {
     if (!name.trim() || !user || atLimit) return
 
     setSubmitting(true)
+    const inviteCode = generateInviteCode()
     const ref = await addDoc(collection(db, 'trips'), {
       name: name.trim(),
       type: tripType,
       createdBy: user.uid,
       memberUids: [user.uid],
       invitedEmails: [],
-      inviteCode: generateInviteCode(),
+      inviteCode,
       settlementCurrency: currency,
       createdAt: serverTimestamp(),
     })
+    // Lookup doc that lets invite links resolve a code without reading trips.
+    // Best-effort: the dashboard backfills it on view if this write fails.
+    setDoc(doc(db, 'inviteCodes', inviteCode), { tripId: ref.id, type: tripType }).catch(() => {})
     writeActivity(ref.id, {
       action: 'trip_created',
       actorUid: user.uid,

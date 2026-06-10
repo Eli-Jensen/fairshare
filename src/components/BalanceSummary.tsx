@@ -1,38 +1,45 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatMoney, BALANCE_THRESHOLD } from '../lib/types'
+import { formatMoney, BALANCE_THRESHOLD, DEFAULT_CURRENCY } from '../lib/types'
 import type { Trip } from '../lib/types'
+
+interface TripBalance {
+  id: string
+  name: string
+  amount: number
+}
 
 export function BalanceSummary({
   tripBalances,
   trips,
-  settlementCurrency,
 }: {
   tripBalances: Record<string, number>
   trips: Trip[]
-  settlementCurrency: string
 }) {
   const entries = Object.entries(tripBalances)
   if (entries.length === 0) return null
 
-  const oweTrips: { id: string; name: string; amount: number }[] = []
-  const owedTrips: { id: string; name: string; amount: number }[] = []
+  // Trips can settle in different currencies — totals only make sense
+  // grouped per currency, never summed across them
+  const oweByCurrency: Record<string, TripBalance[]> = {}
+  const owedByCurrency: Record<string, TripBalance[]> = {}
 
   for (const [tripId, bal] of entries) {
     const rounded = Math.round(bal * 100) / 100
     const trip = trips.find((t) => t.id === tripId)
     const name = trip?.name ?? 'Unknown trip'
+    const sc = trip?.settlementCurrency ?? DEFAULT_CURRENCY
     if (rounded > BALANCE_THRESHOLD) {
-      owedTrips.push({ id: tripId, name, amount: rounded })
+      ;(owedByCurrency[sc] ??= []).push({ id: tripId, name, amount: rounded })
     } else if (rounded < -BALANCE_THRESHOLD) {
-      oweTrips.push({ id: tripId, name, amount: -rounded })
+      ;(oweByCurrency[sc] ??= []).push({ id: tripId, name, amount: -rounded })
     }
   }
 
-  const totalOwe = oweTrips.reduce((s, t) => s + t.amount, 0)
-  const totalOwed = owedTrips.reduce((s, t) => s + t.amount, 0)
+  const oweGroups = Object.entries(oweByCurrency)
+  const owedGroups = Object.entries(owedByCurrency)
 
-  if (totalOwed < BALANCE_THRESHOLD && totalOwe < BALANCE_THRESHOLD) {
+  if (oweGroups.length === 0 && owedGroups.length === 0) {
     return (
       <div className="bg-success-bg rounded-lg px-4 py-3 mb-6">
         <p className="text-sm font-medium text-success-text">
@@ -44,22 +51,24 @@ export function BalanceSummary({
 
   return (
     <div className="rounded-lg border border-line bg-card px-4 py-3 mb-6 space-y-1">
-      {totalOwe > BALANCE_THRESHOLD && (
+      {oweGroups.map(([sc, tripDetails]) => (
         <BalanceLine
-          text={`You owe ${formatMoney(totalOwe, settlementCurrency)} across `}
-          tripDetails={oweTrips}
-          settlementCurrency={settlementCurrency}
+          key={`owe-${sc}`}
+          text={`You owe ${formatMoney(tripDetails.reduce((s, t) => s + t.amount, 0), sc)} across `}
+          tripDetails={tripDetails}
+          settlementCurrency={sc}
           color="warn"
         />
-      )}
-      {totalOwed > BALANCE_THRESHOLD && (
+      ))}
+      {owedGroups.map(([sc, tripDetails]) => (
         <BalanceLine
-          text={`You are owed ${formatMoney(totalOwed, settlementCurrency)} across `}
-          tripDetails={owedTrips}
-          settlementCurrency={settlementCurrency}
+          key={`owed-${sc}`}
+          text={`You are owed ${formatMoney(tripDetails.reduce((s, t) => s + t.amount, 0), sc)} across `}
+          tripDetails={tripDetails}
+          settlementCurrency={sc}
           color="success"
         />
-      )}
+      ))}
     </div>
   )
 }
@@ -71,7 +80,7 @@ function BalanceLine({
   color,
 }: {
   text: string
-  tripDetails: { id: string; name: string; amount: number }[]
+  tripDetails: TripBalance[]
   settlementCurrency: string
   color: 'warn' | 'success'
 }) {

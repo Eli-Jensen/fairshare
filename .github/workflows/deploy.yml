@@ -17,6 +17,7 @@ jobs:
 
       - run: npm ci
       - run: npm test
+      - run: npm run build
 
   deploy-production:
     if: github.ref == 'refs/heads/main'

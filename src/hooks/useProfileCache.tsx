@@ -11,10 +11,12 @@ import type { UserProfile } from '../lib/types'
 
 interface ProfileCacheState {
   getProfiles: (uids: string[]) => Promise<Record<string, UserProfile>>
+  invalidateProfile: (uid: string) => void
 }
 
 const ProfileCacheContext = createContext<ProfileCacheState>({
   getProfiles: async () => ({}),
+  invalidateProfile: () => {},
 })
 
 export function ProfileCacheProvider({ children }: { children: ReactNode }) {
@@ -75,8 +77,14 @@ export function ProfileCacheProvider({ children }: { children: ReactNode }) {
     return result
   }, [])
 
+  // Drop a cached profile after the user edits it so the new name/photo
+  // shows up without a full reload
+  const invalidateProfile = useCallback((uid: string) => {
+    delete cache.current[uid]
+  }, [])
+
   return (
-    <ProfileCacheContext.Provider value={{ getProfiles }}>
+    <ProfileCacheContext.Provider value={{ getProfiles, invalidateProfile }}>
       {children}
     </ProfileCacheContext.Provider>
   )

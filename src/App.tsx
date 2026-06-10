@@ -1,17 +1,20 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
-import { CreateTrip } from './pages/CreateTrip'
-import { TripDashboard } from './pages/TripDashboard'
-import { AddExpense } from './pages/AddExpense'
-import { EditExpense } from './pages/EditExpense'
-import { JoinTrip } from './pages/JoinTrip'
-import { TripInvite } from './pages/TripInvite'
-import { DeletedItems } from './pages/DeletedItems'
-import { Profile } from './pages/Profile'
-import { Activity } from './pages/Activity'
+
+// Route-level code splitting — Home stays eager for first paint
+const CreateTrip = lazy(() => import('./pages/CreateTrip').then((m) => ({ default: m.CreateTrip })))
+const TripDashboard = lazy(() => import('./pages/TripDashboard').then((m) => ({ default: m.TripDashboard })))
+const AddExpense = lazy(() => import('./pages/AddExpense').then((m) => ({ default: m.AddExpense })))
+const EditExpense = lazy(() => import('./pages/EditExpense').then((m) => ({ default: m.EditExpense })))
+const JoinTrip = lazy(() => import('./pages/JoinTrip').then((m) => ({ default: m.JoinTrip })))
+const TripInvite = lazy(() => import('./pages/TripInvite').then((m) => ({ default: m.TripInvite })))
+const DeletedItems = lazy(() => import('./pages/DeletedItems').then((m) => ({ default: m.DeletedItems })))
+const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })))
+const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })))
 
 /** Comma-separated email whitelist — when set, only these users can access the app */
 const ALLOWED_EMAILS: string[] | null = import.meta.env.VITE_ALLOWED_EMAILS
@@ -68,6 +71,13 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <AccessGate>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-20 text-text-muted">
+              Loading...
+            </div>
+          }
+        >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/join/:inviteCode" element={<JoinTrip />} />
@@ -148,6 +158,7 @@ export default function App() {
             }
           />
         </Routes>
+        </Suspense>
         </AccessGate>
       </Layout>
     </BrowserRouter>

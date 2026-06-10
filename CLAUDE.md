@@ -24,13 +24,17 @@ npx firebase deploy --only hosting,firestore    # Deploy both + indexes
 ### Firestore Data Model
 
 ```
-/users/{uid}              — UserProfile (displayName, email, photoURL, googleDisplayName, recentContacts[])
-/trips/{tripId}           — Trip (name, type, memberUids[], inviteCode, invitedEmails[], settlementCurrency, lastRates{}, ...)
-/trips/{tripId}/expenses  — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, category?, notes?, comments[], isSettlement?, deletedAt?)
-/trips/{tripId}/activity  — ActivityLogEntry (action, actorUid, targetDescription?, editDetails?)
+/users/{uid}                  — UserProfile (displayName, email, photoURL, googleDisplayName)
+/users/{uid}/private/contacts — owner-only data ({ contacts: RecentContact[] })
+/inviteCodes/{code}           — invite-link lookup ({ tripId, type }); get-only for authed users, no list
+/trips/{tripId}               — Trip (name, type, memberUids[], inviteCode, invitedEmails[], settlementCurrency, lastRates{}, lastActivityAt, lastActivityBy, cached* fields, ...)
+/trips/{tripId}/expenses      — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, categories?, notes?, comments[], isSettlement?, deletedAt?)
+/trips/{tripId}/activity      — ActivityLogEntry (action, actorUid, targetDescription?, editDetails?)
 ```
 
-The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency.
+The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency. The settlement currency is **locked once a trip has expenses** (stored amounts are never converted).
+
+Trip reads are restricted to members and email invitees, so invite links resolve through `/inviteCodes/{code}` and join via a rules-validated "self-join" update (only change = adding your own uid to `memberUids`). `TripDashboard` lazily backfills code docs for pre-existing trips. **Rules changes require `npx firebase deploy --only firestore` — CI only deploys hosting.**
 
 Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (or undefined for old data), a group has `type: 'group'`. Use `tripLabel(trip.type)` from `src/lib/types.ts` for user-facing text — never hardcode "trip".
 
@@ -44,9 +48,13 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 **Settlement algorithm** (`src/lib/settlement.ts`): `computeBalances()` credits payers and debits splits. `simplifyDebts()` uses greedy matching to minimize payment count. Settlements are stored as regular expenses with `isSettlement: true` — the algorithm handles them automatically.
 
+**Split math** (`src/lib/splits.ts`): all split computation goes through this module — it works in integer cents and distributes leftover cents by largest remainder so splits always sum exactly to the total. Never round per-member shares independently.
+
+**Dates** (`src/lib/dates.ts`): expense dates are date-only values stored at local midnight. Always use `parseDateString`/`timestampToDateString`/`formatDateOnly` — naive `new Date('YYYY-MM-DD')` parses as UTC and shifts a day in US timezones.
+
 **Multi-payer expenses**: `paidByAmounts` is an optional `Record<string, number>` on expenses. When present, it overrides `paidBy` for balance calculations. When absent, `paidBy` is the single payer for the full amount. Never write `paidByAmounts: undefined` to Firestore — omit the field entirely.
 
-**Activity logging** (`src/lib/activity.ts`): `writeActivity()` is fire-and-forget (no `await`) to avoid blocking saves. Edit activities include `editDetails: string[]` showing what changed.
+**Activity logging** (`src/lib/activity.ts`): `writeActivity()` is fire-and-forget (no `await`) to avoid blocking saves. Edit activities include `editDetails: string[]` showing what changed. It also stamps `lastActivityAt`/`lastActivityBy` on the trip doc, which powers the unseen-activity dot in the header and lets the global Activity page refetch only trips whose stamp moved.
 
 **Exchange rates** (`src/lib/rates.ts`): Fetched from open.er-api.com, cached in localStorage for 6h. Per-trip rates saved in `trip.lastRates`. The trip's `lastCurrency` field auto-sets the default currency for new expenses.
 

@@ -4,7 +4,9 @@ import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../l
 import { getMemberName, formatMoney, getAllCategories, categoryExists, getExpenseCategories, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { getCurrency } from '../lib/currencies'
-import { fetchRates, getRate } from '../lib/rates'
+import { fetchRates, getCrossRate } from '../lib/rates'
+import { splitEqually, splitByPercentages, splitByShares, derivePercentages, deriveShares } from '../lib/splits'
+import { todayString, parseDateString, timestampToDateString } from '../lib/dates'
 
 import type { Theme as EmojiTheme } from 'emoji-picker-react'
 const EmojiPicker = lazy(() => import('emoji-picker-react'))
@@ -26,16 +28,12 @@ interface ExpenseFormData {
   date: string
   notes: string
   categories: string[]
-  rateDirection: 'foreign-to-usd' | 'usd-to-foreign'
+  rateDirection: 'foreign-to-sc' | 'sc-to-foreign'
   calcGave: string
   calcGotForeign: string
   showCalc: boolean
 }
 
-function toDateString(ts?: Timestamp): string {
-  if (!ts?.toDate) return new Date().toISOString().slice(0, 10)
-  return ts.toDate().toISOString().slice(0, 10)
-}
 
 export function ExpenseForm({
   members,
@@ -88,17 +86,24 @@ export function ExpenseForm({
 
     if (existing) {
       const exactAmounts: Record<string, string> = {}
-      const percentages: Record<string, string> = {}
-      const shares: Record<string, string> = {}
       const paidByAmounts: Record<string, string> = {}
       const rate = existing.exchangeRate || 1
       for (const uid of memberUids) {
         // Convert splits from settlement currency back to original for display
         const splitVal = existing.splits[uid] ?? 0
         exactAmounts[uid] = (rate !== 1 ? Math.round((splitVal / rate) * 100) / 100 : splitVal).toString()
-        percentages[uid] = ''
-        shares[uid] = '1'
         paidByAmounts[uid] = ''
+      }
+
+      // Recover percentage/share inputs from the stored splits so an
+      // unrelated edit doesn't silently re-split the expense
+      const percentages: Record<string, string> = {
+        ...Object.fromEntries(memberUids.map((uid) => [uid, ''])),
+        ...derivePercentages(existing.splits, existing.amountSettled),
+      }
+      const shares: Record<string, string> = {
+        ...Object.fromEntries(memberUids.map((uid) => [uid, '1'])),
+        ...deriveShares(existing.splits),
       }
 
       const hasMultiPayer = existing.paidByAmounts && Object.keys(existing.paidByAmounts).length > 0
@@ -125,10 +130,10 @@ export function ExpenseForm({
         exactAmounts,
         percentages,
         shares,
-        date: toDateString(existing.date),
+        date: timestampToDateString(existing.date),
         notes: existing.notes ?? '',
         categories: getExpenseCategories(existing),
-        rateDirection: 'foreign-to-usd',
+        rateDirection: 'foreign-to-sc',
         calcGave: '',
         calcGotForeign: '',
         showCalc: false,
@@ -149,10 +154,10 @@ export function ExpenseForm({
       exactAmounts: { ...initAmounts },
       percentages: { ...initAmounts },
       shares: Object.fromEntries(memberUids.map((uid) => [uid, '1'])),
-      date: new Date().toISOString().slice(0, 10),
+      date: todayString(),
       notes: '',
       categories: [],
-      rateDirection: 'foreign-to-usd',
+      rateDirection: 'foreign-to-sc',
       calcGave: '',
       calcGotForeign: '',
       showCalc: false,
@@ -181,12 +186,14 @@ export function ExpenseForm({
   }, [form.currency, liveRates, tripRates])
 
   function autoFillRate(currency: string) {
+    // Trip rates are already relative to the settlement currency; live API
+    // rates are USD-based and need the cross-rate through USD
     if (tripRates?.[currency]) {
       setForm((f) => ({ ...f, exchangeRate: tripRates[currency], rateIsCustom: false }))
       setRateSource('trip')
       return
     }
-    const live = getRate(liveRates, currency)
+    const live = getCrossRate(liveRates, currency, sc)
     if (live) {
       setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000, rateIsCustom: false }))
       setRateSource('live')
@@ -213,38 +220,32 @@ export function ExpenseForm({
   const amountSettled = form.amount * form.exchangeRate
 
   function computeSplits(): Record<string, number> {
-    const splits: Record<string, number> = {}
-
     if (form.splitType === 'equal') {
-      const perPerson = amountSettled / form.splitAmong.length
-      for (const uid of form.splitAmong) {
-        splits[uid] = Math.round(perPerson * 100) / 100
-      }
-    } else if (form.splitType === 'exact') {
+      return splitEqually(amountSettled, form.splitAmong)
+    }
+    if (form.splitType === 'exact') {
+      const splits: Record<string, number> = {}
       for (const uid of form.splitAmong) {
         const val = parseFloat(form.exactAmounts[uid] || '0') || 0
         // Convert from original currency to settlement currency
         splits[uid] = Math.round(val * form.exchangeRate * 100) / 100
       }
-    } else if (form.splitType === 'percentage') {
-      for (const uid of form.splitAmong) {
-        const pct = parseFloat(form.percentages[uid] || '0') || 0
-        splits[uid] = Math.round(amountSettled * (pct / 100) * 100) / 100
-      }
-    } else if (form.splitType === 'shares') {
-      const totalShares = form.splitAmong.reduce(
-        (sum, uid) => sum + (parseFloat(form.shares[uid] || '0') || 0),
-        0
-      )
-      if (totalShares > 0) {
-        for (const uid of form.splitAmong) {
-          const s = parseFloat(form.shares[uid] || '0') || 0
-          splits[uid] = Math.round(amountSettled * (s / totalShares) * 100) / 100
-        }
-      }
+      return splits
     }
-
-    return splits
+    if (form.splitType === 'percentage') {
+      return splitByPercentages(
+        amountSettled,
+        Object.fromEntries(
+          form.splitAmong.map((uid) => [uid, parseFloat(form.percentages[uid] || '0') || 0])
+        )
+      )
+    }
+    return splitByShares(
+      amountSettled,
+      Object.fromEntries(
+        form.splitAmong.map((uid) => [uid, parseFloat(form.shares[uid] || '0') || 0])
+      )
+    )
   }
 
   function computePaidByAmounts(): Record<string, number> | undefined {
@@ -332,7 +333,7 @@ export function ExpenseForm({
           : form.paidBy,
         splitType: form.splitType,
         splits,
-        date: Timestamp.fromDate(new Date(form.date)),
+        date: Timestamp.fromDate(parseDateString(form.date)),
       }
       // Only include optional fields when set (Firestore rejects undefined)
       if (paidByAmounts) submitData.paidByAmounts = paidByAmounts
@@ -373,7 +374,8 @@ export function ExpenseForm({
     }
     // If current currency isn't in the set, add it
     if (form.currency !== sc) codes.add(form.currency)
-    return Array.from(codes).slice(0, 4)
+    // Cap at 3 so the full picker always stays available
+    return Array.from(codes).slice(0, 3)
   })()
 
   // Compute paid total for multi-payer display (in original currency)
@@ -382,6 +384,9 @@ export function ExpenseForm({
     : 0
   const paidRemaining = form.multiPayer ? form.amount - paidTotal : 0
   const currencySymbol = getCurrency(form.currency)?.symbol ?? form.currency
+  const equalPreview = form.splitType === 'equal'
+    ? splitEqually(amountSettled, form.splitAmong)
+    : null
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -426,14 +431,12 @@ export function ExpenseForm({
                 {code}
               </button>
             ))}
-            {quickCurrencies.length < 4 && (
-              <div className="flex-1">
-                <CurrencyPicker
-                  value={form.currency}
-                  onChange={handleCurrencyChange}
-                />
-              </div>
-            )}
+            <div className="flex-1">
+              <CurrencyPicker
+                value={form.currency}
+                onChange={handleCurrencyChange}
+              />
+            </div>
           </div>
         </div>
         {form.currency !== sc && form.amount > 0 && form.exchangeRate > 0 && (
@@ -450,12 +453,12 @@ export function ExpenseForm({
               type="button"
               onClick={() => setForm((f) => ({
                 ...f,
-                rateDirection: f.rateDirection === 'foreign-to-usd' ? 'usd-to-foreign' : 'foreign-to-usd',
+                rateDirection: f.rateDirection === 'foreign-to-sc' ? 'sc-to-foreign' : 'foreign-to-sc',
               }))}
               className="text-sm font-medium text-text-secondary flex items-center gap-1"
             >
-              {form.rateDirection === 'foreign-to-usd'
-                ? `1 ${form.currency} = ? USD`
+              {form.rateDirection === 'foreign-to-sc'
+                ? `1 ${form.currency} = ? ${sc}`
                 : `1 ${sc} = ? ${form.currency}`}
               <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -466,7 +469,7 @@ export function ExpenseForm({
                 <button type="button" onClick={() => {
                   setForm((f) => ({ ...f, rateIsCustom: false }))
                   // Force fetch from live API, bypassing trip saved rate
-                  const live = getRate(liveRates, form.currency)
+                  const live = getCrossRate(liveRates, form.currency, sc)
                   if (live) {
                     setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000 }))
                     setRateSource('live')
@@ -492,15 +495,15 @@ export function ExpenseForm({
             step="0.0001"
             min="0"
             className={input}
-            value={form.rateDirection === 'foreign-to-usd'
+            value={form.rateDirection === 'foreign-to-sc'
               ? (form.exchangeRate || '')
               : (form.exchangeRate > 0 ? Math.round((1 / form.exchangeRate) * 10000) / 10000 : '')}
             onChange={(e) => {
               const val = parseFloat(e.target.value) || 0
-              if (form.rateDirection === 'foreign-to-usd') {
+              if (form.rateDirection === 'foreign-to-sc') {
                 handleRateChange(e.target.value)
               } else {
-                // Convert "1 USD = X foreign" to "1 foreign = Y USD"
+                // Entered as "1 settlement = X foreign" — invert to store
                 const rate = val > 0 ? Math.round((1 / val) * 10000) / 10000 : 0
                 handleRateChange(rate.toString())
               }
@@ -763,7 +766,7 @@ export function ExpenseForm({
 
               {form.splitType === 'equal' && form.splitAmong.includes(uid) && (
                 <span className="text-sm text-text-muted">
-                  {formatMoney(amountSettled / form.splitAmong.length, sc)}
+                  {formatMoney(equalPreview?.[uid] ?? 0, sc)}
                 </span>
               )}
             </div>
@@ -810,6 +813,28 @@ export function ExpenseForm({
 const MAX_LABEL_LENGTH = 20
 
 const RANDOM_EMOJIS = ['🏷️','📌','🔖','🎲','💫','⭐','🌟','✨']
+
+// Module-level so re-renders of the picker don't remount it (losing
+// search text and re-triggering the lazy emoji load)
+function EmojiGrid({ onPick }: { selected: string; onPick: (e: string) => void }) {
+  const isDark = document.documentElement.classList.contains('dark')
+  return (
+    <div className="mt-1 rounded-lg overflow-hidden [&_.epr-main]:!border-line [&_.epr-search-container_input]:!bg-input [&_.epr-search-container_input]:!border-line">
+      <Suspense fallback={<div className="h-[350px] flex items-center justify-center text-text-muted text-sm">Loading...</div>}>
+        <EmojiPicker
+          onEmojiClick={(emojiData) => onPick(emojiData.emoji)}
+          width="100%"
+          height={350}
+          theme={(isDark ? 'dark' : 'light') as EmojiTheme}
+          searchPlaceholder="Search emojis..."
+          previewConfig={{ showPreview: false }}
+          skinTonesDisabled
+          lazyLoadEmojis
+        />
+      </Suspense>
+    </div>
+  )
+}
 
 function CategoryPicker({
   categories,
@@ -923,26 +948,6 @@ function CategoryPicker({
   async function handleDelete(id: string) {
     if (!customCategories || !onUpdateCategories) return
     await onUpdateCategories(customCategories.filter((c) => c.id !== id))
-  }
-
-  function EmojiGrid({ onPick }: { selected: string; onPick: (e: string) => void }) {
-    const isDark = document.documentElement.classList.contains('dark')
-    return (
-      <div className="mt-1 rounded-lg overflow-hidden [&_.epr-main]:!border-line [&_.epr-search-container_input]:!bg-input [&_.epr-search-container_input]:!border-line">
-        <Suspense fallback={<div className="h-[350px] flex items-center justify-center text-text-muted text-sm">Loading...</div>}>
-          <EmojiPicker
-            onEmojiClick={(emojiData) => onPick(emojiData.emoji)}
-            width="100%"
-            height={350}
-            theme={(isDark ? 'dark' : 'light') as EmojiTheme}
-            searchPlaceholder="Search emojis..."
-            previewConfig={{ showPreview: false }}
-            skinTonesDisabled
-            lazyLoadEmojis
-          />
-        </Suspense>
-      </div>
-    )
   }
 
   return (

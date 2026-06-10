@@ -3,7 +3,6 @@ import {
   doc,
   collection,
   onSnapshot,
-  getDocs,
   query,
   orderBy,
   limit,
@@ -12,11 +11,12 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
-import { mapExpense, getExpenseCategories } from '../lib/types'
+import { mapExpense } from '../lib/types'
 import { useProfileCache } from './useProfileCache'
 import { computeBalances } from '../lib/settlement'
 
 const PAGE_SIZE = 20
+const DAY_MS = 24 * 60 * 60 * 1000
 
 export function useTrip(tripId: string | undefined) {
   const { getProfiles } = useProfileCache()
@@ -27,39 +27,83 @@ export function useTrip(tripId: string | undefined) {
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  // When true the expense listener subscribes without a page limit, so
+  // "all expenses" stays live instead of going stale after the first load
+  const [allMode, setAllMode] = useState(false)
   const tripRef = useRef<Trip | null>(null)
-  const allLoadedRef = useRef(false)
+  const allExpensesRef = useRef<Expense[] | null>(null)
+  const allResolversRef = useRef<((expenses: Expense[]) => void)[]>([])
 
   // Trip doc listener
   useEffect(() => {
     if (!tripId) return
 
-    const unsub = onSnapshot(doc(db, 'trips', tripId), (snap) => {
-      if (snap.exists()) {
-        const t = { id: snap.id, ...snap.data() } as Trip
-        setTrip(t)
-        tripRef.current = t
+    const unsub = onSnapshot(
+      doc(db, 'trips', tripId),
+      (snap) => {
+        if (snap.exists()) {
+          const t = { id: snap.id, ...snap.data() } as Trip
+          setTrip(t)
+          tripRef.current = t
+        }
+      },
+      (err) => {
+        // Happens when access is revoked mid-session (e.g. removed member)
+        console.error('useTrip trip listener error:', err)
+        setLoading(false)
       }
-    })
+    )
 
     return unsub
   }, [tripId])
 
-  // Paginated expense listener — only reads the most recent PAGE_SIZE
+  // Fire-and-forget cache update for the home-page trip cards
+  function updateExpenseCache(tid: string, active: Expense[]) {
+    const t = tripRef.current
+    if (!t?.memberUids) return
+
+    const total = active.reduce((s, e) => s + e.amountSettled, 0)
+    const latest = active[0] ?? null
+    const balances = computeBalances(active, t.memberUids)
+    const newDesc = latest?.description ?? null
+    const newAmount = latest?.amountSettled ?? null
+
+    const changed =
+      t.cachedExpenseCount !== active.length ||
+      t.cachedTotalSpent !== total ||
+      t.cachedLatestDesc !== newDesc ||
+      t.cachedLatestAmount !== newAmount ||
+      JSON.stringify(t.cachedBalances ?? {}) !== JSON.stringify(balances)
+
+    if (changed) {
+      updateDoc(doc(db, 'trips', tid), {
+        cachedExpenseCount: active.length,
+        cachedTotalSpent: total,
+        cachedLatestDesc: newDesc,
+        cachedLatestAmount: newAmount,
+        cachedBalances: balances,
+      }).catch(() => {})
+    }
+  }
+
+  // Expense listener — paginated until loadAllExpenses switches to full
   useEffect(() => {
     if (!tripId) return
-    allLoadedRef.current = false
+    setAllMode(false)
     setAllExpenses(null)
+    allExpensesRef.current = null
+  }, [tripId])
 
-    const q = query(
-      collection(db, 'trips', tripId, 'expenses'),
-      orderBy('createdAt', 'desc'),
-      limit(PAGE_SIZE + 1) // +1 to detect if there are more
-    )
+  useEffect(() => {
+    if (!tripId) return
+
+    const base = collection(db, 'trips', tripId, 'expenses')
+    const q = allMode
+      ? query(base, orderBy('createdAt', 'desc'))
+      : query(base, orderBy('createdAt', 'desc'), limit(PAGE_SIZE + 1))
 
     return onSnapshot(q, (snap) => {
       const now = Date.now()
-      const DAY_MS = 24 * 60 * 60 * 1000
 
       const active: Expense[] = []
       const toDelete: typeof snap.docs = []
@@ -78,117 +122,59 @@ export function useTrip(tripId: string | undefined) {
         Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
       }
 
-      // If we got more than PAGE_SIZE active, there are more to load
-      const hasMoreExpenses = active.length > PAGE_SIZE
-      setHasMore(hasMoreExpenses)
-      setExpenses(hasMoreExpenses ? active.slice(0, PAGE_SIZE) : active)
-      setLoading(false)
-
-      // If all expenses fit in one page, update the cache directly
-      if (!hasMoreExpenses) {
-        allLoadedRef.current = true
+      if (allMode) {
+        setHasMore(false)
+        setExpenses(active)
         setAllExpenses(active)
+        allExpensesRef.current = active
         updateExpenseCache(tripId, active)
+        for (const resolve of allResolversRef.current) resolve(active)
+        allResolversRef.current = []
+      } else {
+        const hasMoreExpenses = active.length > PAGE_SIZE
+        setHasMore(hasMoreExpenses)
+        setExpenses(hasMoreExpenses ? active.slice(0, PAGE_SIZE) : active)
+        if (hasMoreExpenses) {
+          setAllExpenses(null)
+          allExpensesRef.current = null
+        } else {
+          setAllExpenses(active)
+          allExpensesRef.current = active
+          updateExpenseCache(tripId, active)
+        }
       }
+      setLoading(false)
+    }, (err) => {
+      console.error('useTrip expense listener error:', err)
+      setLoading(false)
     })
-  }, [tripId])
+  }, [tripId, allMode])
 
-  // Load ALL expenses — called when Settle Up tab needs full data
-  const loadAllExpenses = useCallback(async () => {
-    if (!tripId || allLoadedRef.current) return
-    const q = query(
-      collection(db, 'trips', tripId, 'expenses'),
-      orderBy('createdAt', 'desc')
-    )
-    const snap = await getDocs(q)
-    const now = Date.now()
-    const DAY_MS = 24 * 60 * 60 * 1000
-    const active: Expense[] = []
-    const toDelete: typeof snap.docs = []
-    for (const d of snap.docs) {
-      const data = d.data()
-      if (data.deletedAt) {
-        const deletedTime = data.deletedAt.toDate?.()
-        if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
-          toDelete.push(d)
-        }
-        continue
-      }
-      active.push(mapExpense({ id: d.id, ...data }))
-    }
-    if (toDelete.length > 0) {
-      Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
-    }
-    allLoadedRef.current = true
-    setAllExpenses(active)
-    setExpenses(active) // show all in the list too
-    setHasMore(false)
-    updateExpenseCache(tripId, active)
-  }, [tripId])
+  // Resolves with the complete expense list (and keeps it live afterwards)
+  const loadAllExpenses = useCallback((): Promise<Expense[]> => {
+    if (allExpensesRef.current) return Promise.resolve(allExpensesRef.current)
+    const promise = new Promise<Expense[]>((resolve) => {
+      allResolversRef.current.push(resolve)
+    })
+    setAllMode(true)
+    return promise
+  }, [])
 
-  // Fire-and-forget cache update
-  function updateExpenseCache(tid: string, active: Expense[]) {
-    const t = tripRef.current
-    if (!t?.memberUids) return
-
-    const total = active.reduce((s, e) => s + e.amountSettled, 0)
-    const latest = active[0] ?? null
-    const balances = computeBalances(active, t.memberUids)
-    const newDesc = latest?.description ?? null
-    const newAmount = latest?.amountSettled ?? null
-
-    // Per-member spending (excluding settlements)
-    const spending: Record<string, number> = {}
-    for (const uid of t.memberUids) spending[uid] = 0
-    for (const exp of active) {
-      if (exp.isSettlement) continue
-      if (exp.paidByAmounts && Object.keys(exp.paidByAmounts).length > 0) {
-        for (const [uid, amt] of Object.entries(exp.paidByAmounts)) {
-          spending[uid] = (spending[uid] ?? 0) + amt
-        }
-      } else {
-        spending[exp.paidBy] = (spending[exp.paidBy] ?? 0) + exp.amountSettled
-      }
-    }
-
-    // Per-category totals
-    const catTotals: Record<string, number> = {}
-    for (const exp of active) {
-      if (exp.isSettlement) continue
-      const cats = getExpenseCategories(exp)
-      if (cats.length === 0) {
-        catTotals['uncategorized'] = (catTotals['uncategorized'] ?? 0) + exp.amountSettled
-      } else {
-        for (const cat of cats) {
-          catTotals[cat] = (catTotals[cat] ?? 0) + exp.amountSettled
-        }
-      }
-    }
-
-    const changed =
-      t.cachedExpenseCount !== active.length ||
-      t.cachedTotalSpent !== total ||
-      t.cachedLatestDesc !== newDesc ||
-      t.cachedLatestAmount !== newAmount ||
-      JSON.stringify(t.cachedBalances ?? {}) !== JSON.stringify(balances)
-
-    if (changed) {
-      updateDoc(doc(db, 'trips', tid), {
-        cachedExpenseCount: active.length,
-        cachedTotalSpent: total,
-        cachedLatestDesc: newDesc,
-        cachedLatestAmount: newAmount,
-        cachedBalances: balances,
-        cachedMemberSpending: spending,
-        cachedCategoryTotals: catTotals,
-      }).catch(() => {})
-    }
-  }
-
+  // Profiles for current members plus anyone removed (their names still
+  // appear in balances, exports, and the activity log). cachedBalances
+  // keys cover members removed long ago whose removedMembers entry expired.
   useEffect(() => {
     if (!trip) return
-    getProfiles(trip.memberUids).then(setMembers)
-  }, [trip?.memberUids?.join(','), getProfiles])
+    const uids = new Set(trip.memberUids)
+    for (const rm of trip.removedMembers ?? []) uids.add(rm.uid)
+    for (const uid of Object.keys(trip.cachedBalances ?? {})) uids.add(uid)
+    getProfiles(Array.from(uids)).then(setMembers)
+  }, [
+    trip?.memberUids?.join(','),
+    trip?.removedMembers?.length,
+    Object.keys(trip?.cachedBalances ?? {}).join(','),
+    getProfiles,
+  ])
 
   // Activity log subscription
   useEffect(() => {
@@ -200,8 +186,8 @@ export function useTrip(tripId: string | undefined) {
       limit(50)
     )
 
-    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
-    const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
+    const WEEK_MS = 7 * DAY_MS
+    const TWO_WEEKS_MS = 14 * DAY_MS
 
     return onSnapshot(q, (snap) => {
       const now = Date.now()
@@ -227,6 +213,8 @@ export function useTrip(tripId: string | undefined) {
       if (toDelete.length > 0) {
         Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
       }
+    }, (err) => {
+      console.error('useTrip activity listener error:', err)
     })
   }, [tripId])
 

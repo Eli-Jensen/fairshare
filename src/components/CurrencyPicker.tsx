@@ -60,7 +60,7 @@ export function CurrencyPicker({
       <input
         ref={inputRef}
         type="text"
-        className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
         placeholder="Search currencies..."
         value={open ? search : selected ? `${selected.code} - ${selected.name}` : value}
         onChange={(e) => setSearch(e.target.value)}

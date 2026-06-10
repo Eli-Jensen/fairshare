@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useTrips } from '../hooks/useTrips'
 import { useTheme } from '../hooks/useTheme'
 import { useTextScale, TEXT_SCALE_LEVELS } from '../hooks/useTextScale'
 import { hasUnseenActivity } from '../lib/activityNotification'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
+  // Shares the same query (and billing) as the Home page's listener; the
+  // lastActivityAt stamps on trip docs drive the unseen dot
+  const { trips } = useTrips()
   const { theme, setTheme } = useTheme()
   const { level: textLevel, increase: textIncrease, decrease: textDecrease, setLevel: textSetLevel } = useTextScale()
   const navigate = useNavigate()
@@ -18,9 +22,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMenuOpen(false)
     if (user?.uid) {
-      setHasUnseen(hasUnseenActivity(user.uid))
+      setHasUnseen(hasUnseenActivity(user.uid, trips))
     }
-  }, [location.pathname, user?.uid])
+  }, [location.pathname, user?.uid, trips])
 
   return (
     <div className="min-h-screen flex flex-col bg-page text-text transition-colors">

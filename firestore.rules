@@ -3,41 +3,77 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // User profiles — anyone authed can read, only the owner can write
-    match /users/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
+    function isAuthed() {
+      return request.auth != null;
     }
 
-    // Trips — any authed user can read (needed for invite code lookups
-    // and email invite queries) and create (with no special gating)
-    match /trips/{tripId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+    // User profiles — readable by any signed-in user (trip members need
+    // each other's names/photos), writable only by the owner
+    match /users/{uid} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && request.auth.uid == uid;
 
-      // Members can update trip data; non-members can join if invited by email
-      allow update: if request.auth != null && (
-        request.auth.uid in resource.data.memberUids
-        || request.auth.token.email in resource.data.invitedEmails
-      );
+      // Owner-only data (recent invite contacts, etc.)
+      match /private/{docId} {
+        allow read, write: if isAuthed() && request.auth.uid == uid;
+      }
+    }
+
+    // Invite code lookup — the doc id is the capability: anyone signed in
+    // who knows a code can resolve it, but enumeration (list) is denied
+    match /inviteCodes/{code} {
+      allow get: if isAuthed();
+      allow list: if false;
+      allow create, update: if isAuthed()
+        && request.resource.data.tripId is string
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.memberUids;
+      // Deletable only while the referenced trip still exists (purge order:
+      // expenses → activity → invite code → trip doc)
+      allow delete: if isAuthed()
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.memberUids;
+    }
+
+    match /trips/{tripId} {
+      function isMember() {
+        return isAuthed() && request.auth.uid in resource.data.memberUids;
+      }
+      function isInvited() {
+        return isAuthed()
+          && 'invitedEmails' in resource.data
+          && request.auth.token.email in resource.data.invitedEmails;
+      }
+      // Self-join via invite link: the only change is adding the
+      // requester's own uid to memberUids
+      function isSelfJoin() {
+        return isAuthed()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+          && request.resource.data.memberUids.toSet().difference(resource.data.memberUids.toSet()) == [request.auth.uid].toSet()
+          && resource.data.memberUids.toSet().difference(request.resource.data.memberUids.toSet()).size() == 0;
+      }
+      // Email invitees may only join or decline — not touch other fields
+      function isInviteeJoinOrDecline() {
+        return isInvited()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'invitedEmails']);
+      }
+
+      allow read: if isMember() || isInvited();
+      allow create: if isAuthed()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid];
+      allow update: if isMember() || isInviteeJoinOrDecline() || isSelfJoin();
+      allow delete: if isMember();
 
       // Expenses — only trip members can read/write
       match /expenses/{expenseId} {
-        allow read, write: if request.auth != null
+        allow read, write: if isAuthed()
           && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
       }
 
       // Activity log — only trip members can read/write
       match /activity/{activityId} {
-        allow read, write: if request.auth != null
+        allow read, write: if isAuthed()
           && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
       }
-    }
-
-    // Legacy allowedUsers collection — no longer used but kept readable
-    // so existing data doesn't cause errors
-    match /allowedUsers/{email} {
-      allow read: if request.auth != null;
     }
   }
 }

@@ -1,4 +1,4 @@
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from './firebase'
 import type { ActivityLogEntry } from './types'
 
@@ -10,6 +10,12 @@ export async function writeActivity(tripId: string, entry: ActivityData): Promis
       ...entry,
       createdAt: serverTimestamp(),
     })
+    // Powers the unseen-activity dot and lets the global feed skip
+    // refetching trips with no new activity
+    updateDoc(doc(db, 'trips', tripId), {
+      lastActivityAt: serverTimestamp(),
+      lastActivityBy: entry.actorUid,
+    }).catch(() => {})
   } catch {
     // Activity logging is best-effort — don't block the main operation
   }

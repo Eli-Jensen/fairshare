@@ -64,10 +64,19 @@ export async function fetchRates(): Promise<Record<string, number>> {
   }
 }
 
-export function getRate(
+/**
+ * Rate that converts `from` into `to` using the USD-based table:
+ * amount × rate = amount in `to`. Cross rates go through USD, e.g.
+ * GBP→EUR = (GBP→USD) / (EUR→USD).
+ */
+export function getCrossRate(
   rates: Record<string, number>,
-  currency: string
+  from: string,
+  to: string
 ): number | null {
-  if (currency === 'USD') return 1
-  return rates[currency] ?? null
+  if (from === to) return 1
+  const fromUsd = from === 'USD' ? 1 : rates[from]
+  const toUsd = to === 'USD' ? 1 : rates[to]
+  if (!fromUsd || !toUsd) return null
+  return fromUsd / toUsd
 }

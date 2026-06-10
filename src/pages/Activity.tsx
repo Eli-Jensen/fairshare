@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   collection,
   query,
@@ -19,7 +20,6 @@ import { MemberAvatar } from '../components/MemberAvatar'
 import {
   getActivitySeenTimestamp,
   setActivitySeenTimestamp,
-  setActivityLatestTimestamp,
 } from '../lib/activityNotification'
 
 const MAX_ENTRIES_PER_TRIP = 20
@@ -102,6 +102,10 @@ export function Activity() {
   const [undoneIds, setUndoneIds] = useState<Set<string>>(new Set())
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [tripCurrencies, setTripCurrencies] = useState<Record<string, string>>({})
+  // Per-trip cache keyed on lastActivityAt — the trips listener fires on
+  // every trip-doc change (cache writes included), so only refetch the
+  // activity of trips whose stamp actually moved
+  const activityCache = useRef<Record<string, { stamp: number; entries: ActivityLogEntry[] }>>({})
 
   // Read the old "seen" timestamp for highlighting, then mark as seen now
   useEffect(() => {
@@ -150,20 +154,28 @@ export function Activity() {
       // One-time reads for activity entries (no persistent per-trip listeners)
       const allEntries: ActivityLogEntry[] = []
       await Promise.all(trips.map(async (trip) => {
+        const stamp = trip.lastActivityAt?.toMillis?.() ?? 0
+        const cached = activityCache.current[trip.id]
+        if (cached && cached.stamp === stamp) {
+          for (const e of cached.entries) {
+            allEntries.push({ ...e, tripName: trip.name })
+          }
+          return
+        }
         const actQ = query(
           collection(db, 'trips', trip.id, 'activity'),
           orderBy('createdAt', 'desc'),
           limit(MAX_ENTRIES_PER_TRIP),
         )
         const actSnap = await getDocs(actQ)
-        for (const d of actSnap.docs) {
-          allEntries.push({
-            id: d.id,
-            ...d.data(),
-            tripId: trip.id,
-            tripName: trip.name,
-          } as ActivityLogEntry)
-        }
+        const tripEntries = actSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          tripId: trip.id,
+          tripName: trip.name,
+        } as ActivityLogEntry))
+        activityCache.current[trip.id] = { stamp, entries: tripEntries }
+        allEntries.push(...tripEntries)
       }))
 
       if (cancelled) return
@@ -175,14 +187,6 @@ export function Activity() {
       })
       setEntries(allEntries)
       setLoading(false)
-
-      // Update latest timestamp for notification dot
-      if (allEntries.length > 0 && user?.uid) {
-        const latestTime = allEntries[0].createdAt?.toDate?.()?.getTime() ?? 0
-        if (latestTime > 0) {
-          setActivityLatestTimestamp(user.uid, latestTime)
-        }
-      }
     })
 
     return () => {
@@ -281,14 +285,14 @@ export function Activity() {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <a href={`/trip/${entry.tripId}`} className="min-w-0">
+                        <Link to={`/trip/${entry.tripId}`} className="min-w-0">
                           <p className={`text-sm ${isSettlement ? 'text-text font-medium' : 'text-text-secondary'}`}>
                             {isUndone
                               ? <span className="italic">Undone</span>
                               : describeAction(entry, members, tripCurrencies[entry.tripId!] ?? DEFAULT_CURRENCY)
                             }
                           </p>
-                        </a>
+                        </Link>
                         {undoAction && !isUndone && (
                           <button
                             onClick={(e) => { e.preventDefault(); handleUndo(entry, undoAction) }}
@@ -318,9 +322,9 @@ export function Activity() {
                         </div>
                       )}
                       <div className="flex items-center gap-2 mt-0.5">
-                        <a href={`/trip/${entry.tripId}`} className="text-sm text-accent-text">
+                        <Link to={`/trip/${entry.tripId}`} className="text-sm text-accent-text">
                           {entry.tripName}
-                        </a>
+                        </Link>
                         {time && (
                           <span className="text-sm text-text-muted">{relativeTime(time)}</span>
                         )}

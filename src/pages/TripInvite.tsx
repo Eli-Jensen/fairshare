@@ -7,6 +7,7 @@ import {
   arrayRemove,
   getDoc,
   setDoc,
+  deleteField,
   Timestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
@@ -15,7 +16,7 @@ import { useTrip } from '../hooks/useTrip'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
-import { getMemberName, tripLabel, type RemovedMember, type UserProfile } from '../lib/types'
+import { getMemberName, tripLabel, formatMoney, DEFAULT_CURRENCY, type RemovedMember, type UserProfile } from '../lib/types'
 import { useTrips } from '../hooks/useTrips'
 import { useProfileCache } from '../hooks/useProfileCache'
 import { writeActivity } from '../lib/activity'
@@ -64,14 +65,24 @@ export function TripInvite() {
     }
   }
 
-  // Load recent contacts from user doc
+  // Recent contacts live in an owner-only subcollection so other users
+  // can't read your invite history off the public profile doc
   useEffect(() => {
     if (!user) return
     async function loadContacts() {
-      const snap = await getDoc(doc(db, 'users', user!.uid))
+      const privRef = doc(db, 'users', user!.uid, 'private', 'contacts')
+      const snap = await getDoc(privRef)
       if (snap.exists()) {
-        const data = snap.data()
-        setRecentContacts(data.recentContacts ?? [])
+        setRecentContacts(snap.data().contacts ?? [])
+        return
+      }
+      // Migrate contacts stored on the public profile doc by older versions
+      const userSnap = await getDoc(doc(db, 'users', user!.uid))
+      const legacy = userSnap.exists() ? userSnap.data().recentContacts : undefined
+      if (legacy?.length) {
+        setRecentContacts(legacy)
+        setDoc(privRef, { contacts: legacy }).catch(() => {})
+        updateDoc(doc(db, 'users', user!.uid), { recentContacts: deleteField() }).catch(() => {})
       }
     }
     loadContacts()
@@ -134,11 +145,7 @@ export function TripInvite() {
     const updated = [{ email: lower }, ...existing].slice(0, 20)
     setRecentContacts(updated)
 
-    await setDoc(
-      doc(db, 'users', user.uid),
-      { recentContacts: updated },
-      { merge: true }
-    )
+    await setDoc(doc(db, 'users', user.uid, 'private', 'contacts'), { contacts: updated })
   }
 
   async function forgetContact(contactEmail: string) {
@@ -147,11 +154,7 @@ export function TripInvite() {
     const updated = recentContacts.filter((c) => c.email !== lower)
     setRecentContacts(updated)
 
-    await setDoc(
-      doc(db, 'users', user.uid),
-      { recentContacts: updated },
-      { merge: true }
-    )
+    await setDoc(doc(db, 'users', user.uid, 'private', 'contacts'), { contacts: updated })
   }
 
   async function inviteEmail(inviteTarget: string) {
@@ -256,7 +259,7 @@ export function TripInvite() {
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="email"
-            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             placeholder="friend@gmail.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -466,7 +469,12 @@ export function TripInvite() {
                 {!isCurrentUser && (
                   <ConfirmButton
                     label="Remove"
-                    confirmLabel="Confirm?"
+                    confirmLabel={(() => {
+                      const bal = Math.round((trip.cachedBalances?.[uid] ?? 0) * 100) / 100
+                      if (Math.abs(bal) <= 0.01) return 'Confirm?'
+                      const sc = trip.settlementCurrency ?? DEFAULT_CURRENCY
+                      return `${bal > 0 ? 'Owed' : 'Owes'} ${formatMoney(Math.abs(bal), sc)} — remove?`
+                    })()}
                     onConfirm={() => removeMember(uid)}
                     className="text-xs text-text-muted hover:text-danger-text px-2 py-1 rounded hover:bg-danger-bg transition-colors"
                     confirmClassName="text-xs font-medium text-danger-text bg-danger-bg px-2 py-1 rounded transition-colors"

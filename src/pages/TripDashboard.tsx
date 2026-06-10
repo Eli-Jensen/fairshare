@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore'
+import { doc, updateDoc, deleteField, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
+import { purgeTrip } from '../hooks/useTrips'
 import { useAuth } from '../hooks/useAuth'
 import { formatMoney, getMemberName, tripLabel, getAllCategories, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
 import type { RemovedMember } from '../lib/types'
@@ -18,6 +19,10 @@ import { writeActivity } from '../lib/activity'
 import { arrayRemove, addDoc, collection, Timestamp } from 'firebase/firestore'
 
 type Tab = 'expenses' | 'settle' | 'activity'
+
+// Trips created before the /inviteCodes lookup existed need their code doc
+// backfilled — once per trip per session is plenty
+const ensuredInviteCodes = new Set<string>()
 
 export function TripDashboard() {
   const { id } = useParams<{ id: string }>()
@@ -55,6 +60,23 @@ export function TripDashboard() {
       window.history.replaceState({}, '')
     }
   }, [location.state])
+
+  useEffect(() => {
+    if (!id || !trip?.inviteCode || ensuredInviteCodes.has(id)) return
+    ensuredInviteCodes.add(id)
+    setDoc(
+      doc(db, 'inviteCodes', trip.inviteCode),
+      { tripId: id, type: trip.type ?? 'trip' },
+      { merge: true }
+    ).catch(() => {})
+  }, [id, trip?.inviteCode])
+
+  // Settlements and category subtotals are only correct over the full set
+  useEffect(() => {
+    if ((tab === 'settle' || categoryFilter.size > 0) && !allExpenses) {
+      loadAllExpenses()
+    }
+  }, [tab, categoryFilter, allExpenses, loadAllExpenses])
 
   const handleUndo = useCallback(async () => {
     if (!undoInfo || !id) return
@@ -181,20 +203,28 @@ export function TripDashboard() {
         {editingName && (
           <div className="flex items-center gap-2 mt-2 mb-1">
             <label className="text-sm text-text-secondary">Settlement currency:</label>
-            <CurrencyPicker
-              value={sc}
-              onChange={async (code) => {
-                const oldCurrency = sc
-                await updateDoc(doc(db, 'trips', id!), { settlementCurrency: code })
-                writeActivity(id!, {
-                  action: 'currency_changed',
-                  actorUid: user!.uid,
-                  targetDescription: `${oldCurrency} → ${code}`,
-                  previousValues: { settlementCurrency: oldCurrency },
-                  editDetails: [`settlement currency: ${oldCurrency} → ${code}`],
-                })
-              }}
-            />
+            {totalCount > 0 ? (
+              // Stored amounts are in this currency — switching would
+              // relabel them without converting, corrupting balances
+              <span className="text-sm text-text-muted">
+                {sc} (locked once expenses exist)
+              </span>
+            ) : (
+              <CurrencyPicker
+                value={sc}
+                onChange={async (code) => {
+                  const oldCurrency = sc
+                  await updateDoc(doc(db, 'trips', id!), { settlementCurrency: code })
+                  writeActivity(id!, {
+                    action: 'currency_changed',
+                    actorUid: user!.uid,
+                    targetDescription: `${oldCurrency} → ${code}`,
+                    previousValues: { settlementCurrency: oldCurrency },
+                    editDetails: [`settlement currency: ${oldCurrency} → ${code}`],
+                  })
+                }}
+              />
+            )}
           </div>
         )}
         <div className="flex items-center justify-between">
@@ -219,9 +249,10 @@ export function TripDashboard() {
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <button
                     onClick={async () => {
-                      if (!allExpenses) await loadAllExpenses()
-                      const all = allExpenses ?? expenses
-                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories)
+                      // loadAllExpenses resolves with the full list — the
+                      // allExpenses state in this closure is stale
+                      const all = await loadAllExpenses()
+                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories, trip.removedMembers)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
@@ -231,9 +262,8 @@ export function TripDashboard() {
                   </button>
                   <button
                     onClick={async () => {
-                      if (!allExpenses) await loadAllExpenses()
-                      const all = allExpenses ?? expenses
-                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories)
+                      const all = await loadAllExpenses()
+                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories, trip.removedMembers)
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
@@ -426,16 +456,15 @@ export function TripDashboard() {
                 )
               })}
             </div>
-            {/* Total / Subtotal */}
-            {(() => {
+            {/* Subtotal for the active filter (header already shows the total) */}
+            {categoryFilter.size > 0 && (() => {
               const filtered = expenses.filter((exp) =>
-                categoryFilter.size === 0 || getExpenseCategories(exp).some((c) => categoryFilter.has(c))
+                getExpenseCategories(exp).some((c) => categoryFilter.has(c))
               )
               const sum = filtered.reduce((s, e) => s + e.amountSettled, 0)
-              const isFiltered = categoryFilter.size > 0
               return (
                 <p className="text-sm text-text-muted pb-2 mb-1">
-                  {isFiltered ? 'Subtotal' : 'Total'}: {formatMoney(sum, sc)} across {filtered.length} expense{filtered.length !== 1 ? 's' : ''}
+                  Subtotal: {formatMoney(sum, sc)} across {filtered.length} expense{filtered.length !== 1 ? 's' : ''}
                 </p>
               )
             })()}
@@ -482,14 +511,12 @@ export function TripDashboard() {
         </div>
       )}
 
-      {tab === 'settle' && (() => {
-        // Load all expenses for accurate settlement math
-        if (!allExpenses) loadAllExpenses()
-        const settleExpenses = allExpenses ?? expenses
-        return (
+      {tab === 'settle' && (allExpenses === null ? (
+        <div className="text-center py-10 text-text-muted">Loading...</div>
+      ) : (
         <div className="min-w-0">
         <SettlementView
-          expenses={settleExpenses}
+          expenses={allExpenses}
           members={members}
           memberUids={trip.memberUids}
           settlementCurrency={sc}
@@ -538,8 +565,7 @@ export function TripDashboard() {
           }}
         />
         </div>
-        )
-      })()}
+      ))}
 
       {tab === 'activity' && (
         <div className="min-w-0">
@@ -590,15 +616,21 @@ export function TripDashboard() {
             setShowLeaveConfirm(false)
             if (user) {
               const remainingCount = (trip.memberUids?.length ?? 1) - 1
-              await updateDoc(doc(db, 'trips', id!), {
-                memberUids: arrayRemove(user.uid),
-                ...(remainingCount <= 0 ? { deletedAt: serverTimestamp() } : {}),
-              })
-              writeActivity(id!, {
-                action: 'member_left',
-                actorUid: user.uid,
-                targetMemberUid: user.uid,
-              })
+              if (remainingCount <= 0) {
+                // Last member out: hard-delete while still a member — the
+                // rules gate deletes on membership, so a memberless trip
+                // could never be purged
+                await purgeTrip(id!, trip.inviteCode)
+              } else {
+                await updateDoc(doc(db, 'trips', id!), {
+                  memberUids: arrayRemove(user.uid),
+                })
+                writeActivity(id!, {
+                  action: 'member_left',
+                  actorUid: user.uid,
+                  targetMemberUid: user.uid,
+                })
+              }
               navigate('/')
             }
           }}
@@ -608,7 +640,13 @@ export function TripDashboard() {
       {removeMemberUid && (
         <DeleteModal
           title="Remove member?"
-          message={`Do you want to remove ${removeMemberName} from the ${tl}?`}
+          message={(() => {
+            const bal = Math.round((trip.cachedBalances?.[removeMemberUid] ?? 0) * 100) / 100
+            const base = `Do you want to remove ${removeMemberName} from the ${tl}?`
+            if (Math.abs(bal) <= 0.01) return base
+            const direction = bal > 0 ? 'is still owed' : 'still owes'
+            return `${base} ${removeMemberName} ${direction} ${formatMoney(Math.abs(bal), sc)} — the balance stays visible until it's settled.`
+          })()}
           onCancel={() => setRemoveMemberUid(null)}
           onConfirm={async () => {
             const uid = removeMemberUid
@@ -623,11 +661,9 @@ export function TripDashboard() {
             }
             const updatedRemoved = [...(trip.removedMembers ?? []), removedEntry]
 
-            const remainingCount = (trip.memberUids?.length ?? 1) - 1
             await updateDoc(doc(db, 'trips', id!), {
               memberUids: arrayRemove(uid),
               removedMembers: updatedRemoved,
-              ...(remainingCount <= 0 ? { deletedAt: serverTimestamp() } : {}),
             })
             writeActivity(id!, {
               action: 'member_removed',
@@ -635,7 +671,6 @@ export function TripDashboard() {
               targetMemberUid: uid,
               targetDescription: removeMemberName,
             })
-            if (remainingCount <= 0) navigate('/')
           }}
         />
       )}

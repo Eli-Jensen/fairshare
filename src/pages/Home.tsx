@@ -18,7 +18,6 @@ import { TripCard } from '../components/TripCard'
 import { BalanceSummary } from '../components/BalanceSummary'
 import { UndoToast } from '../components/UndoToast'
 import type { Trip } from '../lib/types'
-import { DEFAULT_CURRENCY } from '../lib/types'
 import { writeActivity } from '../lib/activity'
 
 export function Home() {
@@ -85,6 +84,8 @@ export function Home() {
         }
       }
       setPendingInvites(invited)
+    }, (err) => {
+      console.error('Pending invites listener error:', err)
     })
   }, [user?.email, user?.uid])
 
@@ -212,11 +213,7 @@ export function Home() {
 
       {/* Cross-trip balance summary */}
       {!tripsLoading && allTrips.length > 0 && (
-        <BalanceSummary
-          tripBalances={tripBalances}
-          trips={allTrips}
-          settlementCurrency={DEFAULT_CURRENCY}
-        />
+        <BalanceSummary tripBalances={tripBalances} trips={allTrips} />
       )}
 
       {tripsLoading ? (
@@ -302,9 +299,7 @@ export function Home() {
                     key={trip.id}
                     trip={trip}
                     currentUserUid={user.uid}
-                    onBalanceComputed={(tripId, balance) =>
-                      setTripBalances((prev) => ({ ...prev, [tripId]: balance }))
-                    }
+                    onBalanceComputed={handleBalanceComputed}
                   />
                 ))}
               </div>

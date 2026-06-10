@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
+import { useProfileCache } from '../hooks/useProfileCache'
 import type { UserProfile } from '../lib/types'
 
 export function Profile() {
   const { user } = useAuth()
+  const { invalidateProfile } = useProfileCache()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -41,6 +43,7 @@ export function Profile() {
     await updateDoc(doc(db, 'users', user.uid), {
       displayName: displayName.trim() || googleName,
     })
+    invalidateProfile(user.uid)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
