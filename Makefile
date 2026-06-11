@@ -4,9 +4,10 @@ PROD_PROJECT := fairshare-4c9a2
 DEV_PROJECT  := fairshare-split-dev
 PROD_URL     := https://fairshare-split.web.app
 DEV_URL      := https://dev-fairshare-split.web.app
+BROWSERS     := firefox chrome safari all
 
 .DEFAULT_GOAL := help
-.PHONY: help versions test ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev
+.PHONY: help versions test ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev $(BROWSERS)
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -94,8 +95,13 @@ watch: ## Watch the latest CI run, then report what (if anything) it deployed
 	echo; \
 	$(MAKE) -s versions
 
-open-prod: ## Open the prod site
-	open $(PROD_URL)
+open-prod: ## Open the prod site — make open-prod [firefox|chrome|safari|all]
+	@bash scripts/open-site.sh "$(PROD_URL)" $(filter $(BROWSERS),$(MAKECMDGOALS))
 
-open-dev: ## Open the dev site
-	open $(DEV_URL)
+open-dev: ## Open the dev site — make open-dev [firefox|chrome|safari|all]
+	@bash scripts/open-site.sh "$(DEV_URL)" $(filter $(BROWSERS),$(MAKECMDGOALS))
+
+# Let a browser name be passed as a goal word (e.g. `make open-dev chrome`).
+# These are harmless no-ops on their own; open-dev/open-prod read them.
+$(BROWSERS):
+	@:
