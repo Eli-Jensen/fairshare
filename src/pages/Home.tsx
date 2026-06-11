@@ -14,10 +14,13 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
+import { useProfileCache } from '../hooks/useProfileCache'
 import { TripCard } from '../components/TripCard'
 import { BalanceSummary } from '../components/BalanceSummary'
+import { MemberAvatar } from '../components/MemberAvatar'
 import { UndoToast } from '../components/UndoToast'
-import type { Trip } from '../lib/types'
+import type { Trip, UserProfile } from '../lib/types'
+import { getMemberName } from '../lib/types'
 import { writeActivity } from '../lib/activity'
 import { claimPlaceholdersOnJoin } from '../lib/claim'
 
@@ -338,6 +341,20 @@ function InviteCard({
   onJoin: () => void
   onDecline: () => void
 }) {
+  const { getProfiles } = useProfileCache()
+  const [members, setMembers] = useState<Record<string, UserProfile>>({})
+
+  useEffect(() => {
+    getProfiles(invite.memberUids).then(setMembers)
+  }, [invite.memberUids.join(','), getProfiles])
+
+  // Names of members whose profiles have loaded (avoids flashing raw uids)
+  const names = invite.memberUids
+    .filter((uid) => members[uid])
+    .map((uid) => getMemberName(uid, members))
+  const namesLabel =
+    names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3} more` : names.join(', ')
+
   return (
     <div className="bg-accent-soft border border-primary-200 rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
@@ -346,9 +363,18 @@ function InviteCard({
           {invite.memberUids.length} member{invite.memberUids.length !== 1 ? 's' : ''}
         </span>
       </div>
-      <p className="text-sm text-text-secondary mb-3">
-        You've been invited to join this {label}.
-      </p>
+      <div className="flex items-center gap-2 mb-3 min-w-0">
+        <div className="flex -space-x-1.5 shrink-0">
+          {invite.memberUids.slice(0, 5).map((uid) => (
+            <div key={uid} className="ring-2 ring-accent-soft rounded-full">
+              <MemberAvatar member={members[uid]} size="sm" />
+            </div>
+          ))}
+        </div>
+        <p className="text-sm text-text-secondary truncate">
+          {namesLabel ? `With ${namesLabel}` : `You've been invited to join this ${label}.`}
+        </p>
+      </div>
       <div className="flex gap-2">
         <button
           onClick={onJoin}
