@@ -136,7 +136,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="px-3 py-2">
                     <p className="text-sm text-text-muted mb-1.5">Color</p>
-                    <div className="flex gap-2.5">
+                    <div className="flex gap-2">
                       {ACCENTS.map((opt) => (
                         <button
                           key={opt.value}

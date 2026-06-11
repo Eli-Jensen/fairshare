@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 
-export type Accent = 'indigo' | 'teal' | 'orange'
+export type Accent = 'indigo' | 'teal' | 'orange' | 'violet' | 'pink'
 
 export interface AccentOption {
   value: Accent
@@ -19,7 +19,11 @@ export const ACCENTS: AccentOption[] = [
   { value: 'indigo', label: 'Indigo', swatch: '#4f46e5' },
   { value: 'teal', label: 'Teal', swatch: '#0d9488' },
   { value: 'orange', label: 'Orange', swatch: '#ea580c' },
+  { value: 'violet', label: 'Violet', swatch: '#7c3aed' },
+  { value: 'pink', label: 'Pink', swatch: '#db2777' },
 ]
+
+const ACCENT_VALUES = new Set<string>(ACCENTS.map((a) => a.value))
 
 const STORAGE_KEY = 'fairshare-accent'
 const DEFAULT_ACCENT: Accent = 'indigo'
@@ -35,7 +39,7 @@ const AccentContext = createContext<AccentState>({
 })
 
 function isAccent(v: string | null): v is Accent {
-  return v === 'indigo' || v === 'teal' || v === 'orange'
+  return v !== null && ACCENT_VALUES.has(v)
 }
 
 export function AccentProvider({ children }: { children: ReactNode }) {
