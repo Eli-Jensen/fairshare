@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import type { Trip, UserProfile } from '../lib/types'
 import { formatMoney, DEFAULT_CURRENCY } from '../lib/types'
+import { placeholderProfiles } from '../lib/placeholders'
 import { MemberAvatar } from './MemberAvatar'
 import { useProfileCache } from '../hooks/useProfileCache'
 
@@ -66,19 +67,33 @@ export function TripCard({ trip, currentUserUid, onBalanceComputed }: {
         </div>
       )}
 
-      {/* Members */}
-      <div className="flex items-center gap-2">
-        <div className="flex -space-x-1.5">
-          {trip.memberUids.map((uid) => (
-            <div key={uid} className="ring-2 ring-card rounded-full">
-              <MemberAvatar member={members[uid]} size="sm" />
+      {/* Members (incl. guests without accounts) */}
+      {(() => {
+        const guests = placeholderProfiles(trip)
+        const guestIds = Object.keys(guests)
+        const total = trip.memberUids.length + guestIds.length
+        return (
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-1.5">
+              {trip.memberUids.map((uid) => (
+                <div key={uid} className="ring-2 ring-card rounded-full">
+                  <MemberAvatar member={members[uid]} size="sm" />
+                </div>
+              ))}
+              {guestIds.map((id) => (
+                <div key={id} className="ring-2 ring-card rounded-full">
+                  <MemberAvatar member={guests[id]} size="sm" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <span className="text-sm text-text-muted">
-          {trip.memberUids.length} member{trip.memberUids.length !== 1 && 's'}
-        </span>
-      </div>
+            <span className="text-sm text-text-muted">
+              {guestIds.length > 0
+                ? `${total} ${total === 1 ? 'person' : 'people'}`
+                : `${total} member${total !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+        )
+      })()}
     </Link>
   )
 }

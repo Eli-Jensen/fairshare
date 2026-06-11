@@ -11,7 +11,7 @@ import { DEFAULT_CURRENCY } from '../lib/types'
 export function AddExpense() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const { trip, members, loading } = useTrip(id)
+  const { trip, members, participants, loading } = useTrip(id)
   const navigate = useNavigate()
 
   if (loading || !trip || !user) {
@@ -23,7 +23,7 @@ export function AddExpense() {
       <h1 className="text-2xl font-bold text-text mb-6">Add Expense</h1>
       <ExpenseForm
         members={members}
-        memberUids={trip.memberUids}
+        memberUids={participants}
         currentUserUid={user.uid}
         tripRates={trip.lastRates}
         tripLastCurrency={trip.lastCurrency}

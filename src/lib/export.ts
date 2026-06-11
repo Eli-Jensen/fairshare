@@ -1,6 +1,7 @@
 import type { Expense, UserProfile, CustomCategory, RemovedMember } from './types'
 import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from './types'
 import { formatDateOnly } from './dates'
+import { isPlaceholderId } from './placeholders'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -36,7 +37,8 @@ export function tripToCsv(
   function nameFor(uid: string): string {
     if (members[uid]) {
       const n = getMemberName(uid, members)
-      return memberUids.includes(uid) ? n : `${n} (removed)`
+      if (!memberUids.includes(uid)) return `${n} (removed)`
+      return isPlaceholderId(uid) ? `${n} (guest)` : n
     }
     const rm = removedMembers?.find((r) => r.uid === uid)
     if (rm) return `${rm.displayName || rm.email} (removed)`
