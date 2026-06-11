@@ -38,7 +38,7 @@ export function tripToCsv(
     if (members[uid]) {
       const n = getMemberName(uid, members)
       if (!memberUids.includes(uid)) return `${n} (removed)`
-      return isPlaceholderId(uid) ? `${n} (guest)` : n
+      return isPlaceholderId(uid) ? `${n} (invited)` : n
     }
     const rm = removedMembers?.find((r) => r.uid === uid)
     if (rm) return `${rm.displayName || rm.email} (removed)`

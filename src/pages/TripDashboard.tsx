@@ -4,6 +4,7 @@ import { doc, updateDoc, deleteField, serverTimestamp, setDoc } from 'firebase/f
 import { db } from '../lib/firebase'
 import { useTrip } from '../hooks/useTrip'
 import { purgeTrip } from '../hooks/useTrips'
+import { reconcilePlaceholderClaims } from '../lib/claim'
 import { useAuth } from '../hooks/useAuth'
 import { formatMoney, getMemberName, tripLabel, getAllCategories, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
 import type { RemovedMember } from '../lib/types'
@@ -76,6 +77,18 @@ export function TripDashboard() {
       loadAllExpenses()
     }
   }, [tab, categoryFilter, allExpenses, loadAllExpenses])
+
+  // Finish any pending placeholder→member merges (someone joined and claimed
+  // their invited email). Idempotent; the first member to load the trip after
+  // a join completes the expense rewrite, then the claims clear.
+  const claimsKey = JSON.stringify(trip?.placeholderClaims ?? {})
+  useEffect(() => {
+    if (!id) return
+    const claims = trip?.placeholderClaims
+    if (!claims || Object.keys(claims).length === 0) return
+    reconcilePlaceholderClaims(id, claims).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, claimsKey])
 
   const handleUndo = useCallback(async () => {
     if (!undoInfo || !id) return
@@ -332,33 +345,33 @@ export function TripDashboard() {
             <div
               key={ph.id}
               className="flex items-center gap-1.5 bg-card border border-dashed border-line rounded-full px-2 py-1"
-              title="Guest — added without an account; manage on the Invite page"
+              title="Invited — hasn't joined yet; manage on the Invite page"
             >
               <MemberAvatar member={members[ph.id]} size="sm" />
               <span className="text-sm text-text-secondary">
-                {ph.name}
-                <span className="text-text-muted"> (guest)</span>
+                {ph.email}
+                <span className="text-text-muted ml-1">(pending)</span>
               </span>
             </div>
           ))}
-          {trip.invitedEmails && trip.invitedEmails.length > 0 && (
-            <>
-              {trip.invitedEmails.map((email) => (
-                <div
-                  key={email}
-                  className="flex items-center gap-1.5 bg-warn-bg border border-warn-border rounded-full px-2 py-1"
-                >
-                  <div className="w-5 h-5 rounded-full bg-warn-border flex items-center justify-center text-[10px] text-warn-text font-medium">
-                    {email[0].toUpperCase()}
-                  </div>
-                  <span className="text-sm text-warn-text">
-                    {email}
-                    <span className="text-warn-text/60 ml-1">(invited)</span>
-                  </span>
+          {/* Legacy invited emails with no participant row */}
+          {(() => {
+            const phEmails = new Set((trip.placeholderMembers ?? []).map((p) => p.email))
+            return (trip.invitedEmails ?? []).filter((e) => !phEmails.has(e)).map((email) => (
+              <div
+                key={email}
+                className="flex items-center gap-1.5 bg-warn-bg border border-warn-border rounded-full px-2 py-1"
+              >
+                <div className="w-5 h-5 rounded-full bg-warn-border flex items-center justify-center text-[10px] text-warn-text font-medium">
+                  {email[0].toUpperCase()}
                 </div>
-              ))}
-            </>
-          )}
+                <span className="text-sm text-warn-text">
+                  {email}
+                  <span className="text-warn-text/60 ml-1">(invited)</span>
+                </span>
+              </div>
+            ))
+          })()}
         </div>
       </div>
 

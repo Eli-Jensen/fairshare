@@ -41,10 +41,6 @@ export function TripInvite() {
   const [copied, setCopied] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [justReset, setJustReset] = useState(false)
-  const [guestName, setGuestName] = useState('')
-  const [guestEmail, setGuestEmail] = useState('')
-  const [guestError, setGuestError] = useState('')
-  const [addingGuest, setAddingGuest] = useState(false)
   const [undoMember, setUndoMember] = useState<{ uid: string; name: string } | null>(null)
   const { trips: allTrips } = useTrips()
   const { getProfiles } = useProfileCache()
@@ -182,8 +178,18 @@ export function TripInvite() {
     setError('')
 
     try {
+      // Inviting makes them a participant immediately: a placeholder (shown as
+      // their email) they can be split with now, plus the invitedEmails entry
+      // that lets them join — linked by email so joining claims the history.
+      const placeholder: PlaceholderMember = {
+        id: generatePlaceholderId(),
+        email: normalized,
+        createdBy: user!.uid,
+        createdAt: Timestamp.now(),
+      }
       await updateDoc(doc(db, 'trips', id!), {
         invitedEmails: arrayUnion(normalized),
+        placeholderMembers: arrayUnion(placeholder),
       })
       writeActivity(id!, {
         action: 'member_invited',
@@ -200,64 +206,20 @@ export function TripInvite() {
     }
   }
 
-  async function addGuest() {
-    const name = guestName.trim()
-    if (!name) {
-      setGuestError('Enter a name')
-      return
-    }
-    if (name.length > 30) {
-      setGuestError('Max 30 characters')
-      return
-    }
-    const email = guestEmail.trim().toLowerCase()
-    if (email && !email.includes('@')) {
-      setGuestError('Enter a valid email, or leave it blank')
-      return
-    }
-    if (email && isAlreadyInTrip(email)) {
-      setGuestError(`Someone with that email is already in this ${tl}`)
-      return
-    }
-
-    setAddingGuest(true)
-    setGuestError('')
-    try {
-      const guest: PlaceholderMember = {
-        id: generatePlaceholderId(),
-        name,
-        ...(email ? { email } : {}),
-        createdBy: user!.uid,
-        createdAt: Timestamp.now(),
-      }
-      await updateDoc(doc(db, 'trips', id!), {
-        placeholderMembers: arrayUnion(guest),
-      })
-      writeActivity(id!, {
-        action: 'placeholder_added',
-        actorUid: user!.uid,
-        targetMemberUid: guest.id,
-        targetDescription: name,
-      })
-      setGuestName('')
-      setGuestEmail('')
-    } catch {
-      setGuestError('Failed to add guest')
-    } finally {
-      setAddingGuest(false)
-    }
-  }
-
-  async function removeGuest(guest: PlaceholderMember) {
+  /** Rescind an invite: remove the pending email and its participant. Guarded
+   *  by a zero balance in the UI (can't yank someone you're mid-debt with). */
+  async function rescindInvite(ph: PlaceholderMember) {
     if (!trip || !id) return
     await updateDoc(doc(db, 'trips', id), {
-      placeholderMembers: (trip.placeholderMembers ?? []).filter((p) => p.id !== guest.id),
+      invitedEmails: arrayRemove(ph.email),
+      placeholderMembers: (trip.placeholderMembers ?? []).filter((p) => p.id !== ph.id),
     })
+    setJustInvited((prev) => prev.filter((e) => e !== ph.email))
     writeActivity(id, {
-      action: 'placeholder_removed',
+      action: 'invite_rescinded',
       actorUid: user!.uid,
-      targetMemberUid: guest.id,
-      targetDescription: guest.name,
+      targetMemberUid: ph.id,
+      targetDescription: ph.email,
     })
   }
 
@@ -376,48 +338,6 @@ export function TripInvite() {
           {error}
         </p>
       )}
-
-      {/* Add a guest (no account) */}
-      <div className="mb-6">
-        <label className={label}>
-          Add a guest <span className="font-normal text-text-muted">(no account needed)</span>
-        </label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="Name (e.g. Dad)"
-            maxLength={30}
-            value={guestName}
-            onChange={(e) => { setGuestName(e.target.value); setGuestError('') }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGuest() } }}
-          />
-          <input
-            type="email"
-            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="Email (optional)"
-            value={guestEmail}
-            onChange={(e) => { setGuestEmail(e.target.value); setGuestError('') }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGuest() } }}
-          />
-          <button
-            type="button"
-            onClick={addGuest}
-            disabled={addingGuest}
-            className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors shrink-0"
-          >
-            {addingGuest ? '...' : 'Add'}
-          </button>
-        </div>
-        <p className="text-xs text-text-muted mt-1">
-          Guests can be in splits and payments right away without signing in. Adding their email lets them claim the guest's history when they join later.
-        </p>
-        {guestError && (
-          <p className="text-sm text-danger-text bg-danger-bg rounded-lg px-3 py-2 mt-2">
-            {guestError}
-          </p>
-        )}
-      </div>
 
       {/* Just invited */}
       {justInvited.length > 0 && (
@@ -579,41 +499,40 @@ export function TripInvite() {
           Current members ({trip.memberUids.length + (trip.placeholderMembers?.length ?? 0)})
         </h3>
         <div className="space-y-1">
-          {(trip.placeholderMembers ?? []).map((guest) => {
-            const bal = Math.round((trip.cachedBalances?.[guest.id] ?? 0) * 100) / 100
+          {(trip.placeholderMembers ?? []).map((ph) => {
+            const bal = Math.round((trip.cachedBalances?.[ph.id] ?? 0) * 100) / 100
             const hasBalance = Math.abs(bal) > 0.01
             return (
               <div
-                key={guest.id}
+                key={ph.id}
                 className="flex items-center justify-between bg-card border border-dashed border-line rounded-lg px-3 py-2"
               >
-                <div className="flex items-center gap-2">
-                  <MemberAvatar member={members[guest.id]} size="sm" />
-                  <div>
-                    <span className="text-sm text-text-secondary">
-                      {guest.name}
-                      <span className="text-text-muted ml-1">(guest)</span>
-                    </span>
-                    {guest.email && (
-                      <p className="text-xs text-text-muted">{guest.email}</p>
-                    )}
+                <div className="flex items-center gap-2 min-w-0">
+                  <MemberAvatar member={members[ph.id]} size="sm" />
+                  <div className="min-w-0">
+                    <span className="text-sm text-text-secondary truncate block">{ph.email}</span>
+                    <span className="text-xs text-text-muted">Invited · not joined yet</span>
                   </div>
                 </div>
                 {hasBalance ? (
                   <span
-                    className="text-xs text-text-muted px-2 py-1"
-                    title="Settle this guest's balance before removing them"
+                    className="text-xs text-text-muted px-2 py-1 shrink-0"
+                    title="Settle their balance before rescinding the invite"
                   >
                     {bal > 0 ? 'owed' : 'owes'} {formatMoney(Math.abs(bal), trip.settlementCurrency ?? DEFAULT_CURRENCY)}
                   </span>
                 ) : (
-                  <ConfirmButton
-                    label="Remove"
-                    confirmLabel="Confirm?"
-                    onConfirm={() => removeGuest(guest)}
-                    className="text-xs text-text-muted hover:text-danger-text px-2 py-1 rounded hover:bg-danger-bg transition-colors"
-                    confirmClassName="text-xs font-medium text-danger-text bg-danger-bg px-2 py-1 rounded transition-colors"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => rescindInvite(ph)}
+                    aria-label={`Rescind invite for ${ph.email}`}
+                    title="Rescind invite"
+                    className="shrink-0 text-text-muted hover:text-danger-text p-1 rounded hover:bg-danger-bg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 )}
               </div>
             )
@@ -701,27 +620,46 @@ export function TripInvite() {
         </p>
       </div>
 
-      {/* Pending invites */}
-      {trip.invitedEmails && trip.invitedEmails.length > 0 && (
-        <div className="mt-6 border-t border-line pt-4">
-          <h3 className="text-sm font-medium text-text-secondary mb-2">
-            Pending invites ({trip.invitedEmails.length})
-          </h3>
-          <div className="space-y-1">
-            {trip.invitedEmails.map((e) => (
-              <div
-                key={e}
-                className="flex items-center gap-2 text-sm text-warn-text bg-warn-bg rounded-lg px-3 py-2"
-              >
-                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {e}
-              </div>
-            ))}
+      {/* Pending invites with no participant row (legacy data only — new
+          invites always create a placeholder shown under Current members) */}
+      {(() => {
+        const phEmails = new Set((trip.placeholderMembers ?? []).map((p) => p.email))
+        const orphans = (trip.invitedEmails ?? []).filter((e) => !phEmails.has(e))
+        if (orphans.length === 0) return null
+        return (
+          <div className="mt-6 border-t border-line pt-4">
+            <h3 className="text-sm font-medium text-text-secondary mb-2">
+              Pending invites ({orphans.length})
+            </h3>
+            <div className="space-y-1">
+              {orphans.map((e) => (
+                <div
+                  key={e}
+                  className="flex items-center justify-between text-sm text-warn-text bg-warn-bg rounded-lg px-3 py-2"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="truncate">{e}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateDoc(doc(db, 'trips', id!), { invitedEmails: arrayRemove(e) })}
+                    aria-label={`Rescind invite for ${e}`}
+                    title="Rescind invite"
+                    className="shrink-0 text-warn-text/70 hover:text-danger-text p-1 rounded transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {undoMember && (
         <UndoToast
