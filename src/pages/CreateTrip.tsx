@@ -7,17 +7,12 @@ import { useTrips } from '../hooks/useTrips'
 import { CurrencyPicker } from '../components/CurrencyPicker'
 import type { TripType } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
+import { generateInviteCode } from '../lib/invite'
 import { writeActivity } from '../lib/activity'
 
 const MAX_TRIPS = 100
 
 const COMMON_SETTLEMENT = [DEFAULT_CURRENCY, 'EUR', 'GBP', 'CAD', 'AUD']
-
-function generateInviteCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  const bytes = crypto.getRandomValues(new Uint8Array(8))
-  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
-}
 
 export function CreateTrip() {
   const { user } = useAuth()

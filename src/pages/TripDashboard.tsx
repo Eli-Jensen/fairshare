@@ -36,7 +36,6 @@ export function TripDashboard() {
     if (t === 'settle' || t === 'activity') return t
     return 'expenses'
   })
-  const [copied, setCopied] = useState(false)
   const [undoInfo, setUndoInfo] = useState<{ id: string; description: string } | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
@@ -123,13 +122,6 @@ export function TripDashboard() {
   const totalSettled = trip.cachedTotalSpent ?? expenses.reduce((sum, e) => sum + e.amountSettled, 0)
   const totalCount = trip.cachedExpenseCount ?? expenses.length
   const tl = tripLabel(trip.type)
-
-  const inviteUrl = `${window.location.origin}/join/${trip.inviteCode}`
-  function copyInvite() {
-    navigator.clipboard.writeText(inviteUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
     <div>
@@ -289,13 +281,6 @@ export function TripDashboard() {
           >
             + Invite
           </Link>
-          <span className="text-text-muted">|</span>
-          <button
-            onClick={copyInvite}
-            className="text-sm text-accent-text hover:text-accent-hover"
-          >
-            {copied ? 'Copied!' : 'Copy link'}
-          </button>
         </div>
         <div className="flex gap-2 flex-wrap">
           {trip.memberUids.map((uid) => {

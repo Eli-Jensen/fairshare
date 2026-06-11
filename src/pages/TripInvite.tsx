@@ -7,6 +7,7 @@ import {
   arrayRemove,
   getDoc,
   setDoc,
+  deleteDoc,
   deleteField,
   Timestamp,
 } from 'firebase/firestore'
@@ -19,6 +20,7 @@ import { UndoToast } from '../components/UndoToast'
 import { getMemberName, tripLabel, formatMoney, DEFAULT_CURRENCY, type RemovedMember, type UserProfile } from '../lib/types'
 import { useTrips } from '../hooks/useTrips'
 import { useProfileCache } from '../hooks/useProfileCache'
+import { generateInviteCode } from '../lib/invite'
 import { writeActivity } from '../lib/activity'
 
 interface RecentContact {
@@ -36,6 +38,8 @@ export function TripInvite() {
   const [error, setError] = useState('')
   const [recentContacts, setRecentContacts] = useState<RecentContact[]>([])
   const [copied, setCopied] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [justReset, setJustReset] = useState(false)
   const [undoMember, setUndoMember] = useState<{ uid: string; name: string } | null>(null)
   const { trips: allTrips } = useTrips()
   const { getProfiles } = useProfileCache()
@@ -228,6 +232,29 @@ export function TripInvite() {
     navigator.clipboard.writeText(inviteUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Rotate the invite code: the lookup doc is what JoinTrip resolves, so
+  // deleting the old one is what actually kills previously-shared links
+  async function resetInviteLink() {
+    if (!trip || !id) return
+    setResetting(true)
+    setError('')
+    const oldCode = trip.inviteCode
+    const newCode = generateInviteCode()
+    try {
+      // New lookup first so a valid link always exists, then point the
+      // trip at it, then invalidate the old link
+      await setDoc(doc(db, 'inviteCodes', newCode), { tripId: id, type: trip.type ?? 'trip' })
+      await updateDoc(doc(db, 'trips', id), { inviteCode: newCode })
+      if (oldCode) await deleteDoc(doc(db, 'inviteCodes', oldCode))
+      setJustReset(true)
+      setTimeout(() => setJustReset(false), 3000)
+    } catch {
+      setError('Failed to reset the link. Try again.')
+    } finally {
+      setResetting(false)
+    }
   }
 
   // Filter recent contacts to exclude those already in the trip or just invited
@@ -488,7 +515,20 @@ export function TripInvite() {
 
       {/* Invite link */}
       <div className="border-t border-line pt-4">
-        <label className={label}>Invite link</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium text-text-secondary">Invite link</label>
+          {resetting ? (
+            <span className="text-xs text-text-muted">Resetting…</span>
+          ) : (
+            <ConfirmButton
+              label="Reset link"
+              confirmLabel="Reset? Old links stop working"
+              onConfirm={resetInviteLink}
+              className="text-xs text-text-muted hover:text-danger-text px-2 py-1 rounded hover:bg-danger-bg transition-colors"
+              confirmClassName="text-xs font-medium text-danger-text bg-danger-bg px-2 py-1 rounded transition-colors"
+            />
+          )}
+        </div>
         <div className="flex gap-2">
           <input
             type="text"
@@ -504,7 +544,13 @@ export function TripInvite() {
           </button>
         </div>
         <p className="text-xs text-text-muted mt-1">
-          Anyone with this link can join
+          {justReset ? (
+            <span className="text-success-text font-medium">
+              Link reset — previously shared links no longer work.
+            </span>
+          ) : (
+            "Anyone with this link can join. Reset it to revoke links you've shared before."
+          )}
         </p>
       </div>
 

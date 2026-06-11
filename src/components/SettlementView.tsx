@@ -104,7 +104,7 @@ export function SettlementView({
                 <span className="text-sm font-medium text-text-secondary">
                   {getMemberName(s.from, members)}
                 </span>
-                <span className="text-text-muted text-sm">pays</span>
+                <span className="text-text-muted text-sm">should pay</span>
                 <MemberAvatar member={members[s.to]} size="sm" />
                 <span className="text-sm font-medium text-text-secondary">
                   {getMemberName(s.to, members)}
@@ -230,7 +230,7 @@ export function SettlementView({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Record a payment
+              Record a payment to a member
             </button>
           ) : (
             <div className="bg-card border border-line rounded-lg p-4 space-y-3">
