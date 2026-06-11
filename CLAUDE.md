@@ -15,6 +15,9 @@ npm run lint           # ESLint
 Deployment and release operations live in the **Makefile** (`make help` lists everything):
 
 ```bash
+make ship              # Fast path: push dev → wait for green CI → auto-promote to prod.
+                       #   MSG="..." commits pending changes first. Stops if dev CI fails.
+                       #   Skips the manual dev-site smoke test — for low-risk changes only.
 make versions          # What's running on prod / dev (via /version.json) vs local HEAD
 make promote           # Merge dev → main (CI deploys prod hosting) + deploy prod rules
 make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
@@ -22,6 +25,8 @@ make deploy-rules-dev  # Deploy Firestore rules + indexes to the dev project (CI
 make deploy-rules-prod # Deploy Firestore rules + indexes to prod
 make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
+
+Two release paths: **`make ship`** (fast, low-risk changes — auto-promotes if dev CI is green) and the **manual** path (push to `dev` → smoke-test the dev site → `make promote`) for anything where the dev-site check matters.
 
 ## Architecture
 

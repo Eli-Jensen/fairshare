@@ -6,7 +6,7 @@ PROD_URL     := https://fairshare-split.web.app
 DEV_URL      := https://dev-fairshare-split.web.app
 
 .DEFAULT_GOAL := help
-.PHONY: help versions test promote rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev
+.PHONY: help versions test ship promote rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -30,6 +30,9 @@ versions: ## Show what's running on prod and dev vs local HEAD
 
 test: ## Run the test suite and a production build
 	npm test && npm run build
+
+ship: ## Ship dev → prod in one shot: push dev, wait for green CI, then auto-promote. MSG="..." commits first. Skips manual smoke test — for low-risk changes.
+	@MSG="$(MSG)" bash scripts/ship.sh
 
 promote: ## Merge dev → main (CI deploys prod hosting), then deploy prod rules
 	git fetch -q origin
