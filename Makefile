@@ -44,14 +44,16 @@ promote: ## Fast-forward main to origin/dev (CI deploys prod hosting) + deploy p
 	@echo "Fast-forwarding main to:" && git log --oneline origin/main..origin/dev | sed 's/^/  /'
 	git push origin origin/dev:main
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
-	@echo "✅ Prod rules deployed; hosting deploys via CI. Prod will report the SAME sha as dev."
+	@echo "✅ Prod rules deployed; watching the hosting deploy…"
+	@bash scripts/watch-run.sh main $$(git rev-parse origin/dev)
 
 reconcile-main: ## One-time: force main to match origin/dev so promotes can fast-forward. Force-pushes main + redeploys prod. Requires CONFIRM=1.
 	@[ "$(CONFIRM)" = "1" ] || { echo "⚠️  Force-pushes main to match dev and triggers a prod redeploy at dev's sha."; echo "    Re-run: make reconcile-main CONFIRM=1"; exit 1; }
 	git push origin dev
 	git fetch -q origin
 	git push origin +origin/dev:main
-	@echo "✅ main now matches dev. Future 'make ship' / 'make promote' fast-forward — prod and dev shas stay identical."
+	@echo "✅ main now matches dev; watching the prod deploy…"
+	@bash scripts/watch-run.sh main $$(git rev-parse origin/dev)
 
 rollback-prod: ## Rebuild prod hosting from a previous commit (REF=..., default origin/main~1). Rules/data are NOT rolled back.
 	@echo "Tip: Firebase console → Hosting → Release history has instant one-click rollback (no rebuild)."
@@ -77,23 +79,7 @@ deploy-rules-prod: ## Deploy Firestore rules + indexes to PROD
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
 
 watch: ## Watch the latest CI run, then report what (if anything) it deployed
-	@ID=$$(gh run list -L1 --json databaseId -q '.[0].databaseId'); \
-	gh run watch $$ID; \
-	echo; \
-	gh run view $$ID --json headBranch,headSha,event,conclusion,jobs -q \
-		'"\(.headBranch) @ \(.headSha[0:7]) (\(.event) run) — \(.conclusion)\n" + ([.jobs[] | "  \(.name): \(.conclusion)"] | join("\n"))'; \
-	BRANCH=$$(gh run view $$ID --json headBranch -q '.headBranch'); \
-	EVENT=$$(gh run view $$ID --json event -q '.event'); \
-	CONC=$$(gh run view $$ID --json conclusion -q '.conclusion'); \
-	if [ "$$EVENT" = "push" ] && [ "$$CONC" = "success" ] && [ "$$BRANCH" = "main" ]; then \
-		echo "→ deployed PROD: $(PROD_URL)"; \
-	elif [ "$$EVENT" = "push" ] && [ "$$CONC" = "success" ] && [ "$$BRANCH" = "dev" ]; then \
-		echo "→ deployed DEV:  $(DEV_URL)"; \
-	else \
-		echo "→ nothing deployed (PR/test-only run, or the deploy didn't succeed)"; \
-	fi; \
-	echo; \
-	$(MAKE) -s versions
+	@bash scripts/watch-run.sh
 
 open-prod: ## Open the prod site — make open-prod [firefox|chrome|safari|all]
 	@bash scripts/open-site.sh "$(PROD_URL)" $(filter $(BROWSERS),$(MAKECMDGOALS))
