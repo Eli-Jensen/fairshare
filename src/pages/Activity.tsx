@@ -131,9 +131,10 @@ export function Activity() {
     let cancelled = false
 
     const unsubTrips = onSnapshot(tripsQ, async (tripSnap) => {
-      const trips = tripSnap.docs
-        .filter((d) => !d.data().deletedAt)
-        .map((d) => ({ id: d.id, ...d.data() }) as Trip)
+      // Keep soft-deleted trips in the list so their "trip deleted" event
+      // still surfaces here (and stays restorable). They fall off for good
+      // once purged ~24h later. Their other history is filtered out below.
+      const trips = tripSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Trip)
 
       if (trips.length === 0) {
         setEntries([])
@@ -154,11 +155,15 @@ export function Activity() {
       // One-time reads for activity entries (no persistent per-trip listeners)
       const allEntries: ActivityLogEntry[] = []
       await Promise.all(trips.map(async (trip) => {
+        // A deleted trip contributes only its "trip deleted" event — its
+        // other history would just be noise in the global feed.
+        const isDeleted = !!trip.deletedAt
+        const displayName = isDeleted ? `${trip.name} (deleted)` : trip.name
         const stamp = trip.lastActivityAt?.toMillis?.() ?? 0
         const cached = activityCache.current[trip.id]
         if (cached && cached.stamp === stamp) {
           for (const e of cached.entries) {
-            allEntries.push({ ...e, tripName: trip.name })
+            allEntries.push({ ...e, tripName: displayName })
           }
           return
         }
@@ -168,12 +173,14 @@ export function Activity() {
           limit(MAX_ENTRIES_PER_TRIP),
         )
         const actSnap = await getDocs(actQ)
-        const tripEntries = actSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-          tripId: trip.id,
-          tripName: trip.name,
-        } as ActivityLogEntry))
+        const tripEntries = actSnap.docs
+          .map((d) => ({
+            id: d.id,
+            ...d.data(),
+            tripId: trip.id,
+            tripName: displayName,
+          } as ActivityLogEntry))
+          .filter((e) => !isDeleted || e.action === 'trip_deleted')
         activityCache.current[trip.id] = { stamp, entries: tripEntries }
         allEntries.push(...tripEntries)
       }))
