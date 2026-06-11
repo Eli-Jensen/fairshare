@@ -8,7 +8,9 @@ import {
 
 const STORAGE_KEY = 'fairshare-text-scale'
 const VERSION_KEY = 'fairshare-text-scale-v'
-const LEVELS = [81.25, 87.5, 93.75, 100, 106.25, 112.5, 118.75] // ~13px → ~19px
+const LEVELS = [81.25, 87.5, 93.75, 100, 106.25, 112.5, 118.75, 125, 131.25] // ~13px → ~21px
+// Levels were only ever appended to the large end, so saved indices keep
+// their meaning — no version migration needed when extending here.
 const DEFAULT_LEVEL = 3 // index into LEVELS → 100%
 const CURRENT_VERSION = 2
 

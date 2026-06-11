@@ -143,7 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       >
                         −
                       </button>
-                      <div className="flex-1 flex items-end justify-center" style={{ gap: '3px', height: '24px' }}>
+                      <div className="flex-1 flex items-end justify-center" style={{ gap: '2px', height: '24px' }}>
                         {TEXT_SCALE_LEVELS.map((_, i) => (
                           <button
                             key={i}
@@ -151,7 +151,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             className={`font-semibold leading-none transition-colors cursor-pointer hover:text-accent-hover ${
                               i <= textLevel ? 'text-accent' : 'text-muted'
                             }`}
-                            style={{ fontSize: `${10 + i * 2}px`, background: 'none', border: 'none', padding: 0 }}
+                            style={{ fontSize: `${9 + i}px`, background: 'none', border: 'none', padding: 0 }}
                           >
                             A
                           </button>
