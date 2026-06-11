@@ -12,6 +12,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { tripLabel } from '../lib/types'
 import { writeActivity } from '../lib/activity'
+import { claimPlaceholdersOnJoin } from '../lib/claim'
 import type { TripType } from '../lib/types'
 
 export function JoinTrip() {
@@ -75,12 +76,14 @@ export function JoinTrip() {
       await updateDoc(doc(db, 'trips', tripId), {
         memberUids: arrayUnion(user.uid),
       })
-      // Now a member: clear any pending email invite for this user
+      // Now a member: clear any pending email invite for this user, then
+      // claim any placeholder for this email so prior history merges over.
       if (user.email) {
-        updateDoc(doc(db, 'trips', tripId), {
+        await updateDoc(doc(db, 'trips', tripId), {
           invitedEmails: arrayRemove(user.email.toLowerCase()),
         }).catch(() => {})
       }
+      await claimPlaceholdersOnJoin(tripId, user.uid, user.email)
       writeActivity(tripId, {
         action: 'member_joined',
         actorUid: user.uid,

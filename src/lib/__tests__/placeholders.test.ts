@@ -5,6 +5,8 @@ import {
   isPlaceholderId,
   participantIds,
   placeholderProfiles,
+  remapExpenseRefs,
+  type ExpenseRefs,
 } from '../placeholders'
 import { getMemberName } from '../types'
 import type { Trip } from '../types'
@@ -22,26 +24,21 @@ function trip(overrides: Partial<Trip>): Trip {
   } as Trip
 }
 
-const dad = { id: 'ph_abc123', name: 'Dad', createdBy: 'u1', createdAt: Timestamp.fromMillis(0) }
-const mom = { id: 'ph_def456', name: 'Mom', email: 'mom@gmail.com', createdBy: 'u1', createdAt: Timestamp.fromMillis(0) }
+const dad = { id: 'ph_abc123', email: 'dad@gmail.com', createdBy: 'u1', createdAt: Timestamp.fromMillis(0) }
+const mom = { id: 'ph_def456', email: 'mom@gmail.com', createdBy: 'u1', createdAt: Timestamp.fromMillis(0) }
 
 describe('generatePlaceholderId', () => {
-  it('is prefixed and unique', () => {
+  it('is prefixed, unique, and never looks like a uid', () => {
     const a = generatePlaceholderId()
-    const b = generatePlaceholderId()
     expect(a).toMatch(/^ph_[a-z0-9]{12}$/)
-    expect(a).not.toBe(b)
+    expect(a).not.toBe(generatePlaceholderId())
     expect(isPlaceholderId(a)).toBe(true)
     expect(isPlaceholderId('aB3dEf28CharFirebaseUidXyz12')).toBe(false)
   })
 })
 
 describe('participantIds', () => {
-  it('is just memberUids when there are no guests', () => {
-    expect(participantIds(trip({}))).toEqual(['u1', 'u2'])
-  })
-
-  it('appends guest ids after real members', () => {
+  it('appends placeholder ids after real members', () => {
     expect(participantIds(trip({ placeholderMembers: [dad, mom] }))).toEqual([
       'u1', 'u2', 'ph_abc123', 'ph_def456',
     ])
@@ -49,35 +46,62 @@ describe('participantIds', () => {
 })
 
 describe('placeholderProfiles', () => {
-  it('synthesizes profiles shaped like real users', () => {
-    const profiles = placeholderProfiles(trip({ placeholderMembers: [dad, mom] }))
+  it('shows the email as the display name', () => {
+    const profiles = placeholderProfiles(trip({ placeholderMembers: [dad] }))
     expect(profiles['ph_abc123']).toEqual({
       uid: 'ph_abc123',
-      displayName: 'Dad',
-      email: '',
+      displayName: 'dad@gmail.com',
+      email: 'dad@gmail.com',
       photoURL: null,
       isPlaceholder: true,
     })
-    expect(profiles['ph_def456'].email).toBe('mom@gmail.com')
+    expect(getMemberName('ph_abc123', profiles)).toBe('dad@gmail.com')
+  })
+})
+
+describe('remapExpenseRefs', () => {
+  it('returns null when the expense does not reference fromId', () => {
+    const exp: ExpenseRefs = { paidBy: 'u1', splits: { u1: 10, u2: 10 } }
+    expect(remapExpenseRefs(exp, 'ph_abc123', 'u9')).toBeNull()
   })
 
-  it('resolves names through getMemberName', () => {
-    const profiles = placeholderProfiles(trip({ placeholderMembers: [dad] }))
-    expect(getMemberName('ph_abc123', profiles)).toBe('Dad')
+  it('rewrites paidBy and the split key', () => {
+    const exp: ExpenseRefs = { paidBy: 'ph_abc123', splits: { ph_abc123: 30, u2: 30 } }
+    expect(remapExpenseRefs(exp, 'ph_abc123', 'u9')).toEqual({
+      paidBy: 'u9',
+      splits: { u9: 30, u2: 30 },
+    })
   })
 
-  it('disambiguates duplicate names using "guest" when there is no email', () => {
-    const realDad = {
-      uid: 'u9',
-      displayName: 'Dad',
-      email: 'realdad@gmail.com',
-      photoURL: null,
+  it('rewrites multi-payer amounts', () => {
+    const exp: ExpenseRefs = {
+      paidBy: 'u2',
+      paidByAmounts: { ph_abc123: 40, u2: 60 },
+      splits: { ph_abc123: 50, u2: 50 },
     }
-    const profiles = {
-      ...placeholderProfiles(trip({ placeholderMembers: [dad] })),
-      u9: realDad,
+    expect(remapExpenseRefs(exp, 'ph_abc123', 'u9')).toEqual({
+      paidByAmounts: { u9: 40, u2: 60 },
+      splits: { u9: 50, u2: 50 },
+    })
+  })
+
+  it('merges (sums) when the target id is already present', () => {
+    const exp: ExpenseRefs = {
+      paidBy: 'ph_abc123',
+      paidByAmounts: { ph_abc123: 20, u9: 5 },
+      splits: { ph_abc123: 25, u9: 15 },
     }
-    expect(getMemberName('ph_abc123', profiles)).toBe('Dad (guest)')
-    expect(getMemberName('u9', profiles)).toBe('Dad (realdad@gmail.com)')
+    expect(remapExpenseRefs(exp, 'ph_abc123', 'u9')).toEqual({
+      paidBy: 'u9',
+      paidByAmounts: { u9: 25 },
+      splits: { u9: 40 },
+    })
+  })
+
+  it('is idempotent — a second pass finds nothing to change', () => {
+    const exp: ExpenseRefs = { paidBy: 'ph_abc123', splits: { ph_abc123: 10, u2: 10 } }
+    const once = remapExpenseRefs(exp, 'ph_abc123', 'u9')!
+    const applied: ExpenseRefs = { ...exp, ...once } as ExpenseRefs
+    expect(remapExpenseRefs(applied, 'ph_abc123', 'u9')).toBeNull()
   })
 })

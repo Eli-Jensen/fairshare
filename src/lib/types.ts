@@ -19,12 +19,14 @@ export interface UserProfile {
   isPlaceholder?: boolean
 }
 
-/** A trip participant without an account ("guest"). Lives on the trip doc;
- *  their id is used everywhere a uid is (splits, paidBy, balances). */
+/** An invited-but-not-yet-joined participant. Created by inviting an email;
+ *  lives on the trip doc and its `ph_` id is used everywhere a uid is
+ *  (splits, paidBy, balances). Displays as the email until the person joins,
+ *  at which point their history is claimed onto their real uid. */
 export interface PlaceholderMember {
   id: string     // 'ph_' + random — can never collide with a Firebase uid
-  name: string
-  email?: string // lowercase; lets them claim this guest when they join
+  email: string  // lowercase; the link to the real account when they join
+  name?: string  // usually unset (we show the email); reserved
   createdBy: string
   createdAt: Timestamp
 }
@@ -53,6 +55,9 @@ export interface Trip {
   invitedEmails?: string[]
   removedMembers?: RemovedMember[]
   placeholderMembers?: PlaceholderMember[]
+  /** Pending placeholder→uid merges, recorded when someone joins and picked
+   *  up by the reconciler that rewrites expense references. ph_ ids → uids. */
+  placeholderClaims?: Record<string, string>
   deletedAt?: Timestamp | null
   lastRates?: Record<string, number>
   lastCurrency?: string
@@ -201,7 +206,7 @@ export interface ActivityLogEntry {
     | 'expense_added' | 'expense_edited' | 'expense_deleted' | 'expense_restored'
     | 'settlement_recorded'
     | 'member_joined' | 'member_left' | 'member_removed' | 'member_invited'
-    | 'placeholder_added' | 'placeholder_removed'
+    | 'invite_rescinded'
     | 'trip_created' | 'trip_renamed' | 'trip_deleted' | 'trip_restored'
     | 'currency_changed'
     | 'comment_added'

@@ -19,6 +19,7 @@ import { BalanceSummary } from '../components/BalanceSummary'
 import { UndoToast } from '../components/UndoToast'
 import type { Trip } from '../lib/types'
 import { writeActivity } from '../lib/activity'
+import { claimPlaceholdersOnJoin } from '../lib/claim'
 
 export function Home() {
   const { user, signIn, firebaseReady, loading: authLoading } = useAuth()
@@ -96,6 +97,9 @@ export function Home() {
       memberUids: arrayUnion(user.uid),
       invitedEmails: arrayRemove(user.email!.toLowerCase()),
     })
+    // Now a member: claim any placeholder created for this email so the
+    // history from before they joined merges onto their real account.
+    await claimPlaceholdersOnJoin(tripId, user.uid, user.email)
     writeActivity(tripId, {
       action: 'member_joined',
       actorUid: user.uid,

@@ -82,10 +82,8 @@ function describeAction(
       return `${actor} changed currency (${desc})`
     case 'member_invited':
       return `${actor} invited ${desc}`
-    case 'placeholder_added':
-      return `${actor} added ${desc} as a guest`
-    case 'placeholder_removed':
-      return `${actor} removed guest ${desc}`
+    case 'invite_rescinded':
+      return `${actor} rescinded the invite for ${desc}`
     case 'expense_restored':
       return `${actor} restored ${desc}${amt ? ` (${amt})` : ''}`
     case 'comment_added':

@@ -112,7 +112,7 @@ export function MemberAvatar({
             ? 'bg-muted border border-dashed border-line text-text-muted'
             : 'bg-primary-100 text-accent-text'
         }`}
-        title={member.isPlaceholder ? `${member.displayName} (guest)` : member.displayName}
+        title={member.isPlaceholder ? `${member.displayName} (invited)` : member.displayName}
       >
         {initial}
       </div>
