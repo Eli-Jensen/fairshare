@@ -3,16 +3,16 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
+  --color-primary-50: #f0fdfa;
+  --color-primary-100: #ccfbf1;
+  --color-primary-200: #99f6e4;
+  --color-primary-300: #5eead4;
+  --color-primary-400: #2dd4bf;
+  --color-primary-500: #14b8a6;
+  --color-primary-600: #0d9488;
+  --color-primary-700: #0f766e;
+  --color-primary-800: #115e59;
+  --color-primary-900: #134e4a;
 
   /* Semantic colors — light mode defaults, overridden by .dark */
   --color-page: #f8fafc;
@@ -28,10 +28,10 @@
   --color-text-muted: #334155;
   --color-text-on-primary: #ffffff;
 
-  --color-accent: #4f46e5;
-  --color-accent-hover: #4338ca;
-  --color-accent-text: #4f46e5;
-  --color-accent-soft: #eef2ff;
+  --color-accent: #0d9488;
+  --color-accent-hover: #0f766e;
+  --color-accent-text: #0f766e;
+  --color-accent-soft: #f0fdfa;
 
   --color-line: #e2e8f0;
   --color-line-light: #f1f5f9;
@@ -60,10 +60,10 @@
   --color-text-muted: #e2e8f0;
   --color-text-on-primary: #ffffff;
 
-  --color-accent: #818cf8;
-  --color-accent-hover: #a5b4fc;
-  --color-accent-text: #a5b4fc;
-  --color-accent-soft: rgba(129, 140, 248, 0.15);
+  --color-accent: #2dd4bf;
+  --color-accent-hover: #5eead4;
+  --color-accent-text: #5eead4;
+  --color-accent-soft: rgba(45, 212, 191, 0.15);
 
   --color-line: #243348;
   --color-line-light: #1a2536;
