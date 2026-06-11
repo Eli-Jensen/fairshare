@@ -59,6 +59,8 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 **Soft delete**: Expenses and trips use a `deletedAt` timestamp field. They're filtered out in queries, shown on the `/trash` page for 24h, then auto-purged client-side. Member removal stores in `removedMembers[]` array.
 
+**Guests (placeholder members)** (`src/lib/placeholders.ts`): trip participants without accounts, stored in `trip.placeholderMembers[]` with `ph_`-prefixed ids — **never in `memberUids`**, which stays the security boundary of real authenticated users. Their ids flow through `paidBy`/`splits`/balances like uids; `useTrip` returns `participants` (memberUids + guest ids) and synthesizes their profiles into the `members` map. Use `participants`, not `trip.memberUids`, anywhere a person can pay or owe. An optional email on a guest is reserved for the claim/merge flow (Phase 2).
+
 **Profile cache** (`src/hooks/useProfileCache.tsx`): Wraps the app to deduplicate and cache Firestore user profile reads. Use `const { getProfiles } = useProfileCache()` instead of individual `getDoc` calls. Critical for staying within Spark free tier limits.
 
 **Settlement algorithm** (`src/lib/settlement.ts`): `computeBalances()` credits payers and debits splits. `simplifyDebts()` uses greedy matching to minimize payment count. Settlements are stored as regular expenses with `isSettlement: true` — the algorithm handles them automatically.

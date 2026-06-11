@@ -27,7 +27,7 @@ function relativeTime(date: Date): string {
 export function EditExpense() {
   const { id, eid } = useParams<{ id: string; eid: string }>()
   const { user } = useAuth()
-  const { trip, expenses, members, loading } = useTrip(id)
+  const { trip, expenses, members, participants, loading } = useTrip(id)
   const navigate = useNavigate()
   const [commentText, setCommentText] = useState('')
   const [addingComment, setAddingComment] = useState(false)
@@ -94,7 +94,7 @@ export function EditExpense() {
       <h1 className="text-2xl font-bold text-text mb-6">Edit Expense</h1>
       <ExpenseForm
         members={members}
-        memberUids={trip.memberUids}
+        memberUids={participants}
         currentUserUid={user.uid}
         tripRates={trip.lastRates}
         tripLastCurrency={trip.lastCurrency}

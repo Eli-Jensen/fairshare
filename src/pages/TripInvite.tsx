@@ -17,10 +17,11 @@ import { useTrip } from '../hooks/useTrip'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { UndoToast } from '../components/UndoToast'
-import { getMemberName, tripLabel, formatMoney, DEFAULT_CURRENCY, type RemovedMember, type UserProfile } from '../lib/types'
+import { getMemberName, tripLabel, formatMoney, DEFAULT_CURRENCY, type RemovedMember, type UserProfile, type PlaceholderMember } from '../lib/types'
 import { useTrips } from '../hooks/useTrips'
 import { useProfileCache } from '../hooks/useProfileCache'
 import { generateInviteCode } from '../lib/invite'
+import { generatePlaceholderId } from '../lib/placeholders'
 import { writeActivity } from '../lib/activity'
 
 interface RecentContact {
@@ -40,6 +41,10 @@ export function TripInvite() {
   const [copied, setCopied] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [justReset, setJustReset] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestError, setGuestError] = useState('')
+  const [addingGuest, setAddingGuest] = useState(false)
   const [undoMember, setUndoMember] = useState<{ uid: string; name: string } | null>(null)
   const { trips: allTrips } = useTrips()
   const { getProfiles } = useProfileCache()
@@ -195,6 +200,67 @@ export function TripInvite() {
     }
   }
 
+  async function addGuest() {
+    const name = guestName.trim()
+    if (!name) {
+      setGuestError('Enter a name')
+      return
+    }
+    if (name.length > 30) {
+      setGuestError('Max 30 characters')
+      return
+    }
+    const email = guestEmail.trim().toLowerCase()
+    if (email && !email.includes('@')) {
+      setGuestError('Enter a valid email, or leave it blank')
+      return
+    }
+    if (email && isAlreadyInTrip(email)) {
+      setGuestError(`Someone with that email is already in this ${tl}`)
+      return
+    }
+
+    setAddingGuest(true)
+    setGuestError('')
+    try {
+      const guest: PlaceholderMember = {
+        id: generatePlaceholderId(),
+        name,
+        ...(email ? { email } : {}),
+        createdBy: user!.uid,
+        createdAt: Timestamp.now(),
+      }
+      await updateDoc(doc(db, 'trips', id!), {
+        placeholderMembers: arrayUnion(guest),
+      })
+      writeActivity(id!, {
+        action: 'placeholder_added',
+        actorUid: user!.uid,
+        targetMemberUid: guest.id,
+        targetDescription: name,
+      })
+      setGuestName('')
+      setGuestEmail('')
+    } catch {
+      setGuestError('Failed to add guest')
+    } finally {
+      setAddingGuest(false)
+    }
+  }
+
+  async function removeGuest(guest: PlaceholderMember) {
+    if (!trip || !id) return
+    await updateDoc(doc(db, 'trips', id), {
+      placeholderMembers: (trip.placeholderMembers ?? []).filter((p) => p.id !== guest.id),
+    })
+    writeActivity(id, {
+      action: 'placeholder_removed',
+      actorUid: user!.uid,
+      targetMemberUid: guest.id,
+      targetDescription: guest.name,
+    })
+  }
+
   async function removeMember(uid: string) {
     const member = members[uid]
     if (!member || !id || !trip) return
@@ -310,6 +376,48 @@ export function TripInvite() {
           {error}
         </p>
       )}
+
+      {/* Add a guest (no account) */}
+      <div className="mb-6">
+        <label className={label}>
+          Add a guest <span className="font-normal text-text-muted">(no account needed)</span>
+        </label>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="Name (e.g. Dad)"
+            maxLength={30}
+            value={guestName}
+            onChange={(e) => { setGuestName(e.target.value); setGuestError('') }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGuest() } }}
+          />
+          <input
+            type="email"
+            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            placeholder="Email (optional)"
+            value={guestEmail}
+            onChange={(e) => { setGuestEmail(e.target.value); setGuestError('') }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGuest() } }}
+          />
+          <button
+            type="button"
+            onClick={addGuest}
+            disabled={addingGuest}
+            className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors shrink-0"
+          >
+            {addingGuest ? '...' : 'Add'}
+          </button>
+        </div>
+        <p className="text-xs text-text-muted mt-1">
+          Guests can be in splits and payments right away without signing in. Adding their email lets them claim the guest's history when they join later.
+        </p>
+        {guestError && (
+          <p className="text-sm text-danger-text bg-danger-bg rounded-lg px-3 py-2 mt-2">
+            {guestError}
+          </p>
+        )}
+      </div>
 
       {/* Just invited */}
       {justInvited.length > 0 && (
@@ -468,9 +576,48 @@ export function TripInvite() {
       {/* Current members */}
       <div className="border-t border-line pt-4 mb-6">
         <h3 className="text-sm font-medium text-text-secondary mb-2">
-          Current members ({trip.memberUids.length})
+          Current members ({trip.memberUids.length + (trip.placeholderMembers?.length ?? 0)})
         </h3>
         <div className="space-y-1">
+          {(trip.placeholderMembers ?? []).map((guest) => {
+            const bal = Math.round((trip.cachedBalances?.[guest.id] ?? 0) * 100) / 100
+            const hasBalance = Math.abs(bal) > 0.01
+            return (
+              <div
+                key={guest.id}
+                className="flex items-center justify-between bg-card border border-dashed border-line rounded-lg px-3 py-2"
+              >
+                <div className="flex items-center gap-2">
+                  <MemberAvatar member={members[guest.id]} size="sm" />
+                  <div>
+                    <span className="text-sm text-text-secondary">
+                      {guest.name}
+                      <span className="text-text-muted ml-1">(guest)</span>
+                    </span>
+                    {guest.email && (
+                      <p className="text-xs text-text-muted">{guest.email}</p>
+                    )}
+                  </div>
+                </div>
+                {hasBalance ? (
+                  <span
+                    className="text-xs text-text-muted px-2 py-1"
+                    title="Settle this guest's balance before removing them"
+                  >
+                    {bal > 0 ? 'owed' : 'owes'} {formatMoney(Math.abs(bal), trip.settlementCurrency ?? DEFAULT_CURRENCY)}
+                  </span>
+                ) : (
+                  <ConfirmButton
+                    label="Remove"
+                    confirmLabel="Confirm?"
+                    onConfirm={() => removeGuest(guest)}
+                    className="text-xs text-text-muted hover:text-danger-text px-2 py-1 rounded hover:bg-danger-bg transition-colors"
+                    confirmClassName="text-xs font-medium text-danger-text bg-danger-bg px-2 py-1 rounded transition-colors"
+                  />
+                )}
+              </div>
+            )
+          })}
           {trip.memberUids.map((uid) => {
             const member = members[uid]
             const isCurrentUser = uid === user.uid

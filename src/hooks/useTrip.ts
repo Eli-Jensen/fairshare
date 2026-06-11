@@ -12,6 +12,7 @@ import {
 import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
 import { mapExpense } from '../lib/types'
+import { participantIds, placeholderProfiles, isPlaceholderId } from '../lib/placeholders'
 import { useProfileCache } from './useProfileCache'
 import { computeBalances } from '../lib/settlement'
 
@@ -64,7 +65,7 @@ export function useTrip(tripId: string | undefined) {
 
     const total = active.reduce((s, e) => s + e.amountSettled, 0)
     const latest = active[0] ?? null
-    const balances = computeBalances(active, t.memberUids)
+    const balances = computeBalances(active, participantIds(t))
     const newDesc = latest?.description ?? null
     const newAmount = latest?.amountSettled ?? null
 
@@ -163,15 +164,37 @@ export function useTrip(tripId: string | undefined) {
   // Profiles for current members plus anyone removed (their names still
   // appear in balances, exports, and the activity log). cachedBalances
   // keys cover members removed long ago whose removedMembers entry expired.
+  // Guests get synthesized profiles — they have no /users doc to fetch.
   useEffect(() => {
     if (!trip) return
-    const uids = new Set(trip.memberUids)
-    for (const rm of trip.removedMembers ?? []) uids.add(rm.uid)
-    for (const uid of Object.keys(trip.cachedBalances ?? {})) uids.add(uid)
-    getProfiles(Array.from(uids)).then(setMembers)
+    const t = trip
+    const synthesized = placeholderProfiles(t)
+    const uids = new Set(t.memberUids)
+    for (const rm of t.removedMembers ?? []) uids.add(rm.uid)
+    for (const uid of Object.keys(t.cachedBalances ?? {})) uids.add(uid)
+    for (const uid of Array.from(uids)) {
+      if (isPlaceholderId(uid)) uids.delete(uid)
+    }
+    getProfiles(Array.from(uids)).then((profiles) => {
+      const merged = { ...profiles, ...synthesized }
+      // Names for anyone unresolvable (removed guest, deleted account)
+      for (const rm of t.removedMembers ?? []) {
+        if (!merged[rm.uid]) {
+          merged[rm.uid] = {
+            uid: rm.uid,
+            displayName: rm.displayName,
+            email: rm.email,
+            photoURL: null,
+            isPlaceholder: isPlaceholderId(rm.uid),
+          }
+        }
+      }
+      setMembers(merged)
+    })
   }, [
     trip?.memberUids?.join(','),
     trip?.removedMembers?.length,
+    (trip?.placeholderMembers ?? []).map((p) => `${p.id}:${p.name}`).join(','),
     Object.keys(trip?.cachedBalances ?? {}).join(','),
     getProfiles,
   ])
@@ -218,5 +241,8 @@ export function useTrip(tripId: string | undefined) {
     })
   }, [tripId])
 
-  return { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, activityLog, loading }
+  // Real members + guests — the id set used for splits, payers, balances
+  const participants = trip ? participantIds(trip) : []
+
+  return { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, participants, activityLog, loading }
 }

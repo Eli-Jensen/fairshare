@@ -27,7 +27,7 @@ const ensuredInviteCodes = new Set<string>()
 export function TripDashboard() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, activityLog, loading } = useTrip(id)
+  const { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, participants, activityLog, loading } = useTrip(id)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>(() => {
@@ -244,7 +244,7 @@ export function TripDashboard() {
                       // loadAllExpenses resolves with the full list — the
                       // allExpenses state in this closure is stale
                       const all = await loadAllExpenses()
-                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories, trip.removedMembers)
+                      const csv = tripToCsv(trip.name, all, members, participants, sc, trip.customCategories, trip.removedMembers)
                       openInGoogleSheets(csv)
                       setShowExportMenu(false)
                     }}
@@ -255,7 +255,7 @@ export function TripDashboard() {
                   <button
                     onClick={async () => {
                       const all = await loadAllExpenses()
-                      const csv = tripToCsv(trip.name, all, members, trip.memberUids, sc, trip.customCategories, trip.removedMembers)
+                      const csv = tripToCsv(trip.name, all, members, participants, sc, trip.customCategories, trip.removedMembers)
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)
                       setShowExportMenu(false)
                     }}
@@ -328,6 +328,19 @@ export function TripDashboard() {
               </button>
             )
           })}
+          {(trip.placeholderMembers ?? []).map((ph) => (
+            <div
+              key={ph.id}
+              className="flex items-center gap-1.5 bg-card border border-dashed border-line rounded-full px-2 py-1"
+              title="Guest — added without an account; manage on the Invite page"
+            >
+              <MemberAvatar member={members[ph.id]} size="sm" />
+              <span className="text-sm text-text-secondary">
+                {ph.name}
+                <span className="text-text-muted"> (guest)</span>
+              </span>
+            </div>
+          ))}
           {trip.invitedEmails && trip.invitedEmails.length > 0 && (
             <>
               {trip.invitedEmails.map((email) => (
@@ -503,7 +516,7 @@ export function TripDashboard() {
         <SettlementView
           expenses={allExpenses}
           members={members}
-          memberUids={trip.memberUids}
+          memberUids={participants}
           settlementCurrency={sc}
           customCategories={trip.customCategories}
           tripRates={trip.lastRates}

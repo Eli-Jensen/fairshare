@@ -62,6 +62,10 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
       return `${actor} changed settlement currency (${desc})`
     case 'member_invited':
       return `${actor} invited ${desc}`
+    case 'placeholder_added':
+      return `${actor} added ${desc} as a guest`
+    case 'placeholder_removed':
+      return `${actor} removed guest ${desc}`
     case 'expense_restored':
       return `${actor} restored ${desc}${amt ? ` (${amt})` : ''}`
     case 'comment_added':
