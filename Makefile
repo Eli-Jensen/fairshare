@@ -44,15 +44,15 @@ promote: ## Merge dev → main (CI deploys prod hosting), then deploy prod rules
 
 rollback-prod: ## Rebuild prod hosting from a previous commit (REF=..., default origin/main~1). Rules/data are NOT rolled back.
 	@echo "Tip: Firebase console → Hosting → Release history has instant one-click rollback (no rebuild)."
-	@grep -q "VITE_FIREBASE_PROJECT_ID=$(PROD_PROJECT)" .env || \
-		{ echo "✋ .env isn't pointing at prod ($(PROD_PROJECT)) — local rollback builds use .env config. Aborting."; exit 1; }
+	@grep -q "VITE_FIREBASE_PROJECT_ID=$(PROD_PROJECT)" .env.production 2>/dev/null || \
+		{ echo "✋ .env.production must point at prod ($(PROD_PROJECT)) — local prod builds use it. Aborting."; exit 1; }
 	git fetch -q origin
 	@REF=$${REF:-origin/main~1}; \
 	SHA=$$(git rev-parse --short $$REF) || exit 1; \
 	echo "Rolling prod hosting back to $$SHA ($$REF)"; \
 	TMP=$$(mktemp -d); \
 	git worktree add --detach -q $$TMP $$REF && \
-	cp .env $$TMP/.env && \
+	cp .env.production $$TMP/.env.production && \
 	( cd $$TMP && npm ci --silent && npm run build && \
 	  npx firebase deploy --only hosting:app --project $(PROD_PROJECT) --non-interactive ); \
 	STATUS=$$?; \

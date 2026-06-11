@@ -75,6 +75,8 @@ Dev and prod are **separate Firebase projects** — separate Firestore data, sep
 - Feature branches merged via PR into `dev`, then `dev` → `main` once verified.
 - The old default site `fairshare-4c9a2.web.app` is disabled — don't re-enable it.
 
+**Local env files** (gitignored, Vite mode-based — CI doesn't use them, it injects the `VITE_FIREBASE_*(_DEV)` secrets directly): `.env.development` points at the dev project and is loaded by `npm run dev`, so local development hits the dev sandbox, never prod. `.env.production` points at prod and is loaded by `vite build` (e.g. `make rollback-prod`). See `.env.example`.
+
 **Access gating** (`src/App.tsx`): When the `VITE_ALLOWED_EMAILS` env var is set (comma-separated emails), only those users can use the app after sign-in. Production builds omit this var — everyone can sign in. Dev builds include it via the GitHub secret.
 
 **Versioning**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`) and shown at the bottom of the avatar menu. Bump the version manually when something meaningful ships.
