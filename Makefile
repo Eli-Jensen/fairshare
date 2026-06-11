@@ -78,8 +78,8 @@ deploy-rules-dev: ## Deploy Firestore rules + indexes to the DEV project
 deploy-rules-prod: ## Deploy Firestore rules + indexes to PROD
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
 
-watch: ## Watch the latest CI run, then report what (if anything) it deployed
-	@bash scripts/watch-run.sh
+watch: ## Watch CI for the current commit, then report what (if anything) it deployed
+	@bash scripts/watch-run.sh "$$(git branch --show-current)" "$$(git rev-parse HEAD)"
 
 open-prod: ## Open the prod site — make open-prod [firefox|chrome|safari|all]
 	@bash scripts/open-site.sh "$(PROD_URL)" $(filter $(BROWSERS),$(MAKECMDGOALS))
