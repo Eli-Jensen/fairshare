@@ -6,7 +6,7 @@ PROD_URL     := https://fairshare-split.web.app
 DEV_URL      := https://dev-fairshare-split.web.app
 
 .DEFAULT_GOAL := help
-.PHONY: help versions test ship promote rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev
+.PHONY: help versions test ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -34,16 +34,23 @@ test: ## Run the test suite and a production build
 ship: ## Ship dev → prod in one shot: push dev, wait for green CI, then auto-promote. MSG="..." commits first. Skips manual smoke test — for low-risk changes.
 	@MSG="$(MSG)" bash scripts/ship.sh
 
-promote: ## Merge dev → main (CI deploys prod hosting), then deploy prod rules
+promote: ## Fast-forward main to origin/dev (CI deploys prod hosting) + deploy prod rules. Keeps prod/dev shas identical.
 	git fetch -q origin
+	@git merge-base --is-ancestor origin/main origin/dev || \
+		{ echo "✋ main has commits not on dev, so it can't fast-forward. Run 'make reconcile-main CONFIRM=1' once."; exit 1; }
 	@if [ -z "$$(git log --oneline origin/main..origin/dev)" ]; then \
-		echo "Nothing to promote — origin/dev has no commits ahead of origin/main."; exit 1; fi
-	@echo "Commits to promote:" && git log --oneline origin/main..origin/dev | sed 's/^/  /'
-	@gh pr create --base main --head dev --title "Promote dev to prod" \
-		--body "Automated promotion via \`make promote\`." 2>/dev/null || echo "(reusing existing dev → main PR)"
-	gh pr merge dev --merge
+		echo "Nothing to promote — origin/dev is not ahead of origin/main."; exit 1; fi
+	@echo "Fast-forwarding main to:" && git log --oneline origin/main..origin/dev | sed 's/^/  /'
+	git push origin origin/dev:main
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
-	@echo "✅ Prod rules deployed. Hosting deploys via CI — follow with 'make watch', verify with 'make versions'."
+	@echo "✅ Prod rules deployed; hosting deploys via CI. Prod will report the SAME sha as dev."
+
+reconcile-main: ## One-time: force main to match origin/dev so promotes can fast-forward. Force-pushes main + redeploys prod. Requires CONFIRM=1.
+	@[ "$(CONFIRM)" = "1" ] || { echo "⚠️  Force-pushes main to match dev and triggers a prod redeploy at dev's sha."; echo "    Re-run: make reconcile-main CONFIRM=1"; exit 1; }
+	git push origin dev
+	git fetch -q origin
+	git push origin +origin/dev:main
+	@echo "✅ main now matches dev. Future 'make ship' / 'make promote' fast-forward — prod and dev shas stay identical."
 
 rollback-prod: ## Rebuild prod hosting from a previous commit (REF=..., default origin/main~1). Rules/data are NOT rolled back.
 	@echo "Tip: Firebase console → Hosting → Release history has instant one-click rollback (no rebuild)."

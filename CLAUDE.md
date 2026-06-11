@@ -19,7 +19,9 @@ make ship              # Fast path: push dev → wait for green CI → auto-prom
                        #   MSG="..." commits pending changes first. Stops if dev CI fails.
                        #   Skips the manual dev-site smoke test — for low-risk changes only.
 make versions          # What's running on prod / dev (via /version.json) vs local HEAD
-make promote           # Merge dev → main (CI deploys prod hosting) + deploy prod rules
+make promote           # Fast-forward main to dev (CI deploys prod hosting) + deploy prod rules.
+                       #   Fast-forward (not a merge commit) so prod reports the SAME sha as dev.
+make reconcile-main    # One-time: force main == dev so promotes can fast-forward (CONFIRM=1)
 make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
 make deploy-rules-dev  # Deploy Firestore rules + indexes to the dev project (CI uses this too)
 make deploy-rules-prod # Deploy Firestore rules + indexes to prod
