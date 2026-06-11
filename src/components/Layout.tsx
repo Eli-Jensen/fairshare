@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
 import { useTheme } from '../hooks/useTheme'
+import { useAccent, ACCENTS } from '../hooks/useAccent'
 import { useTextScale, TEXT_SCALE_LEVELS } from '../hooks/useTextScale'
 import { hasUnseenActivity } from '../lib/activityNotification'
 
@@ -12,6 +13,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // lastActivityAt stamps on trip docs drive the unseen dot
   const { trips } = useTrips()
   const { theme, setTheme } = useTheme()
+  const { accent, setAccent } = useAccent()
   const { level: textLevel, increase: textIncrease, decrease: textDecrease, setLevel: textSetLevel } = useTextScale()
   const navigate = useNavigate()
   const location = useLocation()
@@ -128,6 +130,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         >
                           {opt.icon}
                           {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="px-3 py-2">
+                    <p className="text-sm text-text-muted mb-1.5">Color</p>
+                    <div className="flex gap-2.5">
+                      {ACCENTS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setAccent(opt.value)}
+                          aria-label={opt.label}
+                          title={opt.label}
+                          className="w-7 h-7 rounded-full flex items-center justify-center border border-line transition-transform hover:scale-110"
+                          style={{ backgroundColor: opt.swatch }}
+                        >
+                          {accent === opt.value && (
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
                         </button>
                       ))}
                     </div>
