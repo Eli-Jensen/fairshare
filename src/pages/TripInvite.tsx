@@ -301,7 +301,7 @@ export function TripInvite() {
           </button>
         </form>
         <p className="text-xs text-text-muted mt-1">
-          Appears after they sign in
+          No email is sent — they'll see an invite to join this {tl} after they sign in with this email address.
         </p>
       </div>
 
