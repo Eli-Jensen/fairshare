@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
@@ -17,6 +17,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Surface the real error so intermittent crashes are diagnosable from
+    // the console (the UI only shows a generic message).
+    console.error('[fairshare] render error:', error, info.componentStack)
   }
 
   render() {

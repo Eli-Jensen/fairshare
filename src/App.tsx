@@ -1,20 +1,45 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ComponentType } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
 
+/**
+ * lazy() that survives a deploy. A failed dynamic import almost always means
+ * this tab is running an old index.html that references chunk filenames the
+ * new deploy removed — so reload once to fetch the fresh shell + chunks
+ * (the sessionStorage guard prevents a reload loop if it's a real failure).
+ */
+function lazyWithReload<T extends { default: ComponentType<unknown> }>(
+  factory: () => Promise<T>,
+) {
+  return lazy(async () => {
+    try {
+      const mod = await factory()
+      sessionStorage.removeItem('chunkReloaded')
+      return mod
+    } catch (err) {
+      if (!sessionStorage.getItem('chunkReloaded')) {
+        sessionStorage.setItem('chunkReloaded', '1')
+        window.location.reload()
+        return await new Promise<T>(() => {}) // never resolves; page is reloading
+      }
+      throw err
+    }
+  })
+}
+
 // Route-level code splitting — Home stays eager for first paint
-const CreateTrip = lazy(() => import('./pages/CreateTrip').then((m) => ({ default: m.CreateTrip })))
-const TripDashboard = lazy(() => import('./pages/TripDashboard').then((m) => ({ default: m.TripDashboard })))
-const AddExpense = lazy(() => import('./pages/AddExpense').then((m) => ({ default: m.AddExpense })))
-const EditExpense = lazy(() => import('./pages/EditExpense').then((m) => ({ default: m.EditExpense })))
-const JoinTrip = lazy(() => import('./pages/JoinTrip').then((m) => ({ default: m.JoinTrip })))
-const TripInvite = lazy(() => import('./pages/TripInvite').then((m) => ({ default: m.TripInvite })))
-const DeletedItems = lazy(() => import('./pages/DeletedItems').then((m) => ({ default: m.DeletedItems })))
-const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })))
-const Activity = lazy(() => import('./pages/Activity').then((m) => ({ default: m.Activity })))
+const CreateTrip = lazyWithReload(() => import('./pages/CreateTrip').then((m) => ({ default: m.CreateTrip })))
+const TripDashboard = lazyWithReload(() => import('./pages/TripDashboard').then((m) => ({ default: m.TripDashboard })))
+const AddExpense = lazyWithReload(() => import('./pages/AddExpense').then((m) => ({ default: m.AddExpense })))
+const EditExpense = lazyWithReload(() => import('./pages/EditExpense').then((m) => ({ default: m.EditExpense })))
+const JoinTrip = lazyWithReload(() => import('./pages/JoinTrip').then((m) => ({ default: m.JoinTrip })))
+const TripInvite = lazyWithReload(() => import('./pages/TripInvite').then((m) => ({ default: m.TripInvite })))
+const DeletedItems = lazyWithReload(() => import('./pages/DeletedItems').then((m) => ({ default: m.DeletedItems })))
+const Profile = lazyWithReload(() => import('./pages/Profile').then((m) => ({ default: m.Profile })))
+const Activity = lazyWithReload(() => import('./pages/Activity').then((m) => ({ default: m.Activity })))
 
 /** Comma-separated email whitelist — when set, only these users can access the app */
 const ALLOWED_EMAILS: string[] | null = import.meta.env.VITE_ALLOWED_EMAILS
