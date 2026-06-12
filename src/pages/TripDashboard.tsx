@@ -7,7 +7,7 @@ import { purgeTrip } from '../hooks/useTrips'
 import { reconcilePlaceholderClaims } from '../lib/claim'
 import { useAuth } from '../hooks/useAuth'
 import { formatMoney, getMemberName, tripLabel, getAllCategories, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
-import type { RemovedMember } from '../lib/types'
+import type { RemovedMember, PlaceholderMember } from '../lib/types'
 import { ExpenseCard } from '../components/ExpenseCard'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { SettlementView } from '../components/SettlementView'
@@ -99,6 +99,22 @@ export function TripDashboard() {
   }, [undoInfo, id])
 
   const dismissUndo = useCallback(() => setUndoInfo(null), [])
+
+  // Rescind a pending invite: drop the email and its placeholder participant.
+  // Same write the Invite page does; the × is balance-guarded in the chip.
+  async function rescindInvite(ph: PlaceholderMember) {
+    if (!trip || !id || !user) return
+    await updateDoc(doc(db, 'trips', id), {
+      invitedEmails: arrayRemove(ph.email),
+      placeholderMembers: (trip.placeholderMembers ?? []).filter((p) => p.id !== ph.id),
+    })
+    writeActivity(id, {
+      action: 'invite_rescinded',
+      actorUid: user.uid,
+      targetMemberUid: ph.id,
+      targetDescription: ph.email,
+    })
+  }
 
   function startEditing() {
     if (!trip) return
@@ -341,19 +357,41 @@ export function TripDashboard() {
               </button>
             )
           })}
-          {(trip.placeholderMembers ?? []).map((ph) => (
-            <div
-              key={ph.id}
-              className="flex items-center gap-1.5 bg-card border border-dashed border-line rounded-full px-2 py-1"
-              title="Invited — hasn't joined yet; manage on the Invite page"
-            >
-              <MemberAvatar member={members[ph.id]} size="sm" />
-              <span className="text-sm text-text-secondary">
-                {ph.email}
-                <span className="text-text-muted ml-1">(pending)</span>
-              </span>
-            </div>
-          ))}
+          {(trip.placeholderMembers ?? []).map((ph) => {
+            const bal = Math.round((trip.cachedBalances?.[ph.id] ?? 0) * 100) / 100
+            const canRescind = editingName && Math.abs(bal) <= 0.01
+            const blockedByBalance = editingName && Math.abs(bal) > 0.01
+            return (
+              <button
+                key={ph.id}
+                type="button"
+                onClick={() => { if (canRescind) rescindInvite(ph) }}
+                title={
+                  blockedByBalance
+                    ? 'Settle their balance before rescinding the invite'
+                    : canRescind
+                      ? 'Rescind invite'
+                      : "Invited — hasn't joined yet; tap the pencil to manage"
+                }
+                className={`flex items-center gap-1.5 rounded-full px-2 py-1 border border-dashed transition-all ${
+                  canRescind
+                    ? 'bg-danger-bg border-danger-text/20 cursor-pointer hover:bg-danger-bg/80'
+                    : 'bg-card border-line cursor-default'
+                }`}
+              >
+                <MemberAvatar member={members[ph.id]} size="sm" />
+                <span className={`text-sm ${canRescind ? 'text-danger-text' : 'text-text-secondary'}`}>
+                  {ph.email}
+                  <span className={`ml-1 ${canRescind ? 'text-danger-text/70' : 'text-text-muted'}`}>(pending)</span>
+                </span>
+                {canRescind && (
+                  <svg className="w-3 h-3 text-danger-text/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+            )
+          })}
           {/* Legacy invited emails with no participant row */}
           {(() => {
             const phEmails = new Set((trip.placeholderMembers ?? []).map((p) => p.email))
@@ -609,7 +647,17 @@ export function TripDashboard() {
       {showLeaveModal && (
         <DeleteModal
           title={`Leave this ${tl}?`}
-          message={`You'll no longer see this ${tl} or its expenses.`}
+          message={
+            (trip.memberUids?.length ?? 1) <= 1
+              ? `You're the last member, so leaving deletes this ${tl}${
+                  (trip.invitedEmails?.length ?? 0) > 0
+                    ? ` and cancels ${trip.invitedEmails!.length} pending invite${
+                        trip.invitedEmails!.length === 1 ? '' : 's'
+                      }`
+                    : ''
+                }.`
+              : `You'll no longer see this ${tl} or its expenses.`
+          }
           onCancel={() => setShowLeaveModal(false)}
           onConfirm={() => {
             setShowLeaveModal(false)
@@ -621,7 +669,11 @@ export function TripDashboard() {
       {showLeaveConfirm && (
         <DeleteModal
           title="Are you sure?"
-          message={`This cannot be undone. You'll need a new invite to rejoin.`}
+          message={
+            (trip.memberUids?.length ?? 1) <= 1
+              ? `This permanently deletes the ${tl} and all its expenses — it can't be undone.`
+              : `This cannot be undone. You'll need a new invite to rejoin.`
+          }
           onCancel={() => setShowLeaveConfirm(false)}
           onConfirm={async () => {
             setShowLeaveConfirm(false)

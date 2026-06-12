@@ -62,20 +62,44 @@ export function JoinTrip() {
       const { tripId, type } = codeSnap.data() as { tripId: string; type?: TripType }
       setJoinType(type ?? 'trip')
 
-      // Members (and email invitees) can read the trip — skip the join write
+      // Members (and email invitees) can read the trip up front — use that to
+      // skip the join write if already a member, or refuse a deleted trip.
+      let verifiedActive = false
       try {
         const tripSnap = await getDoc(doc(db, 'trips', tripId))
-        if (tripSnap.exists() && tripSnap.data().memberUids?.includes(user.uid)) {
-          navigate(`/trip/${tripId}`, { replace: true })
-          return
+        if (tripSnap.exists()) {
+          if (tripSnap.data().deletedAt) {
+            setError(`This ${tripLabel(type ?? 'trip')} has been deleted`)
+            setStatus('error')
+            return
+          }
+          if (tripSnap.data().memberUids?.includes(user.uid)) {
+            navigate(`/trip/${tripId}`, { replace: true })
+            return
+          }
+          verifiedActive = true
         }
       } catch {
-        // Permission denied — not a member yet, proceed with the self-join
+        // Permission denied — not a member or invitee yet, proceed with the self-join
       }
 
       await updateDoc(doc(db, 'trips', tripId), {
         memberUids: arrayUnion(user.uid),
       })
+      // Invite-link joiners who weren't email-invited couldn't read the trip
+      // until now. Confirm it wasn't deleted; if it was, undo the join and bail
+      // so nobody lands on a deleted "zombie" trip.
+      if (!verifiedActive) {
+        const recheck = await getDoc(doc(db, 'trips', tripId))
+        if (recheck.data()?.deletedAt) {
+          await updateDoc(doc(db, 'trips', tripId), {
+            memberUids: arrayRemove(user.uid),
+          }).catch(() => {})
+          setError(`This ${tripLabel(type ?? 'trip')} has been deleted`)
+          setStatus('error')
+          return
+        }
+      }
       // Now a member: clear any pending email invite for this user, then
       // claim any placeholder for this email so prior history merges over.
       if (user.email) {
