@@ -33,6 +33,13 @@ export function Home() {
   const [joiningTrip, setJoiningTrip] = useState<string | null>(null)
   const [tripBalances, setTripBalances] = useState<Record<string, number>>({})
   const [showAllTrips, setShowAllTrips] = useState(false)
+  const [welcomeDismissed, setWelcomeDismissed] = useState(() => {
+    try { return localStorage.getItem('fairshare-welcome') === 'dismissed' } catch { return false }
+  })
+  function dismissWelcome() {
+    setWelcomeDismissed(true)
+    try { localStorage.setItem('fairshare-welcome', 'dismissed') } catch { /* ignore */ }
+  }
 
   // Stable callback — avoids infinite re-render loop between Home ↔ TripCard
   const handleBalanceComputed = useCallback((tripId: string, balance: number) => {
@@ -226,15 +233,16 @@ export function Home() {
       {tripsLoading ? (
         <div className="text-center py-10 text-text-muted">Loading...</div>
       ) : tripItems.length === 0 && groupItems.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-text-secondary mb-4">No trips or groups yet</p>
-          <Link
-            to="/trip/new"
-            className="text-accent-text font-medium hover:text-accent-hover"
-          >
-            Create one
-          </Link>
-        </div>
+        welcomeDismissed ? (
+          <div className="text-center py-12">
+            <p className="text-text-secondary mb-4">No trips yet</p>
+            <Link to="/trip/new" className="text-accent-text font-medium hover:text-accent-hover">
+              Create a trip
+            </Link>
+          </div>
+        ) : (
+          <WelcomeCard onDismiss={dismissWelcome} />
+        )
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Trips column */}
@@ -324,6 +332,40 @@ export function Home() {
           onDismiss={dismissUndoTrip}
         />
       )}
+    </div>
+  )
+}
+
+function WelcomeCard({ onDismiss }: { onDismiss: () => void }) {
+  const steps = ['Create a trip or group', 'Add expenses as you go', 'See who owes who']
+  return (
+    <div className="relative max-w-md mx-auto bg-card border border-line rounded-xl p-5">
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="absolute top-3 right-3 text-text-muted hover:text-text-secondary transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <h2 className="text-base font-semibold text-text mb-3">How it works</h2>
+      <ol className="space-y-2 mb-4">
+        {steps.map((step, i) => (
+          <li key={i} className="flex items-center gap-2.5 text-sm text-text-secondary">
+            <span className="w-5 h-5 shrink-0 rounded-full bg-accent-soft text-accent-text text-xs font-medium flex items-center justify-center">
+              {i + 1}
+            </span>
+            {step}
+          </li>
+        ))}
+      </ol>
+      <Link
+        to="/trip/new"
+        className="inline-block bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover transition-colors"
+      >
+        Create a trip
+      </Link>
     </div>
   )
 }
