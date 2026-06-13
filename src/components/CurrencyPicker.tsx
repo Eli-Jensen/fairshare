@@ -69,7 +69,7 @@ export function CurrencyPicker({
       />
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-card border border-line rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <div className="absolute right-0 z-20 mt-1 w-max min-w-[16rem] max-w-[calc(100vw-2rem)] bg-card border border-line rounded-lg shadow-lg max-h-64 overflow-y-auto">
           {showCommon && (
             <>
               <div className="px-3 py-1.5 text-xs font-medium text-text-muted uppercase tracking-wide bg-muted sticky top-0">

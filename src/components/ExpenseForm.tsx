@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
 import { getMemberName, formatMoney, getAllCategories, categoryExists, getExpenseCategories, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
+import { HelpTip } from './HelpTip'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getCrossRate } from '../lib/rates'
 import { splitEqually, splitByPercentages, splitByShares, derivePercentages, deriveShares } from '../lib/splits'
@@ -402,42 +403,48 @@ export function ExpenseForm({
       </div>
 
       <div>
-        <label className={label}>Amount</label>
-        <div className="grid grid-cols-2 gap-3">
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            className={input}
-            value={form.amount || ''}
-            placeholder="0.00"
-            onChange={(e) =>
-              setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
-            }
-          />
-          {/* Quick currency switcher */}
-          <div className="flex gap-1">
-            {quickCurrencies.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => handleCurrencyChange(code)}
-                className={`flex-1 text-xs py-2 rounded-lg border transition-all font-medium ${
-                  form.currency === code
-                    ? 'bg-accent-soft border-accent text-accent-text'
-                    : 'bg-card border-line text-text-secondary hover:border-accent'
-                }`}
-              >
-                {code}
-              </button>
-            ))}
-            <div className="flex-1">
-              <CurrencyPicker
-                value={form.currency}
-                onChange={handleCurrencyChange}
-              />
-            </div>
+        <label className={label}>
+          Amount <span className="font-normal text-text-muted">· total spent</span>
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-28 shrink-0">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              className={input}
+              value={form.amount || ''}
+              placeholder="0.00"
+              onChange={(e) =>
+                setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
+              }
+            />
           </div>
+          {/* Currency picker gets the rest of the row so its dropdown has room */}
+          <div className="flex-1 min-w-[12rem]">
+            <CurrencyPicker
+              value={form.currency}
+              onChange={handleCurrencyChange}
+            />
+          </div>
+        </div>
+        {/* Quick currency switcher — own row so it doesn't crowd the picker */}
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {quickCurrencies.map((code) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => handleCurrencyChange(code)}
+              className={`text-xs px-3 py-1 rounded-lg border transition-all font-medium ${
+                form.currency === code
+                  ? 'bg-accent-soft border-accent text-accent-text'
+                  : 'bg-card border-line text-text-secondary hover:border-accent'
+              }`}
+            >
+              {code}
+            </button>
+          ))}
         </div>
         {form.currency !== sc && form.amount > 0 && form.exchangeRate > 0 && (
           <p className="text-xs text-accent-text mt-1 font-medium">
@@ -577,15 +584,14 @@ export function ExpenseForm({
 
       {/* Paid by section */}
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-sm font-medium text-text-secondary">Paid by</label>
-          <button
-            type="button"
-            onClick={toggleMultiPayer}
-            className="text-xs text-accent-text hover:text-accent-hover"
-          >
-            {form.multiPayer ? 'Single payer' : 'Multiple payers'}
-          </button>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-sm font-medium text-text-secondary">
+            Paid by <span className="font-normal text-text-muted">· who paid</span>
+          </label>
+          <HelpTip label="Paid by">
+            <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
+            <p>Two people split the check across two cards? Tap <strong className="text-text">+ Multiple payers</strong> to enter how much each paid.</p>
+          </HelpTip>
         </div>
 
         {form.multiPayer ? (
@@ -624,8 +630,16 @@ export function ExpenseForm({
                     : `${currencySymbol}${Math.abs(paidRemaining).toFixed(2)} over the total`}
               </p>
             )}
+            <button
+              type="button"
+              onClick={toggleMultiPayer}
+              className="text-xs text-accent-text hover:text-accent-hover"
+            >
+              Use a single payer
+            </button>
           </div>
         ) : (
+          <>
           <select
             className={input}
             value={form.paidBy}
@@ -637,45 +651,33 @@ export function ExpenseForm({
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={toggleMultiPayer}
+            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-accent-hover"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Multiple payers
+          </button>
+          </>
         )}
       </div>
 
       <div>
-        <label className={label}>Date</label>
-        <input
-          type="date"
-          className={input}
-          value={form.date}
-          onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-        />
-      </div>
-
-      <CategoryPicker
-        categories={form.categories}
-        customCategories={customCategories}
-        onToggle={(value) => setForm((f) => ({
-          ...f,
-          categories: f.categories.includes(value)
-            ? f.categories.filter((v) => v !== value)
-            : [...f.categories, value],
-        }))}
-        onAddCategory={onAddCategory}
-        onUpdateCategories={onUpdateCategories}
-      />
-
-      <div>
-        <label className={label}>Notes <span className="font-normal text-text-muted">(optional)</span></label>
-        <textarea
-          className={input}
-          rows={2}
-          placeholder="Add a note..."
-          value={form.notes}
-          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-        />
-      </div>
-
-      <div>
-        <label className={label}>Split type</label>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-sm font-medium text-text-secondary">How to split</label>
+          <HelpTip label="How to split">
+            <p>How the total is divided among the people below — <strong className="text-text">each person's share is what they owe</strong>.</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              <li><strong className="text-text">Equal</strong> — same for everyone.</li>
+              <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one had a $7.50 appetizer and another a $38.34 meal.</li>
+              <li><strong className="text-text">%</strong> — split by percentage.</li>
+              <li><strong className="text-text">Shares</strong> — by weight, e.g. 2 vs 1.</li>
+            </ul>
+          </HelpTip>
+        </div>
         <div className="grid grid-cols-4 gap-1 bg-muted rounded-lg p-1">
           {(['equal', 'exact', 'percentage', 'shares'] as const).map((t) => (
             <button
@@ -695,7 +697,9 @@ export function ExpenseForm({
       </div>
 
       <div>
-        <label className={label}>Split among</label>
+        <label className={label}>
+          Split among <span className="font-normal text-text-muted">· what each owes</span>
+        </label>
         <div className="space-y-2">
           {memberUids.map((uid) => (
             <div key={uid} className="flex items-center gap-3">
@@ -772,6 +776,40 @@ export function ExpenseForm({
             </div>
           ))}
         </div>
+      </div>
+
+      <div>
+        <label className={label}>Date</label>
+        <input
+          type="date"
+          className={input}
+          value={form.date}
+          onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+        />
+      </div>
+
+      <CategoryPicker
+        categories={form.categories}
+        customCategories={customCategories}
+        onToggle={(value) => setForm((f) => ({
+          ...f,
+          categories: f.categories.includes(value)
+            ? f.categories.filter((v) => v !== value)
+            : [...f.categories, value],
+        }))}
+        onAddCategory={onAddCategory}
+        onUpdateCategories={onUpdateCategories}
+      />
+
+      <div>
+        <label className={label}>Notes <span className="font-normal text-text-muted">(optional)</span></label>
+        <textarea
+          className={input}
+          rows={2}
+          placeholder="Add a note..."
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+        />
       </div>
 
       {error && (
