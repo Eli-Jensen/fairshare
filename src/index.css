@@ -194,6 +194,19 @@ body {
   color: var(--color-text);
 }
 
+/* Number inputs: hide the up/down spin buttons. Amounts are typed — nobody
+   nudges cents with the steppers, and they just add visual noise. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
