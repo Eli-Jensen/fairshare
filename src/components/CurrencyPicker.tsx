@@ -1,6 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { COMMON_CURRENCIES, ALL_CURRENCIES, getCurrency, type Currency } from '../lib/currencies'
 
+/**
+ * Compact currency selector: a "USD ▾" button (sits inline next to an amount)
+ * that opens a searchable list. The dropdown is fixed-positioned and clamped to
+ * the viewport so the full code + name are readable and it never clips off a
+ * phone screen, at any text size.
+ */
 export function CurrencyPicker({
   value,
   onChange,
@@ -10,20 +16,54 @@ export function CurrencyPicker({
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
 
   const selected = getCurrency(value)
 
+  function reposition() {
+    if (!btnRef.current) return
+    const margin = 8
+    const rect = btnRef.current.getBoundingClientRect()
+    const width = Math.min(320, window.innerWidth - margin * 2)
+    let left = rect.left
+    if (left + width > window.innerWidth - margin) left = window.innerWidth - margin - width
+    if (left < margin) left = margin
+    setPos({ top: rect.bottom + 4, left, width })
+  }
+
+  useLayoutEffect(() => {
+    if (open) reposition()
+  }, [open])
+
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+    if (!open) return
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || popRef.current?.contains(t)) return
+      setOpen(false)
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    function onReflow() {
+      reposition()
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onReflow, true)
+    window.addEventListener('resize', onReflow)
+    const focusId = setTimeout(() => searchRef.current?.focus(), 0)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onReflow, true)
+      window.removeEventListener('resize', onReflow)
+      clearTimeout(focusId)
+    }
+  }, [open])
 
   const query = search.toLowerCase().trim()
   const filtered = query
@@ -33,6 +73,7 @@ export function CurrencyPicker({
           c.name.toLowerCase().includes(query)
       )
     : null
+  const showCommon = !query
 
   function handleSelect(c: Currency) {
     onChange(c.code)
@@ -40,42 +81,70 @@ export function CurrencyPicker({
     setOpen(false)
   }
 
-  function handleInputFocus() {
-    setOpen(true)
-    setSearch('')
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') {
-      setOpen(false)
-      inputRef.current?.blur()
-    }
-  }
-
-  const displayList = filtered ?? []
-  const showCommon = !query
-
   return (
-    <div ref={containerRef} className="relative">
-      <input
-        ref={inputRef}
-        type="text"
-        className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-        placeholder="Search currencies..."
-        value={open ? search : selected ? `${selected.code} - ${selected.name}` : value}
-        onChange={(e) => setSearch(e.target.value)}
-        onFocus={handleInputFocus}
-        onKeyDown={handleKeyDown}
-      />
+    <div className="inline-flex">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => { setSearch(''); setOpen((o) => !o) }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex items-center gap-1 border border-line rounded-lg pl-3 pr-2 py-2 text-sm bg-card text-text hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+      >
+        <span className="font-medium">{selected?.code ?? value}</span>
+        <svg className="w-4 h-4 text-text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
 
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-max min-w-[16rem] max-w-[calc(100vw-2rem)] bg-card border border-line rounded-lg shadow-lg max-h-64 overflow-y-auto">
-          {showCommon && (
-            <>
-              <div className="px-3 py-1.5 text-xs font-medium text-text-muted uppercase tracking-wide bg-muted sticky top-0">
-                Common
-              </div>
-              {COMMON_CURRENCIES.map((c) => (
+      {open && pos && (
+        <div
+          ref={popRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+          className="z-50 bg-card border border-line rounded-lg shadow-lg"
+        >
+          <div className="p-2 border-b border-line">
+            <input
+              ref={searchRef}
+              type="text"
+              className="w-full border border-line rounded-md px-2.5 py-1.5 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              placeholder="Search currencies..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto">
+            {showCommon && (
+              <>
+                <div className="px-3 py-1.5 text-xs font-medium text-text-muted uppercase tracking-wide bg-muted sticky top-0">
+                  Common
+                </div>
+                {COMMON_CURRENCIES.map((c) => (
+                  <CurrencyOption
+                    key={c.code}
+                    currency={c}
+                    isSelected={c.code === value}
+                    onSelect={handleSelect}
+                  />
+                ))}
+                <div className="px-3 py-1.5 text-xs font-medium text-text-muted uppercase tracking-wide bg-muted sticky top-0">
+                  All currencies
+                </div>
+                {ALL_CURRENCIES.filter(
+                  (c) => !COMMON_CURRENCIES.some((cc) => cc.code === c.code)
+                ).map((c) => (
+                  <CurrencyOption
+                    key={c.code}
+                    currency={c}
+                    isSelected={c.code === value}
+                    onSelect={handleSelect}
+                  />
+                ))}
+              </>
+            )}
+
+            {!showCommon && filtered && filtered.length > 0 &&
+              filtered.map((c) => (
                 <CurrencyOption
                   key={c.code}
                   currency={c}
@@ -83,37 +152,13 @@ export function CurrencyPicker({
                   onSelect={handleSelect}
                 />
               ))}
-              <div className="px-3 py-1.5 text-xs font-medium text-text-muted uppercase tracking-wide bg-muted sticky top-0">
-                All currencies
+
+            {!showCommon && filtered && filtered.length === 0 && (
+              <div className="px-3 py-3 text-sm text-text-muted text-center">
+                No currencies match "{search}"
               </div>
-              {ALL_CURRENCIES.filter(
-                (c) => !COMMON_CURRENCIES.some((cc) => cc.code === c.code)
-              ).map((c) => (
-                <CurrencyOption
-                  key={c.code}
-                  currency={c}
-                  isSelected={c.code === value}
-                  onSelect={handleSelect}
-                />
-              ))}
-            </>
-          )}
-
-          {!showCommon && displayList.length > 0 &&
-            displayList.map((c) => (
-              <CurrencyOption
-                key={c.code}
-                currency={c}
-                isSelected={c.code === value}
-                onSelect={handleSelect}
-              />
-            ))}
-
-          {!showCommon && displayList.length === 0 && (
-            <div className="px-3 py-3 text-sm text-text-muted text-center">
-              No currencies match "{search}"
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -133,15 +178,15 @@ function CurrencyOption({
     <button
       type="button"
       onClick={() => onSelect(currency)}
-      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent-soft flex items-center justify-between ${
+      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent-soft flex items-center justify-between gap-3 ${
         isSelected ? 'bg-accent-soft text-primary-700' : 'text-text-secondary'
       }`}
     >
-      <span>
-        <span className="font-medium">{currency.code}</span>
-        <span className="text-text-muted ml-2">{currency.name}</span>
+      <span className="flex items-baseline gap-2 min-w-0">
+        <span className="font-medium shrink-0">{currency.code}</span>
+        <span className="text-text-muted truncate">{currency.name}</span>
       </span>
-      <span className="text-text-muted text-xs">{currency.symbol}</span>
+      <span className="text-text-muted text-xs shrink-0">{currency.symbol}</span>
     </button>
   )
 }

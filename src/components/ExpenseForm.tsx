@@ -406,46 +406,44 @@ export function ExpenseForm({
         <label className={label}>
           Amount <span className="font-normal text-text-muted">· total spent</span>
         </label>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-28 shrink-0">
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              className={input}
-              value={form.amount || ''}
-              placeholder="0.00"
-              onChange={(e) =>
-                setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
-              }
-            />
-          </div>
-          {/* Currency picker gets the rest of the row so its dropdown has room */}
-          <div className="flex-1 min-w-[12rem]">
-            <CurrencyPicker
-              value={form.currency}
-              onChange={handleCurrencyChange}
-            />
-          </div>
+        {/* Amount number with the currency selector right beside it */}
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            inputMode="decimal"
+            className="w-28 border border-line rounded-lg px-3 py-2 text-sm bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            value={form.amount || ''}
+            placeholder="0.00"
+            onChange={(e) =>
+              setForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))
+            }
+          />
+          <CurrencyPicker
+            value={form.currency}
+            onChange={handleCurrencyChange}
+          />
         </div>
-        {/* Quick currency switcher — own row so it doesn't crowd the picker */}
-        <div className="flex flex-wrap gap-1 mt-1.5">
-          {quickCurrencies.map((code) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => handleCurrencyChange(code)}
-              className={`text-xs px-3 py-1 rounded-lg border transition-all font-medium ${
-                form.currency === code
-                  ? 'bg-accent-soft border-accent text-accent-text'
-                  : 'bg-card border-line text-text-secondary hover:border-accent'
-              }`}
-            >
-              {code}
-            </button>
-          ))}
-        </div>
+        {/* Quick switch — only when the trip actually uses more than one currency */}
+        {quickCurrencies.length > 1 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {quickCurrencies.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => handleCurrencyChange(code)}
+                className={`text-xs px-3 py-1 rounded-lg border transition-all font-medium ${
+                  form.currency === code
+                    ? 'bg-accent-soft border-accent text-accent-text'
+                    : 'bg-card border-line text-text-secondary hover:border-accent'
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+        )}
         {form.currency !== sc && form.amount > 0 && form.exchangeRate > 0 && (
           <p className="text-xs text-accent-text mt-1 font-medium">
             = {formatMoney(amountSettled, sc)}
