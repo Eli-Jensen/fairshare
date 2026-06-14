@@ -453,7 +453,7 @@ export function ExpenseForm({
 
       {form.currency !== sc && (
         <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setForm((f) => ({
@@ -481,16 +481,20 @@ export function ExpenseForm({
                   } else {
                     autoFillRate(form.currency)
                   }
-                }} className="text-xs text-accent-text hover:text-accent-hover">
+                }} className="text-xs font-medium text-accent-text border border-line rounded-md px-2 py-1 hover:bg-accent-soft transition-colors">
                   {rateSource === 'custom' ? 'Reset to auto' : 'Use live rate'}
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => setForm((f) => ({ ...f, showCalc: !f.showCalc }))}
-                className="text-xs text-accent-text hover:text-accent-hover"
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent-text border border-line rounded-md px-2 py-1 hover:bg-accent-soft transition-colors"
               >
-                {form.showCalc ? 'Hide calculator' : 'Calculator'}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="5" y="3" width="14" height="18" rx="2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 15h.01M12 15h.01M15.5 15h.01" />
+                </svg>
+                {form.showCalc ? 'Hide' : 'Calculator'}
               </button>
             </div>
           </div>
@@ -784,6 +788,7 @@ export function ExpenseForm({
           className={input}
           value={form.date}
           onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+          onClick={(e) => { try { e.currentTarget.showPicker?.() } catch { /* picker already open */ } }}
         />
       </div>
 
