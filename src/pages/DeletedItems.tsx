@@ -274,7 +274,7 @@ function DeletedSection({
                 {trip.name}
               </p>
               <p className="text-sm text-text-muted">
-                {trip.memberUids.length} members
+                {trip.memberUids.length} member{trip.memberUids.length !== 1 ? 's' : ''}
                 {trip.deletedAt && ` · ${timeRemaining(trip.deletedAt)}`}
               </p>
             </div>
