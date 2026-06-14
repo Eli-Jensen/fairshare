@@ -404,7 +404,7 @@ export function ExpenseForm({
 
       <div>
         <label className={label}>
-          Amount <span className="font-normal text-text-muted">· total spent</span>
+          Amount <span className="font-normal text-text-muted">· “total spent”</span>
         </label>
         {/* Amount number with the currency selector right beside it */}
         <div className="flex items-center gap-2">
@@ -584,7 +584,7 @@ export function ExpenseForm({
       <div>
         <div className="flex items-center gap-1.5 mb-1">
           <label className="text-sm font-medium text-text-secondary">
-            Paid by <span className="font-normal text-text-muted">· who paid</span>
+            Paid by <span className="font-normal text-text-muted">· “who paid”</span>
           </label>
           <HelpTip label="Paid by">
             <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
@@ -667,7 +667,8 @@ export function ExpenseForm({
         <div className="flex items-center gap-1.5 mb-1">
           <label className="text-sm font-medium text-text-secondary">How to split</label>
           <HelpTip label="How to split">
-            <p>How the total is divided among the people below — <strong className="text-text">each person's share is what they owe</strong>.</p>
+            <p>Each person's amount is <strong className="text-text">the share of the bill they received — and are therefore responsible for</strong>.</p>
+            <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section above.</p>
             <ul className="list-disc pl-4 space-y-0.5">
               <li><strong className="text-text">Equal</strong> — same for everyone.</li>
               <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one had a $7.50 appetizer and another a $38.34 meal.</li>
@@ -696,7 +697,7 @@ export function ExpenseForm({
 
       <div>
         <label className={label}>
-          Split among <span className="font-normal text-text-muted">· what each owes</span>
+          Split among <span className="font-normal text-text-muted">· “what each person owes”</span>
         </label>
         <div className="space-y-2">
           {memberUids.map((uid) => (
