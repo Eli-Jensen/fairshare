@@ -4,6 +4,7 @@ import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../l
 import { getMemberName, formatMoney, getAllCategories, categoryExists, getExpenseCategories, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
 import { CurrencyPicker } from './CurrencyPicker'
 import { HelpTip } from './HelpTip'
+import { MemberDropdown } from './MemberDropdown'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getCrossRate } from '../lib/rates'
 import { splitEqually, splitByPercentages, splitByShares, derivePercentages, deriveShares } from '../lib/splits'
@@ -642,17 +643,12 @@ export function ExpenseForm({
           </div>
         ) : (
           <>
-          <select
-            className={input}
+          <MemberDropdown
             value={form.paidBy}
-            onChange={(e) => setForm((f) => ({ ...f, paidBy: e.target.value }))}
-          >
-            {memberUids.map((uid) => (
-              <option key={uid} value={uid}>
-                {getMemberName(uid, members)}
-              </option>
-            ))}
-          </select>
+            options={memberUids}
+            members={members}
+            onChange={(uid) => setForm((f) => ({ ...f, paidBy: uid }))}
+          />
           <button
             type="button"
             onClick={toggleMultiPayer}
