@@ -588,7 +588,7 @@ export function ExpenseForm({
           </label>
           <HelpTip label="Paid by">
             <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
-            <p>Two people split the check across two cards? Tap <strong className="text-text">+ Multiple payers</strong> to enter how much each paid.</p>
+            <p>Two people split the check? Tap <strong className="text-text">+ Multiple payers</strong> to enter how much each paid.</p>
           </HelpTip>
         </div>
 
@@ -671,7 +671,7 @@ export function ExpenseForm({
             <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section above.</p>
             <ul className="list-disc pl-4 space-y-0.5">
               <li><strong className="text-text">Equal</strong> — same for everyone.</li>
-              <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one had a $7.50 appetizer and another a $38.34 meal.</li>
+              <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one person had only an appetizer ($15) and another a full meal with drinks ($60).</li>
               <li><strong className="text-text">%</strong> — split by percentage.</li>
               <li><strong className="text-text">Shares</strong> — by weight, e.g. 2 vs 1.</li>
             </ul>
