@@ -7,7 +7,7 @@ DEV_URL      := https://dev-fairshare-split.web.app
 BROWSERS     := firefox chrome safari all
 
 .DEFAULT_GOAL := help
-.PHONY: help versions test ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev $(BROWSERS)
+.PHONY: help versions test release ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev $(BROWSERS)
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -31,6 +31,15 @@ versions: ## Show what's running on prod and dev vs local HEAD
 
 test: ## Run the test suite and a production build
 	npm test && npm run build
+
+release: ## Cut a release: bump version + date CHANGELOG.md, commit, tag (VERSION=1.2.0). Then deploy with make ship.
+	@[ -n "$(VERSION)" ] || { echo "Usage: make release VERSION=1.2.0"; exit 1; }
+	@[ -z "$$(git status --porcelain)" ] || { echo "✋ Commit or stash other changes first — a release should be its own commit."; exit 1; }
+	node scripts/release.mjs "$(VERSION)"
+	git add package.json CHANGELOG.md
+	git commit -q -m "Release v$(VERSION)"
+	git tag "v$(VERSION)"
+	@echo "✅ Committed + tagged v$(VERSION). Deploy:  make ship   then  git push origin v$(VERSION)"
 
 ship: ## Ship dev → prod in one shot: push dev, wait for green CI, then auto-promote. MSG="..." commits first. Skips manual smoke test — for low-risk changes.
 	@MSG="$(MSG)" bash scripts/ship.sh

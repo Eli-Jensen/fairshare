@@ -18,6 +18,7 @@ Deployment and release operations live in the **Makefile** (`make help` lists ev
 make ship              # Fast path: push dev → wait for green CI → auto-promote to prod.
                        #   MSG="..." commits pending changes first. Stops if dev CI fails.
                        #   Skips the manual dev-site smoke test — for low-risk changes only.
+make release           # Cut a release: bump version + date CHANGELOG, commit + tag (VERSION=1.2.0), then ship.
 make versions          # What's running on prod / dev (via /version.json) vs local HEAD
 make promote           # Fast-forward main to dev (CI deploys prod hosting) + deploy prod rules.
                        #   Fast-forward (not a merge commit) so prod reports the SAME sha as dev.
@@ -57,7 +58,9 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 **Semantic color system** (`src/index.css`): All UI colors use CSS custom properties (`bg-card`, `text-text`, `border-line`, `text-accent-text`, etc.) that auto-switch in dark mode via the `.dark` class. Never use hardcoded Tailwind colors like `bg-white`, `text-slate-700`, `border-slate-200` — use the semantic tokens instead. Dark mode overrides are defined in `.dark {}` block in index.css.
 
-**Soft delete**: Expenses and trips use a `deletedAt` timestamp field. They're filtered out in queries, shown on the `/trash` page for 24h, then auto-purged client-side. Member removal stores in `removedMembers[]` array.
+**Popovers & dropdowns** (`src/components/HelpTip.tsx`, `CurrencyPicker.tsx`, `MemberDropdown.tsx`): custom dropdowns/tooltips are **fixed-positioned and clamped to the viewport** (flip above the trigger when low on screen, pull in horizontally so they never run off the edge) — not `position: absolute` relative to the trigger. Two reasons: native `<select>`/`<input type=date>` popups mis-place (jump to the top-left corner) when the page isn't at 100% zoom, and `absolute` popovers clip off-screen on phones. That's why the *Paid by* picker is a custom `MemberDropdown`, not a native `<select>`. Reuse this pattern for any new in-form dropdown or popover instead of a native control.
+
+**Soft delete**: Expenses and trips use a `deletedAt` timestamp field. They're filtered out in queries, shown on the `/trash` page for 24h, then auto-purged client-side. Member removal stores in `removedMembers[]` array. **Groups** also get a *Clear settled history* action (`SettlementView` button → `TripDashboard.clearSettledHistory`): when a group is fully settled (`simplifyDebts` empty), it soft-deletes every expense to Trash at once, with one-tap undo — balances stay $0 since the cleared expenses net out.
 
 **Invited participants / placeholders** (`src/lib/placeholders.ts`, `src/lib/claim.ts`): inviting an email creates a `ph_`-id entry in `trip.placeholderMembers[]` **and** adds the email to `invitedEmails` (linked by email). Placeholders are participants immediately — their ids flow through `paidBy`/`splits`/balances like uids and display as the invited email — but they're **never in `memberUids`** (the security boundary). `useTrip` returns `participants` (memberUids + placeholder ids) and synthesizes their profiles into the `members` map. Use `participants`, not `trip.memberUids`, anywhere a person can pay or owe.
 
@@ -90,7 +93,7 @@ Dev and prod are **separate Firebase projects** — separate Firestore data, sep
 
 **Access gating** (`src/App.tsx`): When the `VITE_ALLOWED_EMAILS` env var is set (comma-separated emails), only those users can use the app after sign-in. Production builds omit this var — everyone can sign in. Dev builds include it via the GitHub secret.
 
-**Versioning**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`) and shown at the bottom of the avatar menu. Bump the version manually when something meaningful ships.
+**Versioning & releases**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`) and shown at the bottom of the avatar menu. User-facing changes are recorded in `CHANGELOG.md` ([Keep a Changelog] format) — add entries under `## [Unreleased]` as you work. To cut a release, run `make release VERSION=x.y.z` (semver — patch for fixes, minor for features): it bumps `package.json`, rolls `[Unreleased]` into a dated `## [x.y.z]` heading, commits, and tags `vx.y.z` (via `scripts/release.mjs`). Then deploy with `make ship` (or the manual path) and `git push origin vx.y.z`. The version bump is what makes the meaningful version appear in the menu, so cut a release for anything user-facing rather than letting it ride as the previous version.
 
 ### Firebase Constraints
 
