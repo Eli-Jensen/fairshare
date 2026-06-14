@@ -606,7 +606,7 @@ export function ExpenseForm({
             <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section below.</p>
             <ul className="list-disc pl-4 space-y-0.5">
               <li><strong className="text-text">Equal</strong> — same for everyone.</li>
-              <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one person had only an appetizer ($15) and another a full meal with drinks ($60).</li>
+              <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one person had only an appetizer ($) and another a full meal with drinks ($$$).</li>
               <li><strong className="text-text">%</strong> — split by percentage.</li>
               <li><strong className="text-text">Shares</strong> — by weight, e.g. 2 vs 1.</li>
             </ul>
