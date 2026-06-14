@@ -596,84 +596,6 @@ export function ExpenseForm({
         </div>
       )}
 
-      {/* Paid by section */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-1">
-          <label className="text-sm font-medium text-text-secondary">
-            Paid by
-          </label>
-          <HelpTip label="Paid by">
-            <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
-            <p>Two people split the check? Tap <strong className="text-text">+ Multiple payers</strong> to enter how much each paid.</p>
-          </HelpTip>
-        </div>
-
-        {form.multiPayer ? (
-          <div className="space-y-2">
-            {memberUids.map((uid) => (
-              <div key={uid} className="flex items-center gap-3">
-                <span className="text-sm flex-1 text-text-secondary">
-                  {getMemberName(uid, members)}
-                </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-text-muted">{currencySymbol}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    className="w-28 border border-line rounded px-2 py-1 text-sm bg-card text-text"
-                    placeholder="0.00"
-                    value={form.paidByAmounts[uid] ?? ''}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        paidByAmounts: { ...f.paidByAmounts, [uid]: e.target.value },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            ))}
-            {form.amount > 0 && (
-              <p className={`text-xs ${Math.abs(paidRemaining) < AMOUNT_TOLERANCE ? 'text-success-text' : 'text-warn-text'}`}>
-                {Math.abs(paidRemaining) < AMOUNT_TOLERANCE
-                  ? 'Paid amounts match total'
-                  : paidRemaining > 0
-                    ? `${currencySymbol}${paidRemaining.toFixed(2)} remaining to assign`
-                    : `${currencySymbol}${Math.abs(paidRemaining).toFixed(2)} over the total`}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={toggleMultiPayer}
-              className="text-xs text-accent-text hover:text-accent-hover"
-            >
-              Use a single payer
-            </button>
-          </div>
-        ) : (
-          <>
-          <MemberDropdown
-            value={form.paidBy}
-            options={memberUids}
-            members={members}
-            onChange={(uid) => setForm((f) => ({ ...f, paidBy: uid }))}
-          />
-          <button
-            type="button"
-            onClick={toggleMultiPayer}
-            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-accent-hover"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Multiple payers
-          </button>
-          </>
-        )}
-      </div>
-
       <div className="border-t border-line-light" />
 
       <div>
@@ -681,7 +603,7 @@ export function ExpenseForm({
           <label className="text-sm font-medium text-text-secondary">How to split</label>
           <HelpTip label="How to split">
             <p>Each person's amount in this section is <strong className="text-text">the share of the bill they received — and are therefore responsible for</strong>.</p>
-            <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section above.</p>
+            <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section below.</p>
             <ul className="list-disc pl-4 space-y-0.5">
               <li><strong className="text-text">Equal</strong> — same for everyone.</li>
               <li><strong className="text-text">Exact</strong> — type each person's amount; must add up to the total. Good when one person had only an appetizer ($15) and another a full meal with drinks ($60).</li>
@@ -811,6 +733,84 @@ export function ExpenseForm({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Paid by section */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1">
+          <label className="text-sm font-medium text-text-secondary">
+            Paid by
+          </label>
+          <HelpTip label="Paid by">
+            <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
+            <p>Two people split the check? Tap <strong className="text-text">+ Multiple payers</strong> to enter how much each paid.</p>
+          </HelpTip>
+        </div>
+
+        {form.multiPayer ? (
+          <div className="space-y-2">
+            {memberUids.map((uid) => (
+              <div key={uid} className="flex items-center gap-3">
+                <span className="text-sm flex-1 text-text-secondary">
+                  {getMemberName(uid, members)}
+                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-text-muted">{currencySymbol}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    className="w-28 border border-line rounded px-2 py-1 text-sm bg-card text-text"
+                    placeholder="0.00"
+                    value={form.paidByAmounts[uid] ?? ''}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        paidByAmounts: { ...f.paidByAmounts, [uid]: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+            {form.amount > 0 && (
+              <p className={`text-xs ${Math.abs(paidRemaining) < AMOUNT_TOLERANCE ? 'text-success-text' : 'text-warn-text'}`}>
+                {Math.abs(paidRemaining) < AMOUNT_TOLERANCE
+                  ? 'Paid amounts match total'
+                  : paidRemaining > 0
+                    ? `${currencySymbol}${paidRemaining.toFixed(2)} remaining to assign`
+                    : `${currencySymbol}${Math.abs(paidRemaining).toFixed(2)} over the total`}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={toggleMultiPayer}
+              className="text-xs text-accent-text hover:text-accent-hover"
+            >
+              Use a single payer
+            </button>
+          </div>
+        ) : (
+          <>
+          <MemberDropdown
+            value={form.paidBy}
+            options={memberUids}
+            members={members}
+            onChange={(uid) => setForm((f) => ({ ...f, paidBy: uid }))}
+          />
+          <button
+            type="button"
+            onClick={toggleMultiPayer}
+            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-accent-hover"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Multiple payers
+          </button>
+          </>
+        )}
       </div>
 
       <div className="border-t border-line-light" />
