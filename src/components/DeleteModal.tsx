@@ -3,11 +3,13 @@ export function DeleteModal({
   message,
   onConfirm,
   onCancel,
+  confirmLabel = 'Yes, delete',
 }: {
   title: string
   message: string
   onConfirm: () => void
   onCancel: () => void
+  confirmLabel?: string
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -31,7 +33,7 @@ export function DeleteModal({
             onClick={onConfirm}
             className="px-4 py-2 text-sm font-medium text-white bg-danger-text rounded-lg hover:bg-danger-text/90 transition-colors"
           >
-            Yes, delete
+            {confirmLabel}
           </button>
         </div>
       </div>

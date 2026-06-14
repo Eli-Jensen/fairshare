@@ -210,6 +210,7 @@ export interface ActivityLogEntry {
     | 'trip_created' | 'trip_renamed' | 'trip_deleted' | 'trip_restored'
     | 'currency_changed'
     | 'comment_added'
+    | 'history_cleared'
   actorUid: string
   targetDescription?: string
   targetAmount?: number

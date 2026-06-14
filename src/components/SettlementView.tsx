@@ -17,6 +17,8 @@ export function SettlementView({
   tripRates,
   tripLastCurrency,
   currentUserUid,
+  isGroup,
+  onClearSettled,
 }: {
   expenses: Expense[]
   members: Record<string, UserProfile>
@@ -27,6 +29,8 @@ export function SettlementView({
   tripRates?: Record<string, number>
   tripLastCurrency?: string
   currentUserUid?: string
+  isGroup?: boolean
+  onClearSettled?: () => void
 }) {
   const sc = settlementCurrency ?? DEFAULT_CURRENCY
   const [recordingIdx, setRecordingIdx] = useState<number | null>(null)
@@ -207,8 +211,23 @@ export function SettlementView({
       )}
 
       {settlements.length === 0 && expenses.length > 0 && (
-        <div className="text-center py-4 text-success-text font-medium">
-          All settled up!
+        <div className="text-center py-4">
+          <p className="text-success-text font-medium">All settled up!</p>
+          {isGroup && onClearSettled && (
+            <>
+              <button
+                type="button"
+                onClick={onClearSettled}
+                className="mt-3 inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-danger-text border border-line rounded-lg px-3 py-1.5 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Clear settled history
+              </button>
+              <p className="text-xs text-text-muted mt-1.5">Removes these settled expenses to declutter the group (recoverable from Trash for 24h).</p>
+            </>
+          )}
         </div>
       )}
 

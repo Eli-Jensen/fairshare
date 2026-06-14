@@ -50,6 +50,8 @@ export function TripDashboard() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLongPress = useRef(false)
   const [undoSettlement, setUndoSettlement] = useState<{ id: string; description: string } | null>(null)
+  const [showClearModal, setShowClearModal] = useState(false)
+  const [clearUndo, setClearUndo] = useState<{ ids: string[]; count: number } | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -99,6 +101,31 @@ export function TripDashboard() {
   }, [undoInfo, id])
 
   const dismissUndo = useCallback(() => setUndoInfo(null), [])
+
+  // Clear a fully-settled group's history: soft-delete every active expense to
+  // Trash — they net to $0, so balances stay settled. Offers a one-tap undo.
+  async function clearSettledHistory() {
+    if (!id || !user) return
+    const all = await loadAllExpenses()
+    if (all.length === 0) return
+    await Promise.all(
+      all.map((e) => updateDoc(doc(db, 'trips', id, 'expenses', e.id), { deletedAt: serverTimestamp() })),
+    )
+    writeActivity(id, {
+      action: 'history_cleared',
+      actorUid: user.uid,
+      targetDescription: `${all.length} expense${all.length !== 1 ? 's' : ''}`,
+    })
+    setClearUndo({ ids: all.map((e) => e.id), count: all.length })
+  }
+
+  const handleClearUndo = useCallback(async () => {
+    if (!clearUndo || !id) return
+    await Promise.all(
+      clearUndo.ids.map((eid) => updateDoc(doc(db, 'trips', id, 'expenses', eid), { deletedAt: deleteField() })),
+    )
+    setClearUndo(null)
+  }, [clearUndo, id])
 
   // Rescind a pending invite: drop the email and its placeholder participant.
   // Same write the Invite page does; the × is balance-guarded in the chip.
@@ -573,6 +600,8 @@ export function TripDashboard() {
           tripRates={trip.lastRates}
           tripLastCurrency={trip.lastCurrency}
           currentUserUid={user!.uid}
+          isGroup={trip.type === 'group'}
+          onClearSettled={() => setShowClearModal(true)}
           onRecordSettlement={async (from, to, amount, method, currency, exchangeRate) => {
             const cur = currency ?? sc
             const rate = exchangeRate ?? 1
@@ -756,6 +785,27 @@ export function TripDashboard() {
             setUndoSettlement(null)
           }}
           onDismiss={() => setUndoSettlement(null)}
+        />
+      )}
+
+      {showClearModal && (
+        <DeleteModal
+          title="Clear settled history?"
+          message={`Everyone's settled up, so this removes all expenses from this ${tl} to declutter it (they net to $0, so balances stay settled). They go to Trash, recoverable for 24 hours.`}
+          confirmLabel="Yes, clear"
+          onCancel={() => setShowClearModal(false)}
+          onConfirm={async () => {
+            setShowClearModal(false)
+            await clearSettledHistory()
+          }}
+        />
+      )}
+
+      {clearUndo && (
+        <UndoToast
+          message={`Cleared ${clearUndo.count} expense${clearUndo.count !== 1 ? 's' : ''}`}
+          onUndo={handleClearUndo}
+          onDismiss={() => setClearUndo(null)}
         />
       )}
     </div>

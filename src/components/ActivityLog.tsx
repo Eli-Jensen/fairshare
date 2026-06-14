@@ -68,6 +68,8 @@ function describeAction(entry: ActivityLogEntry, members: Record<string, UserPro
       return `${actor} restored ${desc}${amt ? ` (${amt})` : ''}`
     case 'comment_added':
       return `${actor} commented on ${desc}`
+    case 'history_cleared':
+      return `${actor} cleared the settled history${desc ? ` (${desc})` : ''}`
     default:
       return `${actor} performed an action`
   }
