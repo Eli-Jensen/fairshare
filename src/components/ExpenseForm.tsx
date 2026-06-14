@@ -389,6 +389,17 @@ export function ExpenseForm({
   const equalPreview = form.splitType === 'equal'
     ? splitEqually(amountSettled, form.splitAmong)
     : null
+  // Live feedback for the split-among section (mirrors the multi-payer total)
+  const exactRemaining = form.amount -
+    form.splitAmong.reduce((s, uid) => s + (parseFloat(form.exactAmounts[uid] || '0') || 0), 0)
+  const pctRemaining = 100 -
+    form.splitAmong.reduce((s, uid) => s + (parseFloat(form.percentages[uid] || '0') || 0), 0)
+  const sharesPreview = form.splitType === 'shares'
+    ? splitByShares(
+        amountSettled,
+        Object.fromEntries(form.splitAmong.map((uid) => [uid, parseFloat(form.shares[uid] || '0') || 0])),
+      )
+    : null
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -663,11 +674,13 @@ export function ExpenseForm({
         )}
       </div>
 
+      <div className="border-t border-line-light" />
+
       <div>
         <div className="flex items-center gap-1.5 mb-1">
           <label className="text-sm font-medium text-text-secondary">How to split</label>
           <HelpTip label="How to split">
-            <p>Each person's amount is <strong className="text-text">the share of the bill they received — and are therefore responsible for</strong>.</p>
+            <p>Each person's amount in this section is <strong className="text-text">the share of the bill they received — and are therefore responsible for</strong>.</p>
             <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section above.</p>
             <ul className="list-disc pl-4 space-y-0.5">
               <li><strong className="text-text">Equal</strong> — same for everyone.</li>
@@ -752,19 +765,24 @@ export function ExpenseForm({
               )}
 
               {form.splitType === 'shares' && form.splitAmong.includes(uid) && (
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  className="w-20 border border-line rounded px-2 py-1 text-sm bg-card text-text"
-                  value={form.shares[uid] ?? ''}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      shares: { ...f.shares, [uid]: e.target.value },
-                    }))
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    className="w-16 border border-line rounded px-2 py-1 text-sm bg-card text-text"
+                    value={form.shares[uid] ?? ''}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        shares: { ...f.shares, [uid]: e.target.value },
+                      }))
+                    }
+                  />
+                  <span className="text-sm text-text-muted whitespace-nowrap">
+                    = {formatMoney(sharesPreview?.[uid] ?? 0, sc)}
+                  </span>
+                </div>
               )}
 
               {form.splitType === 'equal' && form.splitAmong.includes(uid) && (
@@ -774,8 +792,28 @@ export function ExpenseForm({
               )}
             </div>
           ))}
+          {form.splitType === 'exact' && form.splitAmong.length > 0 && form.amount > 0 && (
+            <p className={`text-xs ${Math.abs(exactRemaining) < AMOUNT_TOLERANCE ? 'text-success-text' : 'text-warn-text'}`}>
+              {Math.abs(exactRemaining) < AMOUNT_TOLERANCE
+                ? 'Amounts add up to the total'
+                : exactRemaining > 0
+                  ? `${currencySymbol}${exactRemaining.toFixed(2)} left to assign`
+                  : `${currencySymbol}${Math.abs(exactRemaining).toFixed(2)} over the total`}
+            </p>
+          )}
+          {form.splitType === 'percentage' && form.splitAmong.length > 0 && (
+            <p className={`text-xs ${Math.abs(pctRemaining) < 0.05 ? 'text-success-text' : 'text-warn-text'}`}>
+              {Math.abs(pctRemaining) < 0.05
+                ? 'Adds up to 100%'
+                : pctRemaining > 0
+                  ? `${+pctRemaining.toFixed(1)}% left to assign`
+                  : `${+Math.abs(pctRemaining).toFixed(1)}% over 100%`}
+            </p>
+          )}
         </div>
       </div>
+
+      <div className="border-t border-line-light" />
 
       <div>
         <label className={label}>Date</label>
