@@ -588,7 +588,7 @@ export function ExpenseForm({
       <div>
         <div className="flex items-center gap-1.5 mb-1">
           <label className="text-sm font-medium text-text-secondary">
-            Paid by <span className="font-normal text-text-muted">· “who paid”</span>
+            Paid by
           </label>
           <HelpTip label="Paid by">
             <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
