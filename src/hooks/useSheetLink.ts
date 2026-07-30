@@ -7,7 +7,7 @@ import {
   isGoogleConfigured,
   requestToken,
 } from '../lib/googleAuth'
-import { SheetsError } from '../lib/sheetsApi'
+import { SheetsError, driveGetFile } from '../lib/sheetsApi'
 import type { SheetProperties } from '../lib/sheetsApi'
 import { buildSnapshot, hashSnapshot } from '../lib/sheetSnapshot'
 import { createBackupSheet, describeMissingSheet, syncBackupSheet } from '../lib/sheetSync'
@@ -57,6 +57,7 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
   const [linksLoaded, setLinksLoaded] = useState(false)
   /** Snapshot hash of what's on screen now, vs what was last written. */
   const [pendingHash, setPendingHash] = useState<string | null>(null)
+  const [isTrashed, setIsTrashed] = useState(false)
 
   // Cached tab structure, so a second sync in the same session skips a call
   const knownSheets = useRef<SheetProperties[] | undefined>(undefined)
@@ -64,6 +65,7 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
   // spreadsheet would interleave
   const inFlight = useRef(false)
   const autoSyncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const trashChecked = useRef(false)
 
   const { trip, members, participants, currentUid, loadAllExpenses } = source
 
@@ -152,6 +154,37 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
   )
 
   /**
+   * A successful sync is NOT evidence the backup still exists.
+   *
+   * The Sheets API writes to a spreadsheet in the Drive trash perfectly
+   * happily — trashed is not deleted — so a user can bin their backup and the
+   * app will keep cheerfully reporting "Backed up just now" right up until
+   * Drive purges the file 30 days later and the whole thing silently breaks.
+   * For a feature whose entire job is "don't lose your data", that false
+   * reassurance is worse than an error.
+   *
+   * Only Drive knows, so it costs a separate call. Done once per page session
+   * rather than per sync: the answer almost never changes, and the point is to
+   * catch the state at all, not to catch it within seconds.
+   */
+  const checkNotTrashed = useCallback((spreadsheetId: string) => {
+    // Once we've seen the sheet healthy we stop asking. While it is trashed we
+    // keep asking on every sync, so the warning clears as soon as the user
+    // restores the file rather than lingering until they reload the page.
+    if (trashChecked.current) return
+    const token = getCachedToken()
+    if (!token) return
+    driveGetFile(token, spreadsheetId)
+      .then((file) => {
+        const trashed = Boolean(file.trashed)
+        setIsTrashed(trashed)
+        trashChecked.current = !trashed
+      })
+      // Best-effort: a failed check must never break a working backup
+      .catch(() => {})
+  }, [])
+
+  /**
    * Shared tail of create/sync: build the snapshot, run the work, persist the
    * link, map failures. Callers pass a closure that already holds the token, so
    * the token never has to be threaded through here.
@@ -174,6 +207,7 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
         setLink(result.link)
         setPendingHash(result.link.lastSyncedHash)
         setStatus('linked')
+        checkNotTrashed(result.link.spreadsheetId)
       } catch (err) {
         knownSheets.current = undefined
         setError(await describeError(err, getCachedToken()))
@@ -182,32 +216,52 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
         inFlight.current = false
       }
     },
-    [currentUid, tripId, buildCurrentSnapshot, describeError, link]
+    [currentUid, tripId, buildCurrentSnapshot, describeError, link, checkNotTrashed]
+  )
+
+  /**
+   * Show the busy state before asking Google for a token, not after.
+   *
+   * Waiting for the popup can take many seconds — the user has to pick an
+   * account — and `run()` doesn't start until the token resolves. Without this
+   * the button sits there looking dead for the entire time, which reads as a
+   * broken button and gets clicked again.
+   *
+   * Synchronous setState is safe here: user activation survives ordinary
+   * statements, it's only an `await` before requestToken() that would lose it.
+   */
+  const beginGesture = useCallback(() => {
+    setStatus('working')
+    setError(null)
+  }, [])
+
+  const endFailedGesture = useCallback(
+    async (err: unknown) => {
+      setError(await describeError(err, null))
+      setStatus(link ? 'linked' : 'unlinked')
+    },
+    [describeError, link]
   )
 
   /** MUST be called straight from a click — see googleAuth.ts. */
   const connectAndCreate = useCallback(() => {
-    // requestToken() first, with nothing awaited before it — an await here
-    // would drop the user-activation flag and the popup would be blocked
+    beginGesture()
     return requestToken().then(
       (token) => run((snapshot) => createBackupSheet(token, tripId!, snapshot)),
-      async (err) => {
-        setError(await describeError(err, null))
-      }
+      endFailedGesture
     )
-  }, [run, tripId, describeError])
+  }, [run, tripId, beginGesture, endFailedGesture])
 
   /** MUST be called straight from a click when no token is cached. */
   const syncNow = useCallback(() => {
     if (!link) return Promise.resolve()
+    beginGesture()
     return requestToken().then(
       (token) =>
         run((snapshot) => syncBackupSheet(token, link, snapshot, knownSheets.current)),
-      async (err) => {
-        setError(await describeError(err, null))
-      }
+      endFailedGesture
     )
-  }, [link, run, describeError])
+  }, [link, run, beginGesture, endFailedGesture])
 
   const unlink = useCallback(async () => {
     if (!currentUid || !tripId) return
@@ -215,7 +269,9 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
     setLink(null)
     setStatus('unlinked')
     setError(null)
+    setIsTrashed(false)
     knownSheets.current = undefined
+    trashChecked.current = false
   }, [currentUid, tripId])
 
   /** Recompute the current hash so the UI can say whether the sheet is stale. */
@@ -266,6 +322,8 @@ export function useSheetLink(tripId: string | undefined, source: SnapshotSource)
     error,
     loaded,
     isStale,
+    /** The sheet is in the user's Drive trash — syncs still work, for now. */
+    isTrashed,
     /** True when a sync would need a click to get a token first. */
     needsGesture: !getCachedToken(),
     connectAndCreate,

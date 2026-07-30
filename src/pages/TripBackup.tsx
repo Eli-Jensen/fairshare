@@ -121,6 +121,18 @@ export function TripBackup() {
             </div>
           </div>
 
+          {backup.isTrashed && (
+            // Not an error — the sync worked. But Drive will purge the file and
+            // the backup will stop existing, so saying nothing would be a lie.
+            <div className="bg-warn-bg border border-warn-border rounded-lg px-3 py-2 mt-3">
+              <p className="text-sm text-warn-text">
+                This sheet is in your Google Drive trash. Backups still work for now,
+                but Drive deletes trashed files after 30 days — and then this backup is
+                gone. Restore it in Drive, or unlink and create a new one.
+              </p>
+            </div>
+          )}
+
           <label className="flex items-start gap-2 mt-3 cursor-pointer">
             <input
               type="checkbox"

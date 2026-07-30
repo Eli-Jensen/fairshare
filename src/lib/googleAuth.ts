@@ -226,7 +226,13 @@ export function requestToken(opts: { forceConsent?: boolean } = {}): Promise<str
             }
           },
         })
-        client.requestAccessToken(opts.forceConsent ? { prompt: 'consent' } : undefined)
+        // prompt:'' means "don't ask again unless you have to". Omitting it
+        // defaults to 'select_account', which makes Google show an account
+        // chooser on EVERY token request — so a user who has already consented
+        // gets asked to pick their account again every time the hourly token
+        // lapses. With '' the popup opens and closes on its own when the grant
+        // and the account are both unambiguous.
+        client.requestAccessToken({ prompt: opts.forceConsent ? 'consent' : '' })
       })
   )
 }
