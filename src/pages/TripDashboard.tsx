@@ -295,6 +295,13 @@ export function TripDashboard() {
                 <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
+                  <Link
+                    to={`/trip/${id}/backup`}
+                    onClick={() => setShowExportMenu(false)}
+                    className="block w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover"
+                  >
+                    Back up to Google Sheets
+                  </Link>
                   <button
                     onClick={async () => {
                       // loadAllExpenses resolves with the full list — the
