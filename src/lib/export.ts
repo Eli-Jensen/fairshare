@@ -1,7 +1,7 @@
 import type { Expense, UserProfile, CustomCategory, RemovedMember } from './types'
-import { formatMoney, getMemberName, getCategoryInfo, DEFAULT_CURRENCY } from './types'
+import { formatMoney, getCategoryInfo, DEFAULT_CURRENCY } from './types'
 import { formatDateOnly } from './dates'
-import { isPlaceholderId } from './placeholders'
+import { involvedParticipantIds, participantLabel } from './participants'
 import { computeBalances, simplifyDebts } from './settlement'
 
 function escapeCsv(value: string): string {
@@ -25,25 +25,10 @@ export function tripToCsv(
 
   // Removed members who paid or owe still belong in the books — otherwise
   // the exported balances don't sum to zero
-  const involved = new Set<string>()
-  for (const exp of expenses) {
-    involved.add(exp.paidBy)
-    for (const uid of Object.keys(exp.splits)) involved.add(uid)
-    for (const uid of Object.keys(exp.paidByAmounts ?? {})) involved.add(uid)
-  }
-  const extraUids = Array.from(involved).filter((u) => !memberUids.includes(u))
-  const columnUids = [...memberUids, ...extraUids]
+  const columnUids = involvedParticipantIds(expenses, memberUids)
 
-  function nameFor(uid: string): string {
-    if (members[uid]) {
-      const n = getMemberName(uid, members)
-      if (!memberUids.includes(uid)) return `${n} (removed)`
-      return isPlaceholderId(uid) ? `${n} (invited)` : n
-    }
-    const rm = removedMembers?.find((r) => r.uid === uid)
-    if (rm) return `${rm.displayName || rm.email} (removed)`
-    return uid
-  }
+  const nameFor = (uid: string) =>
+    participantLabel(uid, members, memberUids, removedMembers)
 
   // Header
   lines.push(`Trip: ${escapeCsv(tripName)}`)
@@ -168,16 +153,3 @@ export function downloadCsv(csv: string, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export function openInGoogleSheets(csv: string) {
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'fairshare-export.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-
-  setTimeout(() => {
-    window.open('https://sheets.google.com/create', '_blank')
-  }, 500)
-}

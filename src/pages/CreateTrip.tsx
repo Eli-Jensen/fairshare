@@ -9,8 +9,7 @@ import type { TripType } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
 import { generateInviteCode } from '../lib/invite'
 import { writeActivity } from '../lib/activity'
-
-const MAX_TRIPS = 100
+import { MAX_TRIPS } from '../lib/limits'
 
 const COMMON_SETTLEMENT = [DEFAULT_CURRENCY, 'EUR', 'GBP', 'CAD', 'AUD']
 

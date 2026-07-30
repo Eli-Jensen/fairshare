@@ -14,7 +14,7 @@ import { SettlementView } from '../components/SettlementView'
 import { ActivityLog } from '../components/ActivityLog'
 import { UndoToast } from '../components/UndoToast'
 import { DeleteModal } from '../components/DeleteModal'
-import { tripToCsv, downloadCsv, openInGoogleSheets } from '../lib/export'
+import { tripToCsv, downloadCsv } from '../lib/export'
 import { CurrencyPicker } from '../components/CurrencyPicker'
 import { writeActivity } from '../lib/activity'
 import { arrayRemove, addDoc, collection, Timestamp } from 'firebase/firestore'
@@ -299,17 +299,6 @@ export function TripDashboard() {
                     onClick={async () => {
                       // loadAllExpenses resolves with the full list — the
                       // allExpenses state in this closure is stale
-                      const all = await loadAllExpenses()
-                      const csv = tripToCsv(trip.name, all, members, participants, sc, trip.customCategories, trip.removedMembers)
-                      openInGoogleSheets(csv)
-                      setShowExportMenu(false)
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover"
-                  >
-                    Export to Google Sheets
-                  </button>
-                  <button
-                    onClick={async () => {
                       const all = await loadAllExpenses()
                       const csv = tripToCsv(trip.name, all, members, participants, sc, trip.customCategories, trip.removedMembers)
                       downloadCsv(csv, `${trip.name.replace(/\s+/g, '-').toLowerCase()}.csv`)

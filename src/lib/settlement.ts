@@ -1,8 +1,20 @@
-import type { Expense, Settlement } from './types'
+import type { Settlement } from './types'
 import { BALANCE_THRESHOLD } from './types'
 
+/**
+ * The only fields computeBalances reads. `Expense` satisfies it, and so does a
+ * parsed-but-not-yet-written row from a Google Sheets backup — which lets the
+ * restore path verify the books balance before creating any Firestore doc.
+ */
+export interface BalanceInput {
+  paidBy: string
+  paidByAmounts?: Record<string, number>
+  amountSettled: number
+  splits: Record<string, number>
+}
+
 export function computeBalances(
-  expenses: Expense[],
+  expenses: BalanceInput[],
   memberUids: string[]
 ): Record<string, number> {
   const balances: Record<string, number> = {}
