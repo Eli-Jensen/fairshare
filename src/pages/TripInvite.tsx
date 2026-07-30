@@ -510,7 +510,8 @@ export function TripInvite() {
                 <div className="flex items-center gap-2 min-w-0">
                   <MemberAvatar member={members[ph.id]} size="sm" />
                   <div className="min-w-0">
-                    <span className="text-sm text-text-secondary truncate block">{ph.email}</span>
+                    {/* Restored guests can have a name but no email to claim on */}
+                    <span className="text-sm text-text-secondary truncate block">{ph.name || ph.email}</span>
                     <span className="text-xs text-text-muted">Invited · not joined yet</span>
                   </div>
                 </div>
@@ -525,7 +526,7 @@ export function TripInvite() {
                   <button
                     type="button"
                     onClick={() => rescindInvite(ph)}
-                    aria-label={`Rescind invite for ${ph.email}`}
+                    aria-label={`Rescind invite for ${ph.name || ph.email}`}
                     title="Rescind invite"
                     className="shrink-0 text-text-muted hover:text-danger-text p-1 rounded hover:bg-danger-bg transition-colors"
                   >

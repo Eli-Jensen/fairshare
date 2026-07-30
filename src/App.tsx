@@ -40,6 +40,7 @@ const TripInvite = lazyWithReload(() => import('./pages/TripInvite').then((m) =>
 // Lazy matters here: this chunk pulls in the Sheets/OAuth code, which most
 // users never touch
 const TripBackup = lazyWithReload(() => import('./pages/TripBackup').then((m) => ({ default: m.TripBackup })))
+const RestoreFromSheet = lazyWithReload(() => import('./pages/RestoreFromSheet').then((m) => ({ default: m.RestoreFromSheet })))
 const DeletedItems = lazyWithReload(() => import('./pages/DeletedItems').then((m) => ({ default: m.DeletedItems })))
 const Profile = lazyWithReload(() => import('./pages/Profile').then((m) => ({ default: m.Profile })))
 const Activity = lazyWithReload(() => import('./pages/Activity').then((m) => ({ default: m.Activity })))
@@ -130,6 +131,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DeletedItems />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/restore"
+            element={
+              <ProtectedRoute>
+                <RestoreFromSheet />
               </ProtectedRoute>
             }
           />

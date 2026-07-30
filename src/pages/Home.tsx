@@ -239,6 +239,12 @@ export function Home() {
             <Link to="/trip/new" className="text-accent-text font-medium hover:text-accent-hover">
               Create a trip
             </Link>
+            <p className="text-xs text-text-muted mt-3">
+              or{' '}
+              <Link to="/restore" className="text-accent-text hover:text-accent-hover">
+                restore one from a Google Sheet
+              </Link>
+            </p>
           </div>
         ) : (
           <WelcomeCard onDismiss={dismissWelcome} />

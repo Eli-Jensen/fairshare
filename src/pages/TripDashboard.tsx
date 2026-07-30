@@ -404,7 +404,7 @@ export function TripDashboard() {
               >
                 <MemberAvatar member={members[ph.id]} size="sm" />
                 <span className={`text-sm ${canRescind ? 'text-danger-text' : 'text-text-secondary'}`}>
-                  {ph.email}
+                  {ph.name || ph.email}
                   <span className={`ml-1 ${canRescind ? 'text-danger-text/70' : 'text-text-muted'}`}>(pending)</span>
                 </span>
                 {canRescind && (

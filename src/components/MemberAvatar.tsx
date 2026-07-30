@@ -67,7 +67,9 @@ export function MemberAvatar({
               <p className="text-sm font-medium text-text truncate">
                 {googleName}
               </p>
-              <p className="text-xs text-text-muted truncate">{member.email}</p>
+              {member.email && (
+                <p className="text-xs text-text-muted truncate">{member.email}</p>
+              )}
             </div>
           </div>
           {(hasCustomName || hasCustomPhoto) && (

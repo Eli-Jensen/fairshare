@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   collection,
   query,
@@ -241,6 +242,18 @@ export function DeletedItems() {
           )}
         </>
       )}
+
+      {/* Trash only holds items for 24h, so this is where someone lands after
+          leaving it too late — the Sheets backup is the only way back. */}
+      <div className="border-t border-line pt-4 mt-8">
+        <p className="text-xs text-text-muted">
+          Deleted something more than 24 hours ago?{' '}
+          <Link to="/restore" className="text-accent-text hover:text-accent-hover font-medium">
+            Restore it from a Google Sheet backup
+          </Link>
+          .
+        </p>
+      </div>
     </div>
   )
 }
