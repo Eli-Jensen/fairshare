@@ -4,6 +4,8 @@ import { formatMoney, getMemberName, getCategoryInfo, getExpenseCategories, DEFA
 import { computeBalances, simplifyDebts } from '../lib/settlement'
 import { MemberAvatar } from './MemberAvatar'
 import { CurrencyPicker } from './CurrencyPicker'
+import { ExchangeRateField } from './ExchangeRateField'
+import type { RateSource } from './ExchangeRateField'
 import { fetchRates, getCrossRate } from '../lib/rates'
 
 /** Compute all individual debtor→creditor pairs without simplification */
@@ -49,6 +51,12 @@ export function SettlementView({
   const [cpMethod, setCpMethod] = useState('')
   const [cpSubmitting, setCpSubmitting] = useState(false)
   const [liveRates, setLiveRates] = useState<Record<string, number>>({})
+  // The rate someone actually got at a counter is rarely the mid-market rate,
+  // so it has to be overridable. Held as an override rather than synced state:
+  // the automatic rate is derived, and a typed-in one simply wins over it.
+  const [cpRateOverride, setCpRateOverride] = useState<number | null>(null)
+  // "Use live rate" has to be able to skip the trip's remembered rate
+  const [cpSkipTripRate, setCpSkipTripRate] = useState(false)
 
   // Fetch exchange rates when form opens with non-settlement currency
   useEffect(() => {
@@ -56,13 +64,29 @@ export function SettlementView({
     fetchRates().then(setLiveRates)
   }, [showPaymentForm, cpCurrency, sc])
 
-  // Trip rates are already settlement-relative; live API rates are
-  // USD-based and need the cross-rate through USD
-  const cpRate = cpCurrency === sc
-    ? 1
-    : (tripRates?.[cpCurrency] ?? getCrossRate(liveRates, cpCurrency, sc))
+  /** Trip rates are already settlement-relative; live API rates are
+   *  USD-based and need the cross-rate through USD. */
+  function autoRate(currency: string): { rate: number; source: RateSource } {
+    if (currency === sc) return { rate: 1, source: '' }
+    if (!cpSkipTripRate && tripRates?.[currency]) {
+      return { rate: tripRates[currency], source: 'trip' }
+    }
+    const live = getCrossRate(liveRates, currency, sc)
+    if (live) return { rate: Math.round(live * 10000) / 10000, source: 'live' }
+    return { rate: 0, source: '' }
+  }
+
+  const cpAuto = autoRate(cpCurrency)
+  const cpRate = cpRateOverride ?? cpAuto.rate
+  const cpRateSource: RateSource = cpRateOverride !== null ? 'custom' : cpAuto.source
   const cpAmountNum = parseFloat(cpAmount) || 0
-  const cpAmountInSC = cpRate ? cpAmountNum * cpRate : 0
+
+  /** Any change of currency invalidates a rate the user entered for the old one. */
+  function changeCpCurrency(currency: string) {
+    setCpCurrency(currency)
+    setCpRateOverride(null)
+    setCpSkipTripRate(false)
+  }
 
   // Per-person spending (exclude settlements)
   const spending: Record<string, number> = {}
@@ -240,7 +264,8 @@ export function SettlementView({
                 setCpFrom(currentUserUid ?? memberUids[0])
                 setCpTo(memberUids.find((u) => u !== (currentUserUid ?? memberUids[0])) ?? '')
                 setCpAmount('')
-                setCpCurrency(tripLastCurrency ?? sc)
+                // Clears any rate left over from a previous payment
+                changeCpCurrency(tripLastCurrency ?? sc)
                 setCpMethod('')
                 setShowPaymentForm(true)
               }}
@@ -320,17 +345,23 @@ export function SettlementView({
                   />
                 </div>
                 <div className="shrink-0">
-                  <CurrencyPicker value={cpCurrency} onChange={setCpCurrency} />
+                  <CurrencyPicker value={cpCurrency} onChange={changeCpCurrency} />
                 </div>
               </div>
 
-              {/* Exchange rate hint when in foreign currency */}
-              {cpCurrency !== sc && cpAmountNum > 0 && (
-                <div className="text-xs text-text-muted px-1">
-                  {cpRate
-                    ? `≈ ${formatMoney(cpAmountInSC, sc)} at 1 ${cpCurrency} = ${cpRate.toFixed(4)} ${sc}`
-                    : 'Loading exchange rate...'}
-                </div>
+              {cpCurrency !== sc && (
+                <ExchangeRateField
+                  currency={cpCurrency}
+                  settlementCurrency={sc}
+                  rate={cpRate}
+                  amount={cpAmountNum}
+                  source={cpRateSource}
+                  onRateChange={setCpRateOverride}
+                  onResetToAuto={() => {
+                    setCpRateOverride(null)
+                    setCpSkipTripRate(true)
+                  }}
+                />
               )}
 
               {/* Payment method pills */}

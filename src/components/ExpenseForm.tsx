@@ -5,6 +5,7 @@ import { getMemberName, formatMoney, getAllCategories, categoryExists, getExpens
 import { CurrencyPicker } from './CurrencyPicker'
 import { HelpTip } from './HelpTip'
 import { MemberDropdown } from './MemberDropdown'
+import { ExchangeRateField } from './ExchangeRateField'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getCrossRate } from '../lib/rates'
 import { splitEqually, splitByPercentages, splitByShares, derivePercentages, deriveShares } from '../lib/splits'
@@ -30,10 +31,6 @@ interface ExpenseFormData {
   date: string
   notes: string
   categories: string[]
-  rateDirection: 'foreign-to-sc' | 'sc-to-foreign'
-  calcGave: string
-  calcGotForeign: string
-  showCalc: boolean
 }
 
 
@@ -135,10 +132,6 @@ export function ExpenseForm({
         date: timestampToDateString(existing.date),
         notes: existing.notes ?? '',
         categories: getExpenseCategories(existing),
-        rateDirection: 'foreign-to-sc',
-        calcGave: '',
-        calcGotForeign: '',
-        showCalc: false,
       }
     }
 
@@ -159,10 +152,6 @@ export function ExpenseForm({
       date: todayString(),
       notes: '',
       categories: [],
-      rateDirection: 'foreign-to-sc',
-      calcGave: '',
-      calcGotForeign: '',
-      showCalc: false,
     }
   })
 
@@ -464,136 +453,25 @@ export function ExpenseForm({
       </div>
 
       {form.currency !== sc && (
-        <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({
-                ...f,
-                rateDirection: f.rateDirection === 'foreign-to-sc' ? 'sc-to-foreign' : 'foreign-to-sc',
-              }))}
-              className="text-sm font-medium text-text-secondary flex items-center gap-1"
-            >
-              {form.rateDirection === 'foreign-to-sc'
-                ? `1 ${form.currency} = ? ${sc}`
-                : `1 ${sc} = ? ${form.currency}`}
-              <svg className="w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-            </button>
-            <div className="flex items-center gap-2">
-              {(rateSource === 'custom' || rateSource === 'trip') && (
-                <button type="button" onClick={() => {
-                  setForm((f) => ({ ...f, rateIsCustom: false }))
-                  // Force fetch from live API, bypassing trip saved rate
-                  const live = getCrossRate(liveRates, form.currency, sc)
-                  if (live) {
-                    setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000 }))
-                    setRateSource('live')
-                  } else {
-                    autoFillRate(form.currency)
-                  }
-                }} className="text-xs font-medium text-accent-text border border-line rounded-md px-2 py-1 hover:bg-accent-soft transition-colors">
-                  {rateSource === 'custom' ? 'Reset to auto' : 'Use live rate'}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, showCalc: !f.showCalc }))}
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent-text border border-line rounded-md px-2 py-1 hover:bg-accent-soft transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <rect x="5" y="3" width="14" height="18" rx="2" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 15h.01M12 15h.01M15.5 15h.01" />
-                </svg>
-                {form.showCalc ? 'Hide' : 'Calculator'}
-              </button>
-            </div>
-          </div>
-
-          <input
-            type="number"
-            step="0.0001"
-            min="0"
-            className={input}
-            value={form.rateDirection === 'foreign-to-sc'
-              ? (form.exchangeRate || '')
-              : (form.exchangeRate > 0 ? Math.round((1 / form.exchangeRate) * 10000) / 10000 : '')}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value) || 0
-              if (form.rateDirection === 'foreign-to-sc') {
-                handleRateChange(e.target.value)
-              } else {
-                // Entered as "1 settlement = X foreign" — invert to store
-                const rate = val > 0 ? Math.round((1 / val) * 10000) / 10000 : 0
-                handleRateChange(rate.toString())
-              }
-            }}
-          />
-
-          {/* Exchange calculator */}
-          {form.showCalc && (
-            <div className="bg-card rounded-lg p-2.5 border border-line space-y-2">
-              <p className="text-xs font-medium text-text-secondary">Exchange calculator</p>
-              <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center">
-                <div>
-                  <label className="text-[10px] text-text-muted uppercase">Gave ({sc})</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="200"
-                    className="w-full border border-line rounded px-2 py-1 text-sm bg-input text-text"
-                    value={form.calcGave}
-                    onChange={(e) => {
-                      const gave = parseFloat(e.target.value) || 0
-                      const got = parseFloat(form.calcGotForeign) || 0
-                      setForm((f) => ({ ...f, calcGave: e.target.value }))
-                      if (gave > 0 && got > 0) {
-                        const rate = Math.round((gave / got) * 10000) / 10000
-                        handleRateChange(rate.toString())
-                      }
-                    }}
-                  />
-                </div>
-                <span className="text-text-muted text-sm mt-4">=</span>
-                <div>
-                  <label className="text-[10px] text-text-muted uppercase">Got ({form.currency})</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="350"
-                    className="w-full border border-line rounded px-2 py-1 text-sm bg-input text-text"
-                    value={form.calcGotForeign}
-                    onChange={(e) => {
-                      const got = parseFloat(e.target.value) || 0
-                      const gave = parseFloat(form.calcGave) || 0
-                      setForm((f) => ({ ...f, calcGotForeign: e.target.value }))
-                      if (gave > 0 && got > 0) {
-                        const rate = Math.round((gave / got) * 10000) / 10000
-                        handleRateChange(rate.toString())
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            {amountSettled > 0 && (
-              <p className="text-xs text-text-secondary">
-                {form.amount} {form.currency} = {formatMoney(amountSettled, sc)}
-              </p>
-            )}
-            <p className="text-xs text-text-muted">
-              {rateSource === 'live' && 'Auto (live)'}
-              {rateSource === 'trip' && 'Last used on trip'}
-              {rateSource === 'custom' && 'Custom'}
-            </p>
-          </div>
-        </div>
+        <ExchangeRateField
+          currency={form.currency}
+          settlementCurrency={sc}
+          rate={form.exchangeRate}
+          onRateChange={(rate) => handleRateChange(String(rate))}
+          source={rateSource}
+          amount={form.amount}
+          onResetToAuto={() => {
+            setForm((f) => ({ ...f, rateIsCustom: false }))
+            // Force fetch from live API, bypassing trip saved rate
+            const live = getCrossRate(liveRates, form.currency, sc)
+            if (live) {
+              setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000 }))
+              setRateSource('live')
+            } else {
+              autoFillRate(form.currency)
+            }
+          }}
+        />
       )}
 
       <div className="border-t border-line-light" />
