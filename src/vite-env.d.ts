@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_BUILD_ENV?: string
   /** Google OAuth web client id. Unset = the Sheets backup feature is hidden. */
   readonly VITE_GOOGLE_OAUTH_CLIENT_ID?: string
+  /** Public Web Push (VAPID) key. Unset = push notifications are hidden. */
+  readonly VITE_FIREBASE_VAPID_KEY?: string
 }
 
 interface ImportMeta {

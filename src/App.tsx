@@ -44,6 +44,7 @@ const RestoreFromSheet = lazyWithReload(() => import('./pages/RestoreFromSheet')
 const DeletedItems = lazyWithReload(() => import('./pages/DeletedItems').then((m) => ({ default: m.DeletedItems })))
 const Profile = lazyWithReload(() => import('./pages/Profile').then((m) => ({ default: m.Profile })))
 const Activity = lazyWithReload(() => import('./pages/Activity').then((m) => ({ default: m.Activity })))
+const WhatsNew = lazyWithReload(() => import('./pages/WhatsNew').then((m) => ({ default: m.WhatsNew })))
 
 /** Comma-separated email whitelist — when set, only these users can access the app */
 const ALLOWED_EMAILS: string[] | null = import.meta.env.VITE_ALLOWED_EMAILS
@@ -123,6 +124,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Activity />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/whats-new"
+            element={
+              <ProtectedRoute>
+                <WhatsNew />
               </ProtectedRoute>
             }
           />

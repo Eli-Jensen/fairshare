@@ -40,3 +40,7 @@ if (firebaseConfigured) {
 export const auth = _auth as Auth
 export const db = _db as Firestore
 export const googleProvider = _googleProvider as GoogleAuthProvider
+// getMessaging() needs the app instance itself. Kept possibly-undefined
+// (unlike the asserted exports above) because push.ts checks it as part of
+// deciding whether the feature is available at all.
+export const app_ = app

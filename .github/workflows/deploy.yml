@@ -54,14 +54,22 @@ jobs:
           # Unset until the prod OAuth client exists — the Sheets backup
           # feature hides itself when this is empty
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+          # Public Web Push key. Unset = push hides itself, same safety
+          # property. Per project — the dev key will NOT work here.
+          VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
 
-      # Prod rules are NOT deployed here. The prod service account can't read
-      # serviceusage (403 on serviceusage.services.get), which the Firebase CLI
-      # calls before any firestore deploy — the dev service account can, which
-      # is why dev rules ship from CI and these don't. Run
-      # `make deploy-rules-prod` locally when firestore.rules or the indexes
-      # change. To automate it, grant the prod service account
-      # roles/serviceusage.serviceUsageConsumer on fairshare-4c9a2.
+      # Prod rules and Cloud Functions are NOT deployed here. The prod service
+      # account can't read serviceusage (403 on serviceusage.services.get),
+      # which the Firebase CLI calls before either deploy — the dev service
+      # account can, which is why those ship from CI and these don't. Run
+      # `make deploy-rules-prod` when firestore.rules or the indexes change,
+      # and `make deploy-functions-prod` when functions/ changes.
+      #
+      # To automate both, grant the prod service account on fairshare-4c9a2:
+      #   roles/serviceusage.serviceUsageConsumer   (rules and functions)
+      #   roles/cloudfunctions.admin, roles/run.admin, roles/eventarc.admin,
+      #   roles/artifactregistry.admin, roles/iam.serviceAccountUser
+      #                                             (functions only)
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
@@ -92,6 +100,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID_DEV }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID_DEV }}
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID_DEV }}
+          VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY_DEV }}
           VITE_ALLOWED_EMAILS: ${{ secrets.VITE_ALLOWED_EMAILS }}
           VITE_BUILD_ENV: dev
 
@@ -103,6 +112,16 @@ jobs:
         run: |
           printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" make deploy-rules-dev
+
+      # Push notifications. Deliberately BEFORE the hosting deploy: a client
+      # that advertises push should never go live ahead of the functions that
+      # send it. Unlike prod (below), the dev service account can do this.
+      - name: Deploy Cloud Functions to dev
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" make deploy-functions-dev
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

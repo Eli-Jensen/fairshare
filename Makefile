@@ -7,7 +7,7 @@ DEV_URL      := https://dev-fairshare-split.web.app
 BROWSERS     := firefox chrome safari all
 
 .DEFAULT_GOAL := help
-.PHONY: help versions test ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod watch open-prod open-dev $(BROWSERS)
+.PHONY: help versions test ship promote reconcile-main rollback-prod deploy-rules-dev deploy-rules-prod deploy-functions-dev deploy-functions-prod watch open-prod open-dev $(BROWSERS)
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -77,6 +77,14 @@ deploy-rules-dev: ## Deploy Firestore rules + indexes to the DEV project
 
 deploy-rules-prod: ## Deploy Firestore rules + indexes to PROD
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
+
+deploy-functions-dev: ## Deploy Cloud Functions (push notifications) to DEV — CI does this too
+	npm --prefix functions ci
+	npx firebase deploy --only functions --project $(DEV_PROJECT) --non-interactive
+
+deploy-functions-prod: ## Deploy Cloud Functions (push) to PROD — manual, like deploy-rules-prod
+	npm --prefix functions ci
+	npx firebase deploy --only functions --project $(PROD_PROJECT) --non-interactive
 
 watch: ## Watch CI for the current commit, then report what (if anything) it deployed
 	@bash scripts/watch-run.sh "$$(git branch --show-current)" "$$(git rev-parse HEAD)"

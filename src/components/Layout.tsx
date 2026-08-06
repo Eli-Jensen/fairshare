@@ -6,6 +6,8 @@ import { useTheme } from '../hooks/useTheme'
 import { useAccent, ACCENTS } from '../hooks/useAccent'
 import { useTextScale, TEXT_SCALE_LEVELS } from '../hooks/useTextScale'
 import { hasUnseenActivity } from '../lib/activityNotification'
+import { refreshPushToken, startForegroundNotifications, type ForegroundNote } from '../lib/push'
+import { hasUnseenChangelog } from '../lib/changelog'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
@@ -19,6 +21,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [hasUnseen, setHasUnseen] = useState(false)
+  const [note, setNote] = useState<ForegroundNote | null>(null)
+  // Lazy initializer, not a render-time read — localStorage during render
+  // would make this component impure.
+  const [newStuff, setNewStuff] = useState(() => hasUnseenChangelog())
 
   // Close menu on navigation, re-check unseen activity
   useEffect(() => {
@@ -27,6 +33,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
       setHasUnseen(hasUnseenActivity(user.uid, trips))
     }
   }, [location.pathname, user?.uid, trips])
+
+  // Push, on every app open. The token self-heal is gated on the PERMISSION
+  // rather than on our own "is push on here" flag: a site-storage wipe erases
+  // that flag and the push subscription together, so a flag-gated heal would
+  // abandon exactly the devices that just went silent.
+  useEffect(() => {
+    if (!user?.uid) return
+    refreshPushToken(user.uid)
+    let stop: (() => void) | undefined
+    let cancelled = false
+    // FCM only auto-displays banners for backgrounded pages, and iOS shows
+    // nothing at all for the focused app — so mirror it in-page.
+    startForegroundNotifications((n) => setNote(n)).then((unsub) => {
+      if (cancelled) unsub?.()
+      else stop = unsub
+    })
+    return () => {
+      cancelled = true
+      stop?.()
+    }
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!note) return
+    const t = window.setTimeout(() => setNote(null), 6000)
+    return () => window.clearTimeout(t)
+  }, [note])
 
   return (
     <div className="min-h-screen flex flex-col bg-page text-text transition-colors">
@@ -78,7 +111,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </div>
                   )}
                 </div>
-                {hasUnseen && (
+                {(hasUnseen || newStuff) && (
                   <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full ring-2 ring-card" />
                 )}
               </button>
@@ -207,6 +240,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => {
                       setMenuOpen(false)
+                      setNewStuff(false)
+                      navigate('/whats-new')
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-card-hover transition-colors flex items-center gap-1.5 ${
+                      newStuff ? 'text-accent-text font-medium' : 'text-text-secondary'
+                    }`}
+                  >
+                    What's New
+                    {newStuff && <span className="w-1.5 h-1.5 bg-accent rounded-full" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
                       navigate('/profile')
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
@@ -242,10 +288,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       Sign out
                     </button>
                   </div>
-                  <p className="px-3 pt-1.5 pb-1 text-[11px] text-text-muted border-t border-line-light">
+                  <Link
+                    to="/whats-new"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setNewStuff(false)
+                    }}
+                    className="block px-3 pt-1.5 pb-1 text-[11px] text-text-muted border-t border-line-light hover:text-text-secondary transition-colors"
+                  >
                     v{__APP_VERSION__} · {__GIT_SHA__} · {__BUILD_DATE__}
                     {import.meta.env.VITE_BUILD_ENV === 'dev' && ' · dev'}
-                  </p>
+                  </Link>
                 </div>
                 </>
               )}
@@ -257,6 +310,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         {children}
       </main>
+
+      {/* In-page mirror of a push that arrived while this tab was focused —
+          the only reliable signal on iOS, which suppresses system banners for
+          the app you're looking at. */}
+      {note && (
+        <button
+          onClick={() => {
+            const link = note.link
+            setNote(null)
+            if (link) {
+              const path = link.startsWith('http') ? new URL(link).pathname : link
+              navigate(path)
+            }
+          }}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(24rem,calc(100vw-2rem))] text-left bg-card border border-line rounded-lg shadow-lg px-4 py-3 animate-slide-up"
+        >
+          <p className="text-sm font-medium text-text truncate">{note.title}</p>
+          {note.body && <p className="text-sm text-text-secondary">{note.body}</p>}
+        </button>
+      )}
     </div>
   )
 }

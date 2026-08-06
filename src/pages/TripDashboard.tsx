@@ -628,7 +628,10 @@ export function TripDashboard() {
             }
             writeActivity(id!, {
               action: 'settlement_recorded',
+              // actorUid is the payer so the log reads "Bob paid Carol"
+              // regardless of who typed it; recordedBy is who actually did.
               actorUid: from,
+              recordedBy: user!.uid,
               targetPayeeUid: to,
               targetDescription: `${fromName} → ${toName}`,
               targetAmount: amountInSC,

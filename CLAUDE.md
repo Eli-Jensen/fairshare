@@ -24,10 +24,12 @@ make reconcile-main    # One-time: force main == dev so promotes can fast-forwar
 make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
 make deploy-rules-dev  # Deploy Firestore rules + indexes to the dev project (CI uses this too)
 make deploy-rules-prod # Deploy Firestore rules + indexes to prod
+make deploy-functions-dev  # Deploy push-notification Cloud Functions to dev (CI uses this too)
+make deploy-functions-prod # Deploy them to prod — manual, same reason as the rules
 make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
 
-**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (hosting + rules) → lighthouse → promote (fast-forward main) → deploy-production (hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
+**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (rules + functions + hosting) → lighthouse → promote (fast-forward main) → deploy-production (hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
 
 To hold something back, start the commit subject with **`[skip promote]`** (it must be at the very start — a mere mention in the body would be too easy to trip over); it deploys to dev only, and `make promote` sends it on when you're ready. `make ship` just pushes and watches — CI does the promoting.
 
@@ -45,6 +47,8 @@ One consequence worth knowing: **nothing forces a human to look at the dev site*
 /users/{uid}                  — UserProfile (displayName, email, photoURL, googleDisplayName)
 /users/{uid}/private/contacts — owner-only data ({ contacts: RecentContact[] })
 /users/{uid}/private/sheetSync — owner-only Google Sheets backup links ({ links: { [tripId]: SheetLink } })
+/users/{uid}/private/push     — owner-only push state ({ fcmTokens[], prefs{}, mutedTrips{} }); read server-side by the functions
+/users/{uid}/private/pushTest — the "send test notification" handshake ({ requestedAt } → { sentAt, devices, pruned })
 /inviteCodes/{code}           — invite-link lookup ({ tripId, type }); get-only for authed users, no list
 /trips/{tripId}               — Trip (name, type, memberUids[], inviteCode, invitedEmails[], settlementCurrency, lastRates{}, lastActivityAt, lastActivityBy, cached* fields, ...)
 /trips/{tripId}/expenses      — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, categories?, notes?, comments[], isSettlement?, deletedAt?)
@@ -96,7 +100,7 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 Dev and prod are **separate Firebase projects** — separate Firestore data, separate Auth users, separate rules. Dev is a safe sandbox; nothing done there can touch production data.
 
 - `main` — production, `fairshare-split.web.app` (project `fairshare-4c9a2`, open access). CI deploys **rules + indexes, then hosting**. You don't push here by hand: a green dev run fast-forwards it.
-- `dev` — staging, CI deploys **hosting + Firestore rules + indexes** to `dev-fairshare-split.web.app` (project `fairshare-split-dev`, email-gated via `VITE_ALLOWED_EMAILS`, marked with a DEV badge). Rules changes rehearse here before prod.
+- `dev` — staging, CI deploys **hosting + Firestore rules + indexes + Cloud Functions** to `dev-fairshare-split.web.app` (project `fairshare-split-dev`, email-gated via `VITE_ALLOWED_EMAILS`, marked with a DEV badge). Rules and push changes rehearse here before prod.
 - Feature branches merged via PR into `dev`, then `dev` → `main` once verified.
 - The old default site `fairshare-4c9a2.web.app` is disabled — don't re-enable it.
 
@@ -106,12 +110,33 @@ Dev and prod are **separate Firebase projects** — separate Firestore data, sep
 
 **Access gating** (`src/App.tsx`): When the `VITE_ALLOWED_EMAILS` env var is set (comma-separated emails), only those users can use the app after sign-in. Production builds omit this var — everyone can sign in. Dev builds include it via the GitHub secret.
 
-**Versioning**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`), served at `/version.json`, and shown at the bottom of the avatar menu; `make versions` reports what's live on prod/dev vs local HEAD. This is fully automatic — there is **no changelog and no release ceremony**. The git SHA identifies each build; bump the `package.json` version by hand only if you ever want the displayed number to change.
+**Versioning**: `package.json` version + git SHA + build date are injected at build time (`vite.config.ts` `define`), served at `/version.json`, and shown at the bottom of the avatar menu; `make versions` reports what's live on prod/dev vs local HEAD. This is fully automatic — there is **no release ceremony**: no tags to cut, no version bump to remember. The git SHA identifies each build; bump the `package.json` version by hand only if you ever want the displayed number to change.
+
+**Changelog** (`src/lib/changelog.ts` → `/whats-new`, reached from the avatar menu ✨ row and the version line): user-facing release notes that ship **inside the bundle**, so the page always describes the build you're running — nothing to sync, nothing to publish. This is deliberately *not* the `CHANGELOG.md` + `make release` tooling removed in `a250643`; that duplicated build metadata the version line already derives. Per-device unseen dot via the `fairshare-changelog-seen` localStorage key, read from a lazy `useState` initializer (never during render). **Ship ritual: prepend an entry for every promoted batch with user-visible changes**; skip internal-only work (CI, refactors, tests).
 
 ### Firebase Constraints
 
-The app must stay within the **Spark (free) plan**: 50K reads/day, 20K writes/day, 1GB storage. The profile cache and parallel writes (`Promise.all`) are critical optimizations. No Firebase Storage (Blaze required) — profile photos stored as base64 data URLs in Firestore.
+Both projects are on the **Blaze** plan — required for Cloud Functions, which push notifications cannot work without (a browser can't read another user's FCM token, and holds no send credential). Set a **budget alert** on each; Blaze budgets alert but do not cap, and the practical change from Spark is that a runaway now bills instead of failing.
+
+Costs stay in the free tiers regardless: 50K Firestore reads/day, 20K writes/day, 1GB storage, 2M function invocations/month. Treat those as the budget anyway — the profile cache, the denormalized `cached*` trip fields, and parallel writes (`Promise.all`) are what keep it there. Still no Firebase Storage — profile photos are base64 data URLs in Firestore.
+
+### Push Notifications
+
+FCM web push, sent by **Cloud Functions** in `functions/` (Node 22, `firebase-admin`). Deployed to **both** projects, unlike the sibling good-boy-points app whose dev project is Spark — dev on Blaze here is what makes push testable before prod.
+
+- **One trigger**: `onActivityCreated` on `trips/{tripId}/activity/{activityId}`. `writeActivity()` is already the choke point every mutation passes through, and the **only** place the actor is recorded (an expense edit is a bare `updateDoc` with no `editedBy`, so a document trigger could not exclude the person who did it). It also avoids the `cached*` fields every open client writes back onto the trip doc. **Never widen it to `onDocumentWritten`** — activity entries are GC'd after 7-14 days, and `onDocumentCreated` is what stops that cleanup replaying months of notifications.
+- **Decision logic is pure** and lives in `functions/src/audience.ts`, tested by the repo's normal `npm test` (Vitest's default include reaches into `functions/src`). `functions/src/index.ts` holds only I/O.
+- **Expense notifications go to the split, not the trip** — ids from `paidBy`/`paidByAmounts`/`splits`. Every audience is then filtered to drop `ph_` placeholders (no account), the actor, and anyone not in `memberUids` (removed members linger in old `splits` for balance math and must not receive trip contents).
+- **`settlement_recorded` carries `recordedBy`** alongside `actorUid`, because `actorUid` is the *payer* — anyone may record a payment on someone else's behalf, and excluding "the actor" would skip telling the payer.
+- **Undo writes carry `suppressPush: true`** (`activityUndo.ts`). Undoing an add writes an `expense_deleted` counter-entry; pushing it would contradict the notification sent seconds earlier.
+- **`member_invited` resolves the email via Admin Auth**, not a Firestore query: `/users/{uid}.email` is stored verbatim from Google (not lowercased) while `invitedEmails` is normalized, so `where('email','==')` would miss anyone with capitals.
+- **Tokens + prefs at `/users/{uid}/private/push`** — `fcmTokens[]`, sparse `prefs` (absent = ON), sparse `mutedTrips`. The existing owner-only wildcard rule covers it, so **no rules deploy**. Never put tokens on `/users/{uid}`, which any signed-in user can read.
+- **One service worker.** `/sw.js` is **generated by `vite.config.ts`** and does offline caching *and* push. Two script URLs at one scope replace each other's registration, and the loser silently drops notifications. **Never add a `public/sw.js`** — Vite copies `public/` over the emitted bundle asset, which would ship a push-less worker with no error at all. `getToken` is passed the registration explicitly so the FCM SDK doesn't register a second worker of its own.
+- **`refreshPushToken` self-heals on every app open, gated on the PERMISSION**, not on our localStorage flag — a site-storage wipe (routine on Android) erases the flag and the push subscription together, so a flag-gated heal abandons exactly the devices that just went silent. An explicit opt-out writes a separate tombstone key so a deliberate "off" is still respected.
+- **`VITE_FIREBASE_VAPID_KEY` per project** (Cloud Messaging → Web Push certificates). Unset = the feature hides itself, same safety property as the Sheets client id. Dev and prod keys are not interchangeable.
+- **Prod functions deploy manually** — `make deploy-functions-prod`. The prod service account hits the same `serviceusage` 403 as prod rules; see the comment in `deploy.yml`.
+- **iOS** only delivers push to an installed PWA (hence `icon-192/512.png` + the apple-touch metas in `index.html`) and suppresses banners for the focused app — which is what the in-page toast in `Layout.tsx` is for.
 
 ### Testing
 
-Tests are in `src/lib/__tests__/`. They cover pure logic only (settlement math, formatting, name disambiguation). No component or Firebase integration tests. Run `npm test` before committing.
+Tests are in `src/lib/__tests__/` plus `functions/src/audience.test.ts`. They cover pure logic only (settlement math, formatting, name disambiguation, sheet round-trips, notification audiences). No component or Firebase integration tests. Run `npm test` before committing — one Vitest run covers both the app and the functions.

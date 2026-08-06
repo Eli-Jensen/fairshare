@@ -71,6 +71,12 @@ export function getUndoAction(entry: ActivityLogEntry): UndoAction | null {
 /**
  * Execute the undo for a given activity entry.
  * Throws on Firestore errors — caller should catch.
+ *
+ * Every counter-entry written here carries `suppressPush: true`. Undoing an
+ * add writes an `expense_deleted` entry, and pushing that would contradict the
+ * "Alice added Dinner" notification everyone got seconds earlier. The first
+ * push stands (it was true when it was sent); the retraction stays quiet and
+ * lives in the activity log instead.
  */
 export async function executeUndo(
   entry: ActivityLogEntry,
@@ -90,6 +96,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'expense_deleted',
           actorUid,
+          suppressPush: true,
           targetDescription: entry.targetDescription,
           targetAmount: entry.targetAmount,
           targetExpenseId: entry.targetExpenseId,
@@ -105,6 +112,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'expense_restored',
           actorUid,
+          suppressPush: true,
           targetDescription: entry.targetDescription,
           targetAmount: entry.targetAmount,
           targetExpenseId: entry.targetExpenseId,
@@ -120,6 +128,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'expense_edited',
           actorUid,
+          suppressPush: true,
           targetDescription: entry.targetDescription,
           targetAmount: entry.targetAmount,
           targetExpenseId: entry.targetExpenseId,
@@ -137,6 +146,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'member_joined',
           actorUid,
+          suppressPush: true,
           targetMemberUid: entry.targetMemberUid,
           targetDescription: entry.targetDescription,
         })
@@ -150,6 +160,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'member_removed',
           actorUid,
+          suppressPush: true,
           targetMemberUid: entry.targetMemberUid,
           targetDescription: entry.targetDescription,
         })
@@ -171,6 +182,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'trip_renamed',
           actorUid,
+          suppressPush: true,
           targetDescription: oldName ?? '',
           previousValues: { name: entry.targetDescription },
           editDetails: [`name: "${entry.targetDescription}" → "${oldName}"`],
@@ -186,6 +198,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'currency_changed',
           actorUid,
+          suppressPush: true,
           targetDescription: `reverted to ${oldCurrency}`,
           previousValues: entry.targetDescription ? { settlementCurrency: entry.targetDescription.split(' → ')[1] } : undefined,
           editDetails: [`settlement currency: reverted to ${oldCurrency}`],
@@ -199,6 +212,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'trip_restored',
           actorUid,
+          suppressPush: true,
           targetDescription: entry.targetDescription,
         })
       }
@@ -210,6 +224,7 @@ export async function executeUndo(
         writeActivity(tripId, {
           action: 'trip_deleted',
           actorUid,
+          suppressPush: true,
           targetDescription: entry.targetDescription,
         })
       }

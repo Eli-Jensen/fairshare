@@ -217,11 +217,21 @@ export interface ActivityLogEntry {
   targetExpenseId?: string   // the expense doc id — enables undo from activity
   targetMemberUid?: string   // for member actions: the member who was added/removed
   targetPayeeUid?: string    // for settlements: who received the payment
+  // For settlements: who actually clicked Record payment. `actorUid` is the
+  // PAYER (so the log reads "Bob paid Carol" whoever typed it), and anyone in
+  // the trip may record on someone else's behalf — push needs to tell the two
+  // apart so it doesn't skip notifying the payer.
+  recordedBy?: string
   paymentMethod?: string     // for settlements: e.g. "Venmo", "Cash"
   editDetails?: string[]     // e.g. ["amount: $50 → $60", "description: Lunch → Dinner"]
   previousValues?: Record<string, unknown>  // old field values for undo (uses Firestore field names)
   tripId?: string            // set when querying across trips for global activity
   tripName?: string          // set when querying across trips for global activity
+  // Set by the undo paths in activityUndo.ts. Undoing an add writes a
+  // counter-entry (expense_deleted), and pushing that would contradict the
+  // notification that already went out seconds earlier — so the Cloud Function
+  // skips these entirely. They still appear in the activity log.
+  suppressPush?: boolean
   createdAt: Timestamp
 }
 
