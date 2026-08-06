@@ -27,11 +27,11 @@ make deploy-rules-prod # Deploy Firestore rules + indexes to prod
 make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
 
-**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (hosting + rules) → lighthouse → promote (fast-forward main) → deploy-production (rules + hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
+**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (hosting + rules) → lighthouse → promote (fast-forward main) → deploy-production (hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
 
 To hold something back, start the commit subject with **`[skip promote]`** (it must be at the very start — a mere mention in the body would be too easy to trip over); it deploys to dev only, and `make promote` sends it on when you're ready. `make ship` just pushes and watches — CI does the promoting.
 
-Two consequences worth knowing: **prod rules now deploy automatically** (safe because the identical rules deployed to dev earlier in the same run), and **nothing forces a human to look at the dev site** before prod gets it — `[skip promote]` is the way to buy that time.
+One consequence worth knowing: **nothing forces a human to look at the dev site** before prod gets it — `[skip promote]` is the way to buy that time.
 
 ## Architecture
 
@@ -53,7 +53,7 @@ Two consequences worth knowing: **prod rules now deploy automatically** (safe be
 
 The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency. The settlement currency is **locked once a trip has expenses** (stored amounts are never converted).
 
-Trip reads are restricted to members and email invitees, so invite links resolve through `/inviteCodes/{code}` and join via a rules-validated "self-join" update (only change = adding your own uid to `memberUids`). `TripDashboard` lazily backfills code docs for pre-existing trips. **Rules deploy through the pipeline now** — to dev on a dev push, then to prod as part of the same run's promote, so production never sees a rule that dev hasn't already run.
+Trip reads are restricted to members and email invitees, so invite links resolve through `/inviteCodes/{code}` and join via a rules-validated "self-join" update (only change = adding your own uid to `memberUids`). `TripDashboard` lazily backfills code docs for pre-existing trips. **Dev rules deploy from CI; prod rules do not** — the prod service account lacks `serviceusage` read, which the Firebase CLI needs before a firestore deploy. Run `make deploy-rules-prod` locally when `firestore.rules` or `firestore.indexes.json` change. To automate it, grant that service account `roles/serviceusage.serviceUsageConsumer` on `fairshare-4c9a2`.
 
 Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (or undefined for old data), a group has `type: 'group'`. Use `tripLabel(trip.type)` from `src/lib/types.ts` for user-facing text — never hardcode "trip".
 
