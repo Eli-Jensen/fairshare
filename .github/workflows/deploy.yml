@@ -20,10 +20,20 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # Runs either from a direct push to main, or automatically after a dev push
+  # has deployed, passed Lighthouse, and fast-forwarded main. The `always()` is
+  # what lets one job serve both: on a main push the dev-side jobs are skipped
+  # rather than successful, and a plain `needs` would skip this too.
   deploy-production:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, promote]
+    if: >-
+      always()
+      && needs.test.result == 'success'
+      && (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push')
+        || needs.promote.result == 'success'
+      )
     steps:
       - uses: actions/checkout@v5
 
@@ -44,6 +54,16 @@ jobs:
           # Unset until the prod OAuth client exists — the Sheets backup
           # feature hides itself when this is empty
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+
+      # Prod rules only ever go out after the same rules have already been
+      # deployed to dev earlier in this pipeline, so they are never seen by
+      # production first
+      - name: Deploy Firestore rules + indexes to prod
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa-prod.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa-prod.json" make deploy-rules-prod
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -94,3 +114,52 @@ jobs:
           channelId: live
           projectId: fairshare-split-dev
           target: dev
+
+  # Audits the real deployed artifact on real hosting, rather than a local
+  # preview — so it sees the actual bundle, headers and network the site ships
+  # with. It can only reach the signed-out landing page (the app itself is
+  # behind Google sign-in), so treat this as a guard on the shell: bundle
+  # weight, accessibility of the entry point, and metadata.
+  lighthouse:
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Audit the dev site
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: https://dev-fairshare-split.web.app
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  # Fast-forward main to dev, which is what makes prod and dev report the same
+  # sha. Pushing with GITHUB_TOKEN deliberately does not start a second
+  # workflow run, so deploy-production picks this up within this same run.
+  promote:
+    if: >-
+      github.ref == 'refs/heads/dev'
+      && github.event_name == 'push'
+      && !contains(github.event.head_commit.message, '[skip promote]')
+    runs-on: ubuntu-latest
+    needs: [deploy-dev, lighthouse]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward main to dev
+        run: |
+          set -euo pipefail
+          # Anything on main that isn't on dev means this isn't a fast-forward,
+          # and force-pushing prod's history is never the automatic answer
+          if ! git merge-base --is-ancestor origin/main origin/dev; then
+            echo "::error::main has commits that aren't on dev, so it can't fast-forward."
+            echo "Run 'make reconcile-main CONFIRM=1' once, then re-run this."
+            exit 1
+          fi
+          git push origin "${{ github.sha }}:refs/heads/main"

@@ -32,10 +32,10 @@ versions: ## Show what's running on prod and dev vs local HEAD
 test: ## Run the test suite and a production build
 	npm test && npm run build
 
-ship: ## Ship dev → prod in one shot: push dev, wait for green CI, then auto-promote. MSG="..." commits first. Skips manual smoke test — for low-risk changes.
+ship: ## Push dev and watch it reach prod. CI promotes on green. MSG="..." commits first.
 	@MSG="$(MSG)" bash scripts/ship.sh
 
-promote: ## Fast-forward main to origin/dev (CI deploys prod hosting) + deploy prod rules. Keeps prod/dev shas identical.
+promote: ## Manually promote — only needed after a [skip promote] commit. CI promotes on green otherwise.
 	git fetch -q origin
 	@git merge-base --is-ancestor origin/main origin/dev || \
 		{ echo "✋ main has commits not on dev, so it can't fast-forward. Run 'make reconcile-main CONFIRM=1' once."; exit 1; }

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Ship the current dev work all the way to prod in one shot:
-#   (optional commit) → push dev → wait for dev CI → if green, promote to prod.
+# Ship the current dev work: (optional commit) → push dev → watch it reach prod.
 #
-# The dev-green gate is the safety net: if tests, build, or the dev deploy
-# fail, this stops and never touches prod. It DOES skip the manual dev-site
-# smoke test — use it for low-risk changes; use the normal flow otherwise.
+# CI does the promoting now — a green dev run fast-forwards main by itself, so
+# this script pushes and then reports. It no longer calls `make promote`; doing
+# so would race the pipeline that is already doing it.
+#
+# To stop a commit from reaching prod, put [skip promote] in its message and
+# promote by hand later with `make promote`.
 #
 # Usage:
 #   make ship                       # ship already-committed dev commits
@@ -38,7 +40,7 @@ fi
 
 sha=$(git rev-parse HEAD)
 short=$(git rev-parse --short HEAD)
-echo "🚢 Shipping $short:  dev → (if CI passes) → prod"
+echo "🚢 Shipping $short:  dev → (tests, Lighthouse) → prod"
 echo "   commits ahead of prod:"
 git log --oneline origin/main..HEAD | sed 's/^/     /'
 echo
@@ -46,18 +48,15 @@ echo
 # 4. Push to dev (no-op if already pushed)
 git push origin dev
 
-# 5. Wait for the dev run — it reports status, versions, and gates here:
-#    a non-success exit means we do NOT touch prod.
+# 5. Watch the dev run. Promotion happens inside that same run once tests,
+#    the dev deploy and Lighthouse have all passed — so a failure here means
+#    prod was never touched.
 if ! bash scripts/watch-run.sh dev "$sha"; then
   echo
-  echo "❌ Dev CI did not pass — NOT promoting to prod."
+  echo "❌ Dev CI did not pass — prod was not touched."
   exit 1
 fi
 
-# 6. Promote to prod. `make promote` fast-forwards main, deploys prod rules,
-#    and watches the prod deploy (status + versions) on its own.
-echo
-echo "🚀 Promoting to prod…"
-make promote
 echo
 echo "🎉 Shipped $short."
+make versions

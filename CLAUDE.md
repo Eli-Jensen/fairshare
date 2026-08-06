@@ -28,7 +28,11 @@ make deploy-rules-prod # Deploy Firestore rules + indexes to prod
 make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
 
-Two release paths: **`make ship`** (fast, low-risk changes — auto-promotes if dev CI is green) and the **manual** path (push to `dev` → smoke-test the dev site → `make promote`) for anything where the dev-site check matters.
+**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (hosting + rules) → lighthouse → promote (fast-forward main) → deploy-production (rules + hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
+
+To hold something back, put **`[skip promote]`** in the commit message; it deploys to dev only, and `make promote` sends it on when you're ready. `make ship` just pushes and watches — CI does the promoting.
+
+Two consequences worth knowing: **prod rules now deploy automatically** (safe because the identical rules deployed to dev earlier in the same run), and **nothing forces a human to look at the dev site** before prod gets it — `[skip promote]` is the way to buy that time.
 
 ## Architecture
 
