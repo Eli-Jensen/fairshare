@@ -15,11 +15,10 @@ npm run lint           # ESLint
 Deployment and release operations live in the **Makefile** (`make help` lists everything):
 
 ```bash
-make ship              # Fast path: push dev → wait for green CI → auto-promote to prod.
-                       #   MSG="..." commits pending changes first. Stops if dev CI fails.
-                       #   Skips the manual dev-site smoke test — for low-risk changes only.
+make ship              # Push dev and watch it reach prod. CI promotes on green.
+                       #   MSG="..." commits pending changes first.
 make versions          # What's running on prod / dev (via /version.json) vs local HEAD
-make promote           # Fast-forward main to dev (CI deploys prod hosting) + deploy prod rules.
+make promote           # Manual promote — only needed after a [skip promote] commit.
                        #   Fast-forward (not a merge commit) so prod reports the SAME sha as dev.
 make reconcile-main    # One-time: force main == dev so promotes can fast-forward (CONFIRM=1)
 make rollback-prod     # Rebuild + redeploy prod hosting from a previous commit (REF=...)
@@ -30,7 +29,7 @@ make watch             # Watch the latest CI run, then report what it deployed +
 
 **Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (hosting + rules) → lighthouse → promote (fast-forward main) → deploy-production (rules + hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
 
-To hold something back, put **`[skip promote]`** in the commit message; it deploys to dev only, and `make promote` sends it on when you're ready. `make ship` just pushes and watches — CI does the promoting.
+To hold something back, start the commit subject with **`[skip promote]`** (it must be at the very start — a mere mention in the body would be too easy to trip over); it deploys to dev only, and `make promote` sends it on when you're ready. `make ship` just pushes and watches — CI does the promoting.
 
 Two consequences worth knowing: **prod rules now deploy automatically** (safe because the identical rules deployed to dev earlier in the same run), and **nothing forces a human to look at the dev site** before prod gets it — `[skip promote]` is the way to buy that time.
 
@@ -54,7 +53,7 @@ Two consequences worth knowing: **prod rules now deploy automatically** (safe be
 
 The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency. The settlement currency is **locked once a trip has expenses** (stored amounts are never converted).
 
-Trip reads are restricted to members and email invitees, so invite links resolve through `/inviteCodes/{code}` and join via a rules-validated "self-join" update (only change = adding your own uid to `memberUids`). `TripDashboard` lazily backfills code docs for pre-existing trips. **Rules changes require `npx firebase deploy --only firestore` — CI only deploys hosting.**
+Trip reads are restricted to members and email invitees, so invite links resolve through `/inviteCodes/{code}` and join via a rules-validated "self-join" update (only change = adding your own uid to `memberUids`). `TripDashboard` lazily backfills code docs for pre-existing trips. **Rules deploy through the pipeline now** — to dev on a dev push, then to prod as part of the same run's promote, so production never sees a rule that dev hasn't already run.
 
 Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (or undefined for old data), a group has `type: 'group'`. Use `tripLabel(trip.type)` from `src/lib/types.ts` for user-facing text — never hardcode "trip".
 
@@ -96,7 +95,7 @@ Trips and groups use the same Firestore collection. A trip has `type: 'trip'` (o
 
 Dev and prod are **separate Firebase projects** — separate Firestore data, separate Auth users, separate rules. Dev is a safe sandbox; nothing done there can touch production data.
 
-- `main` — production, CI deploys **hosting only** to `fairshare-split.web.app` (project `fairshare-4c9a2`, open access). **Prod rules/indexes are deployed manually** (`npx firebase deploy --only firestore --project prod`) — do this whenever `firestore.rules`/`firestore.indexes.json` change.
+- `main` — production, `fairshare-split.web.app` (project `fairshare-4c9a2`, open access). CI deploys **rules + indexes, then hosting**. You don't push here by hand: a green dev run fast-forwards it.
 - `dev` — staging, CI deploys **hosting + Firestore rules + indexes** to `dev-fairshare-split.web.app` (project `fairshare-split-dev`, email-gated via `VITE_ALLOWED_EMAILS`, marked with a DEV badge). Rules changes rehearse here before prod.
 - Feature branches merged via PR into `dev`, then `dev` → `main` once verified.
 - The old default site `fairshare-4c9a2.web.app` is disabled — don't re-enable it.

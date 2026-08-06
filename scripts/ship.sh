@@ -5,8 +5,8 @@
 # this script pushes and then reports. It no longer calls `make promote`; doing
 # so would race the pipeline that is already doing it.
 #
-# To stop a commit from reaching prod, put [skip promote] in its message and
-# promote by hand later with `make promote`.
+# To stop a commit from reaching prod, start its subject with the skip marker
+# (see CLAUDE.md) and promote by hand later with `make promote`.
 #
 # Usage:
 #   make ship                       # ship already-committed dev commits

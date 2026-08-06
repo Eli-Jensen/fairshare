@@ -138,11 +138,14 @@ jobs:
   # Fast-forward main to dev, which is what makes prod and dev report the same
   # sha. Pushing with GITHUB_TOKEN deliberately does not start a second
   # workflow run, so deploy-production picks this up within this same run.
+  # The opt-out has to be at the very start of the message, not merely
+  # somewhere in it: `contains` also matches the body, so a commit that
+  # *mentions* the marker — like the one that introduced it — opts itself out.
   promote:
     if: >-
       github.ref == 'refs/heads/dev'
       && github.event_name == 'push'
-      && !contains(github.event.head_commit.message, '[skip promote]')
+      && !startsWith(github.event.head_commit.message, '[skip promote]')
     runs-on: ubuntu-latest
     needs: [deploy-dev, lighthouse]
     permissions:
