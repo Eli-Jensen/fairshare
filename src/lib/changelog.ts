@@ -33,6 +33,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    date: '2026-08-06',
+    emoji: '⏳',
+    title: 'Joining a trip tells you it’s working',
+    items: [
+      'Opening an invite link used to sit on a motionless “Joining trip…” while it set several things up behind the scenes — long enough that people reasonably assumed it had frozen. Now it shows a spinner and says what it’s doing.',
+    ],
+  },
+  {
     date: '2026-08-05',
     emoji: '💱',
     title: 'Pay someone back at the rate you actually got',

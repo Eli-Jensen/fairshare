@@ -9,6 +9,7 @@ import {
   setDoc,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { Spinner } from '../components/Spinner'
 import { useAuth } from '../hooks/useAuth'
 import { tripLabel } from '../lib/types'
 import { writeActivity } from '../lib/activity'
@@ -142,7 +143,10 @@ export function JoinTrip() {
             </button>
           </>
         ) : (
-          <p className="text-text-muted">Loading...</p>
+          <p className="flex items-center gap-2 text-text-muted">
+            <Spinner className="w-4 h-4" />
+            Loading…
+          </p>
         )}
       </div>
     )
@@ -162,9 +166,19 @@ export function JoinTrip() {
     )
   }
 
+  // Joining is several sequential round-trips — the self-join write, then the
+  // placeholder claim transaction, then the reconcile — and on a cold network
+  // that's long enough that a bare line of text reads as "stuck". Say what's
+  // happening and keep something moving.
   return (
-    <div className="flex items-center justify-center py-20">
-      <p className="text-text-muted">Joining {tripLabel(joinType)}...</p>
+    <div
+      className="flex flex-col items-center justify-center py-20 gap-3"
+      role="status"
+      aria-live="polite"
+    >
+      <Spinner className="w-8 h-8 text-accent" />
+      <p className="text-text-secondary font-medium">Joining {tripLabel(joinType)}…</p>
+      <p className="text-sm text-text-muted">Setting up your shared expenses</p>
     </div>
   )
 }
