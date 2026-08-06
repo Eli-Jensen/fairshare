@@ -19,7 +19,6 @@ interface ExpenseFormData {
   amount: number
   currency: string
   exchangeRate: number
-  rateIsCustom: boolean
   paidBy: string
   multiPayer: boolean
   paidByAmounts: Record<string, string>
@@ -120,7 +119,6 @@ export function ExpenseForm({
         amount: existing.amount,
         currency: existing.currency,
         exchangeRate: existing.exchangeRate,
-        rateIsCustom: true,
         paidBy: existing.paidBy,
         multiPayer: !!hasMultiPayer,
         paidByAmounts,
@@ -140,7 +138,6 @@ export function ExpenseForm({
       amount: 0,
       currency: tripLastCurrency || sc,
       exchangeRate: 1,
-      rateIsCustom: false,
       paidBy: currentUserUid,
       multiPayer: false,
       paidByAmounts: initPaidBy,
@@ -160,6 +157,23 @@ export function ExpenseForm({
   const [liveRates, setLiveRates] = useState<Record<string, number>>({})
   const [rateSource, setRateSource] = useState<'live' | 'trip' | 'custom' | ''>('')
   const initializedCurrency = useRef(existing?.currency ?? DEFAULT_CURRENCY)
+  /**
+   * Has the user taken control of the rate?
+   *
+   * A REF, not state, and that's load-bearing. The auto-fill effect below
+   * re-runs whenever `liveRates` resolves (an async fetch — a real network
+   * call to the rates API whenever the 6h cache is cold) or `tripRates`
+   * changes identity (it's `trip.lastRates`, a fresh object on every trip-doc
+   * snapshot, and useTrip writes cached* fields to that doc). Both land after
+   * mount, on their own schedule.
+   *
+   * Guarding that with state loses a race: state isn't true until React
+   * commits, so a fetch resolving between the user's keystroke and that
+   * commit would silently overwrite the rate they just entered — which is
+   * exactly what happened, and it cost a real expense the wrong amount. A ref
+   * mutates synchronously, so there is no window.
+   */
+  const rateTouched = useRef(Boolean(existing))
 
   useEffect(() => {
     fetchRates().then(setLiveRates)
@@ -167,12 +181,13 @@ export function ExpenseForm({
 
   useEffect(() => {
     if (form.currency === sc) {
-      setForm((f) => ({ ...f, exchangeRate: 1, rateIsCustom: false }))
+      setForm((f) => ({ ...f, exchangeRate: 1 }))
       setRateSource('')
+      rateTouched.current = false
       return
     }
     if (existing && form.currency === initializedCurrency.current) return
-    if (form.rateIsCustom) return
+    if (rateTouched.current) return
     autoFillRate(form.currency)
   }, [form.currency, liveRates, tripRates])
 
@@ -180,13 +195,13 @@ export function ExpenseForm({
     // Trip rates are already relative to the settlement currency; live API
     // rates are USD-based and need the cross-rate through USD
     if (tripRates?.[currency]) {
-      setForm((f) => ({ ...f, exchangeRate: tripRates[currency], rateIsCustom: false }))
+      setForm((f) => ({ ...f, exchangeRate: tripRates[currency] }))
       setRateSource('trip')
       return
     }
     const live = getCrossRate(liveRates, currency, sc)
     if (live) {
-      setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000, rateIsCustom: false }))
+      setForm((f) => ({ ...f, exchangeRate: Math.round(live * 10000) / 10000 }))
       setRateSource('live')
       return
     }
@@ -194,15 +209,14 @@ export function ExpenseForm({
 
   function handleCurrencyChange(currency: string) {
     initializedCurrency.current = ''
-    setForm((f) => ({ ...f, currency, rateIsCustom: false }))
+    // A new currency means the old rate is meaningless — auto-fill again.
+    rateTouched.current = false
+    setForm((f) => ({ ...f, currency }))
   }
 
   function handleRateChange(value: string) {
-    setForm((f) => ({
-      ...f,
-      exchangeRate: parseFloat(value) || 0,
-      rateIsCustom: true,
-    }))
+    rateTouched.current = true
+    setForm((f) => ({ ...f, exchangeRate: parseFloat(value) || 0 }))
     setRateSource('custom')
   }
 
@@ -461,7 +475,8 @@ export function ExpenseForm({
           source={rateSource}
           amount={form.amount}
           onResetToAuto={() => {
-            setForm((f) => ({ ...f, rateIsCustom: false }))
+            // Handing control back: let the auto-fill effect win again.
+            rateTouched.current = false
             // Force fetch from live API, bypassing trip saved rate
             const live = getCrossRate(liveRates, form.currency, sc)
             if (live) {

@@ -78,6 +78,12 @@ deploy-rules-dev: ## Deploy Firestore rules + indexes to the DEV project
 deploy-rules-prod: ## Deploy Firestore rules + indexes to PROD
 	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
 
+# A project with no Artifact Registry cleanup policy makes `deploy --only
+# functions` exit 1 AFTER deploying successfully — which would fail CI on
+# every push. Both projects have a policy set (1-day image retention); if you
+# ever add a region or a project, run `firebase functions:artifacts:setpolicy`
+# there once. Don't "fix" it with --force: that also deletes any function
+# missing from source, so a renamed export would silently drop the old one.
 deploy-functions-dev: ## Deploy Cloud Functions (push notifications) to DEV — CI does this too
 	npm --prefix functions ci
 	npx firebase deploy --only functions --project $(DEV_PROJECT) --non-interactive
