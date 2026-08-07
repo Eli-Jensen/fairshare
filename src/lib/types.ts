@@ -52,6 +52,10 @@ export interface Trip {
   createdBy: string
   memberUids: string[]
   inviteCode: string
+  /** Invite code echoed by the most recent link-join, which is how the rules
+   *  verify a self-joiner actually holds a live invite. Written by JoinTrip;
+   *  never read by the app. */
+  joinedWith?: string
   invitedEmails?: string[]
   removedMembers?: RemovedMember[]
   placeholderMembers?: PlaceholderMember[]

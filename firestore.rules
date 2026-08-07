@@ -7,10 +7,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // User profiles — readable by any signed-in user (trip members need
-    // each other's names/photos), writable only by the owner
+    function isMemberOfTrip(tripId) {
+      return isAuthed()
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
+    }
+
+    // User profiles — any signed-in user may fetch one BY UID (trip members
+    // need each other's names/photos), writable only by the owner. `list` is
+    // denied: read-as-a-whole would let any account dump the email address of
+    // every user in the app, which no screen needs.
     match /users/{uid} {
-      allow read: if isAuthed();
+      allow get: if isAuthed();
+      allow list: if false;
       allow write: if isAuthed() && request.auth.uid == uid;
 
       // Owner-only data (recent invite contacts, etc.)
@@ -24,31 +32,55 @@ service cloud.firestore {
     match /inviteCodes/{code} {
       allow get: if isAuthed();
       allow list: if false;
-      allow create, update: if isAuthed()
+      allow create: if isAuthed()
         && request.resource.data.tripId is string
-        && request.auth.uid in get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data.memberUids;
+        && isMemberOfTrip(request.resource.data.tripId);
+      // An update must be authorized by BOTH trips. Checking only the incoming
+      // tripId would let a member of any trip repoint someone else's invite
+      // code at their own, capturing that trip's invitees.
+      allow update: if isAuthed()
+        && request.resource.data.tripId is string
+        && isMemberOfTrip(request.resource.data.tripId)
+        && isMemberOfTrip(resource.data.tripId);
       // Deletable only while the referenced trip still exists (purge order:
       // expenses → activity → invite code → trip doc)
-      allow delete: if isAuthed()
-        && request.auth.uid in get(/databases/$(database)/documents/trips/$(resource.data.tripId)).data.memberUids;
+      allow delete: if isMemberOfTrip(resource.data.tripId);
     }
 
     match /trips/{tripId} {
       function isMember() {
         return isAuthed() && request.auth.uid in resource.data.memberUids;
       }
+      // invitedEmails is always written lowercased (TripInvite normalizes on
+      // invite), but token emails come back from Google verbatim — a Workspace
+      // address with capitals would never match, and because Home's pending-
+      // invite listener is a list query, one unmatched doc fails the whole
+      // listener. Normalize on this side too.
       function isInvited() {
         return isAuthed()
           && 'invitedEmails' in resource.data
-          && request.auth.token.email in resource.data.invitedEmails;
+          && request.auth.token.email.lower() in resource.data.invitedEmails;
       }
-      // Self-join via invite link: the only change is adding the
-      // requester's own uid to memberUids
+      // Self-join via invite link: the only change is adding the requester's
+      // own uid to memberUids — AND they must echo the trip's current invite
+      // code in `joinedWith`.
+      //
+      // Without that echo the tripId alone was the capability: it is handed
+      // out by the /inviteCodes lookup, sits in every /trip/:id URL, and is
+      // never rotated, so anyone who once opened a link — or was later
+      // removed from the trip — could re-add themselves forever and read
+      // everything. A non-member cannot read the code (the trip doc is denied
+      // to them and /inviteCodes has no reverse lookup), so requiring it
+      // proves they hold a live invite and makes "Regenerate invite link" an
+      // actual revocation.
       function isSelfJoin() {
         return isAuthed()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'joinedWith'])
           && request.resource.data.memberUids.toSet().difference(resource.data.memberUids.toSet()) == [request.auth.uid].toSet()
-          && resource.data.memberUids.toSet().difference(request.resource.data.memberUids.toSet()).size() == 0;
+          && resource.data.memberUids.toSet().difference(request.resource.data.memberUids.toSet()).size() == 0
+          && 'inviteCode' in resource.data
+          && 'joinedWith' in request.resource.data
+          && request.resource.data.joinedWith == resource.data.inviteCode;
       }
       // Email invitees may only join or decline — not touch other fields
       function isInviteeJoinOrDecline() {

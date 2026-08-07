@@ -21,6 +21,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-07',
+    emoji: '🔒',
+    title: 'Invite links you can actually take back',
+    items: [
+      'Regenerating a trip’s invite link now genuinely retires the old one. Before, the new link worked but the old one kept letting people in — so a link sent to the wrong person couldn’t really be un-sent.',
+      'Removing someone from a trip sticks. Regenerate the invite link afterwards and they can’t add themselves back.',
+      'Fixed: if your Google address has capital letters in it, invitations sent to it never appeared on your home screen. They do now.',
+    ],
+  },
+  {
     date: '2026-08-06',
     emoji: '🔔',
     title: 'Notifications',

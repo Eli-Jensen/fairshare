@@ -84,8 +84,12 @@ export function JoinTrip() {
         // Permission denied — not a member or invitee yet, proceed with the self-join
       }
 
+      // `joinedWith` proves we hold a live invite code: rules compare it to
+      // the trip's current inviteCode, which a non-member can't read. Without
+      // it the tripId alone would be enough to join.
       await updateDoc(doc(db, 'trips', tripId), {
         memberUids: arrayUnion(user.uid),
+        joinedWith: inviteCode,
       })
       // Invite-link joiners who weren't email-invited couldn't read the trip
       // until now. Confirm it wasn't deleted; if it was, undo the join and bail
