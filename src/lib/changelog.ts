@@ -22,6 +22,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-07',
+    emoji: '✨',
+    title: 'No more quietly running last week’s app',
+    items: [
+      'When a new version goes out, a tab you already had open refreshes itself onto it, instead of carrying on with old code until you happened to reload.',
+      'Opening the app also picks up a new version straight away, rather than up to an hour later.',
+    ],
+  },
+  {
+    date: '2026-08-07',
     emoji: '🔒',
     title: 'Invite links you can actually take back',
     items: [

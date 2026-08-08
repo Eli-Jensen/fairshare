@@ -75,13 +75,30 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   if (!event.request.url.startsWith(self.location.origin)) return
 
+  // Never touch the build stamp. The in-app update check compares it against
+  // the sha baked into the running bundle, so a cached copy could report a
+  // NEWER version than the one it would then serve on reload — an
+  // un-dismissable "please reload" loop for an offline tab.
+  if (new URL(event.request.url).pathname === '/version.json') return
+
   // Skip Firebase/API requests (let Firestore handle its own caching)
   if (event.request.url.includes('firestore.googleapis.com')) return
   if (event.request.url.includes('identitytoolkit.googleapis.com')) return
   if (event.request.url.includes('securetoken.googleapis.com')) return
 
+  // Hosting serves index.html with the default max-age=3600, so a plain
+  // navigation can be answered from the browser's HTTP cache with an hour-old
+  // document — and an hour-old document points at last hour's hashed chunks.
+  // Force a revalidation for navigations only: unchanged HTML costs a 304, and
+  // a deploy is picked up on the next page load instead of the next hour. The
+  // hashed assets it references stay immutable and cached.
+  const request =
+    event.request.mode === 'navigate'
+      ? new Request(event.request.url, { cache: 'no-cache' })
+      : event.request
+
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
         // Cache successful responses
         if (response.ok) {

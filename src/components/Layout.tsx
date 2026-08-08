@@ -8,6 +8,7 @@ import { useTextScale, TEXT_SCALE_LEVELS } from '../hooks/useTextScale'
 import { hasUnseenActivity } from '../lib/activityNotification'
 import { refreshPushToken, startForegroundNotifications, type ForegroundNote } from '../lib/push'
 import { hasUnseenChangelog } from '../lib/changelog'
+import { useAutoUpdate } from '../hooks/useAutoUpdate'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
@@ -25,6 +26,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Lazy initializer, not a render-time read — localStorage during render
   // would make this component impure.
   const [newStuff, setNewStuff] = useState(() => hasUnseenChangelog())
+
+  // A deploy landing while this tab is open reloads it, rather than letting old
+  // code keep writing to Firestore.
+  useAutoUpdate()
 
   // Close menu on navigation, re-check unseen activity
   useEffect(() => {
