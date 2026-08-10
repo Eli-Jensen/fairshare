@@ -10,6 +10,7 @@ import { getCurrency } from '../lib/currencies'
 import { fetchRates, getCrossRate } from '../lib/rates'
 import { splitEqually, splitByPercentages, splitByShares, derivePercentages, deriveShares } from '../lib/splits'
 import { todayString, parseDateString, timestampToDateString } from '../lib/dates'
+import { ReceiptSection, type ReceiptState } from './ReceiptSection'
 
 import type { Theme as EmojiTheme } from 'emoji-picker-react'
 const EmojiPicker = lazy(() => import('emoji-picker-react'))
@@ -72,10 +73,16 @@ export function ExpenseForm({
     categories?: ExpenseCategory[]
     // void return = the caller fired the write and navigated without
     // awaiting the server ack (the offline-friendly pattern).
-  }) => Promise<void> | void
+    // Receipts arrive as a SECOND argument — File objects must never ride
+    // inside `data`, which callers spread straight into the Firestore write.
+  }, receipts: { keptPaths: string[]; stagedFiles: File[] }) => Promise<void> | void
   onDelete?: () => Promise<void> | void
   existing?: Expense
 }) {
+  const [receipts, setReceipts] = useState<ReceiptState>(() => ({
+    keptPaths: existing?.receiptPaths ?? [],
+    stagedFiles: [],
+  }))
   const [form, setForm] = useState<ExpenseFormData>(() => {
     const initAmounts: Record<string, string> = {}
     const initPaidBy: Record<string, string> = {}
@@ -346,7 +353,7 @@ export function ExpenseForm({
       if (paidByAmounts) submitData.paidByAmounts = paidByAmounts
       if (form.notes.trim()) submitData.notes = form.notes.trim()
       if (form.categories.length > 0) submitData.categories = form.categories
-      await onSubmit(submitData)
+      await onSubmit(submitData, receipts)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
       setSubmitting(false)
@@ -748,6 +755,8 @@ export function ExpenseForm({
           onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
         />
       </div>
+
+      <ReceiptSection value={receipts} onChange={setReceipts} />
 
       {error && (
         <p className="text-sm text-danger-text bg-danger-bg rounded-lg px-3 py-2">

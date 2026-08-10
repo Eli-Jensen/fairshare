@@ -13,6 +13,7 @@ import { db } from '../lib/firebase'
 import type { Trip, Expense, UserProfile, ActivityLogEntry } from '../lib/types'
 import { mapExpense } from '../lib/types'
 import { participantIds, placeholderProfiles, isPlaceholderId } from '../lib/placeholders'
+import { deleteReceiptObjects } from '../lib/image'
 import { useProfileCache } from './useProfileCache'
 import { computeBalances } from '../lib/settlement'
 
@@ -134,6 +135,9 @@ export function useTrip(tripId: string | undefined) {
         return pending
       })
       if (toDelete.length > 0) {
+        // Receipt objects go with the doc (best-effort; the trip doc the
+        // storage rules authorize against is still alive here).
+        for (const d of toDelete) deleteReceiptObjects(d.data().receiptPaths)
         Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
       }
 

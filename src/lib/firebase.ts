@@ -6,6 +6,7 @@ import {
   persistentMultipleTabManager,
   type Firestore,
 } from 'firebase/firestore'
+import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -21,6 +22,7 @@ export const firebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfi
 let app: FirebaseApp | undefined
 let _auth: Auth | undefined
 let _db: Firestore | undefined
+let _storage: FirebaseStorage | undefined
 let _googleProvider: GoogleAuthProvider | undefined
 
 if (firebaseConfigured) {
@@ -32,6 +34,9 @@ if (firebaseConfigured) {
       tabManager: persistentMultipleTabManager(),
     }),
   })
+  // Default bucket from firebaseConfig.storageBucket (receipts + comment
+  // photos). Uploads have NO offline queue, unlike Firestore writes.
+  _storage = getStorage(app)
   _googleProvider = new GoogleAuthProvider()
 }
 
@@ -39,6 +44,7 @@ if (firebaseConfigured) {
 // so these are safe to assert as non-null where used.
 export const auth = _auth as Auth
 export const db = _db as Firestore
+export const storage = _storage as FirebaseStorage
 export const googleProvider = _googleProvider as GoogleAuthProvider
 // getMessaging() needs the app instance itself. Kept possibly-undefined
 // (unlike the asserted exports above) because push.ts checks it as part of

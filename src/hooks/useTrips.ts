@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
+import { purgeTripReceipts } from '../lib/image'
 import type { Trip } from '../lib/types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -67,15 +68,24 @@ export function useTrips() {
   return { trips, loading }
 }
 
-/** Permanently delete a trip, its subcollections, and its invite-code doc.
- *  Must run while the caller is still a member (rules gate every delete on
- *  membership, checked against the trip doc — so the trip doc goes last). */
+/** Permanently delete a trip, its storage objects, its subcollections, and
+ *  its invite-code doc. Must run while the caller is still a member (rules
+ *  gate every delete on membership, checked against the trip doc — so the
+ *  trip doc goes last). STORAGE GOES FIRST for the same reason in reverse:
+ *  storage.rules also firestore.get() the trip doc, and once that doc is
+ *  gone any surviving objects are permanently undeletable by any client.
+ *  The sweep is best-effort and time-boxed (see purgeTripReceipts) so a
+ *  bad bucket can never stall the purge chain. */
 export async function purgeTrip(tripId: string, inviteCode?: string) {
   try {
     const [expSnap, actSnap] = await Promise.all([
       getDocs(collection(db, 'trips', tripId, 'expenses')),
       getDocs(collection(db, 'trips', tripId, 'activity')),
     ])
+    const receiptPaths = expSnap.docs.flatMap(
+      (d) => (d.data().receiptPaths as string[] | undefined) ?? []
+    )
+    await purgeTripReceipts(tripId, receiptPaths)
     await Promise.all([
       ...expSnap.docs.map((d) => deleteDoc(d.ref)),
       ...actSnap.docs.map((d) => deleteDoc(d.ref)),

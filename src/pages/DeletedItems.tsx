@@ -19,6 +19,7 @@ import { formatMoney, mapExpense } from '../lib/types'
 import type { Trip, Expense } from '../lib/types'
 import { writeActivity } from '../lib/activity'
 import { notifyError } from '../lib/errorToast'
+import { deleteReceiptObjects } from '../lib/image'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -87,6 +88,8 @@ export function DeletedItems() {
           const data = d.data()
           const deletedTime = data.deletedAt?.toDate?.()
           if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
+            // Photos go with the doc (trip doc still exists → rules allow)
+            deleteReceiptObjects(data.receiptPaths)
             deleteDoc(d.ref).catch(() => {})
             continue
           }

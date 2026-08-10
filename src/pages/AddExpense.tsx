@@ -6,6 +6,7 @@ import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { writeActivity } from '../lib/activity'
 import { notifyError } from '../lib/errorToast'
+import { uploadReceipt } from '../lib/image'
 import type { CustomCategory } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
 
@@ -38,21 +39,40 @@ export function AddExpense() {
         onUpdateCategories={async (cats: CustomCategory[]) => {
           await updateDoc(doc(db!, 'trips', id!), { customCategories: cats })
         }}
-        onSubmit={(data) => {
-          // Deliberately NOT awaited: with offline persistence the write is
-          // durable the moment the SDK accepts it, but the promise doesn't
-          // settle until the SERVER acks — awaiting it pinned the Save
-          // spinner forever on a plane. addDoc's ref (and id) is minted
-          // synchronously, so the activity link and navigation don't need
-          // the ack either. A rejection (rules, bad data) online surfaces
-          // through the global error toast.
+        onSubmit={async (data, receipts) => {
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
           if (data.currency !== (trip.settlementCurrency ?? DEFAULT_CURRENCY)) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
+          // Ref first — the photos upload under the expense's own id.
           const expenseRef = doc(collection(db!, 'trips', id!, 'expenses'))
+
+          // Uploads ARE awaited (they have no offline queue and the doc
+          // should point at objects that exist), but failures only cost the
+          // photos, never the expense: allSettled + a toast for the losses.
+          let receiptPaths: string[] = []
+          if (receipts.stagedFiles.length > 0) {
+            const results = await Promise.allSettled(
+              receipts.stagedFiles.map((f) => uploadReceipt(id!, expenseRef.id, f))
+            )
+            receiptPaths = results
+              .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+              .map((r) => r.value)
+            const lost = results.length - receiptPaths.length
+            if (lost > 0) {
+              notifyError(
+                `${lost} photo${lost === 1 ? '' : 's'} didn't upload — the expense is saved without ${lost === 1 ? 'it' : 'them'}.`
+              )
+            }
+          }
+
+          // The doc write is deliberately NOT awaited: durable locally the
+          // moment the SDK accepts it; the ack can land after navigation.
+          // An online rejection surfaces via the global toast.
           setDoc(expenseRef, {
             ...data,
+            // Omit-when-empty convention — never write undefined/[]
+            ...(receiptPaths.length > 0 ? { receiptPaths } : {}),
             createdBy: user.uid,
             createdAt: serverTimestamp(),
           }).catch((err) => {

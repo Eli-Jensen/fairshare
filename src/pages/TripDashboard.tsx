@@ -14,13 +14,14 @@ import { SettlementView } from '../components/SettlementView'
 import { ActivityLog } from '../components/ActivityLog'
 import { UndoToast } from '../components/UndoToast'
 import { DeleteModal } from '../components/DeleteModal'
+import { TripPhotos } from '../components/TripPhotos'
 import { tripToCsv, downloadCsv } from '../lib/export'
 import { CurrencyPicker } from '../components/CurrencyPicker'
 import { writeActivity } from '../lib/activity'
 import { notifyError } from '../lib/errorToast'
 import { arrayRemove, collection, Timestamp } from 'firebase/firestore'
 
-type Tab = 'expenses' | 'settle' | 'activity'
+type Tab = 'expenses' | 'settle' | 'photos' | 'activity'
 
 // Trips created before the /inviteCodes lookup existed need their code doc
 // backfilled — once per trip per session is plenty
@@ -35,7 +36,7 @@ export function TripDashboard() {
   const [tab, setTab] = useState<Tab>(() => {
     const params = new URLSearchParams(location.search)
     const t = params.get('tab')
-    if (t === 'settle' || t === 'activity') return t
+    if (t === 'settle' || t === 'photos' || t === 'activity') return t
     return 'expenses'
   })
   const [undoInfo, setUndoInfo] = useState<{ id: string; description: string } | null>(null)
@@ -76,7 +77,7 @@ export function TripDashboard() {
 
   // Settlements and category subtotals are only correct over the full set
   useEffect(() => {
-    if ((tab === 'settle' || categoryFilter.size > 0) && !allExpenses) {
+    if ((tab === 'settle' || tab === 'photos' || categoryFilter.size > 0) && !allExpenses) {
       loadAllExpenses()
     }
   }, [tab, categoryFilter, allExpenses, loadAllExpenses])
@@ -458,7 +459,7 @@ export function TripDashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-muted rounded-lg p-1 mb-4">
-        {(['expenses', 'settle', 'activity'] as const).map((t) => (
+        {(['expenses', 'settle', 'photos', 'activity'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -468,7 +469,7 @@ export function TripDashboard() {
                 : 'text-text-secondary hover:text-text'
             }`}
           >
-            {t === 'expenses' ? 'Expenses' : t === 'settle' ? 'Settle Up' : 'Activity'}
+            {t === 'expenses' ? 'Expenses' : t === 'settle' ? 'Settle Up' : t === 'photos' ? 'Photos' : 'Activity'}
           </button>
         ))}
       </div>
@@ -671,6 +672,17 @@ export function TripDashboard() {
         />
         </div>
       ))}
+
+      {tab === 'photos' &&
+        (allExpenses === null ? (
+          <div className="text-center py-10 text-text-muted">Loading…</div>
+        ) : (
+          <TripPhotos
+            expenses={allExpenses}
+            settlementCurrency={sc}
+            onOpenExpense={(eid) => navigate(`/trip/${id}/expense/${eid}`)}
+          />
+        ))}
 
       {tab === 'activity' && (
         <div className="min-w-0">

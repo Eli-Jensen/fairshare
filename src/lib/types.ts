@@ -99,6 +99,10 @@ export interface Expense {
   categories?: ExpenseCategory[]    // multi-tag categories (preferred)
   isSettlement?: boolean
   comments?: Array<{ uid: string; text: string; createdAt: Timestamp }>
+  /** Storage paths under trips/{tripId}/receipts/{expenseId}/… — always
+   *  paths, never download URLs (URLs embed tokens that rotate). Absent =
+   *  no photos; never written as an empty array. */
+  receiptPaths?: string[]
   createdBy: string
   createdAt: Timestamp
   deletedAt?: Timestamp | null

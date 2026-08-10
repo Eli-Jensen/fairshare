@@ -274,7 +274,7 @@ const META_NOTE =
   'FairShare overwrites these tabs on each backup. Edits here do not sync back — but a Restore will import whatever is here.'
 
 /** Fields deliberately not backed up, so a reader knows what is missing. */
-const META_OMITTED = 'comments, per-expense author, activity log, exchange-rate cache'
+const META_OMITTED = 'comments, receipt photos, per-expense author, activity log, exchange-rate cache'
 
 export function snapshotToGrids(snapshot: SheetSnapshot): {
   grids: Grid[]

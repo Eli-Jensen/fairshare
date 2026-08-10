@@ -10,6 +10,7 @@ import { ExpenseForm } from '../components/ExpenseForm'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { writeActivity } from '../lib/activity'
 import { notifyError } from '../lib/errorToast'
+import { uploadReceipt, deleteReceiptObjects } from '../lib/image'
 import { getMemberName, formatMoney, DEFAULT_CURRENCY, BALANCE_THRESHOLD } from '../lib/types'
 
 function relativeTime(date: Date): string {
@@ -119,10 +120,35 @@ export function EditExpense() {
           await updateDoc(doc(db!, 'trips', id!), { customCategories: cats })
         }}
         existing={expense}
-        onSubmit={(data) => {
+        onSubmit={async (data, receipts) => {
           // updateDoc merges, so optional fields the user cleared have to
           // be deleted explicitly or stale values keep driving balances
           const expenseUpdate: Record<string, unknown> = { ...data }
+
+          // Receipts: upload staged, diff removed. Uploads awaited
+          // (allSettled — losing a photo never loses the edit); removed
+          // objects are deleted only AFTER the doc write succeeds, so a
+          // failed write can't leave the doc pointing at deleted objects.
+          const removed = (expense.receiptPaths ?? []).filter(
+            (p) => !receipts.keptPaths.includes(p)
+          )
+          let uploaded: string[] = []
+          if (receipts.stagedFiles.length > 0) {
+            const results = await Promise.allSettled(
+              receipts.stagedFiles.map((f) => uploadReceipt(id!, eid!, f))
+            )
+            uploaded = results
+              .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+              .map((r) => r.value)
+            const lost = results.length - uploaded.length
+            if (lost > 0) {
+              notifyError(
+                `${lost} photo${lost === 1 ? '' : 's'} didn't upload — the changes are saved without ${lost === 1 ? 'it' : 'them'}.`
+              )
+            }
+          }
+          const finalPaths = [...receipts.keptPaths, ...uploaded]
+          expenseUpdate.receiptPaths = finalPaths.length > 0 ? finalPaths : deleteField()
           if (!data.paidByAmounts && expense.paidByAmounts) {
             expenseUpdate.paidByAmounts = deleteField()
           }
@@ -143,11 +169,17 @@ export function EditExpense() {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
           // Not awaited — see AddExpense. Durable locally; the ack can
-          // arrive after we've navigated away.
-          updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), expenseUpdate).catch((err) => {
-            console.error('edit expense failed:', err)
-            notifyError("The changes didn't save. Check your connection and try again.")
-          })
+          // arrive after we've navigated away. Removed photo objects are
+          // deleted in the write's own then() (doc-first ordering); the
+          // reverse orphan from a failed delete is harmless and swept at
+          // trip purge.
+          updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), expenseUpdate).then(
+            () => deleteReceiptObjects(removed),
+            (err) => {
+              console.error('edit expense failed:', err)
+              notifyError("The changes didn't save. Check your connection and try again.")
+            }
+          )
           updateDoc(doc(db!, 'trips', id!), tripUpdate).catch(() => {})
 
           // Compute what changed for the activity log
@@ -167,6 +199,9 @@ export function EditExpense() {
           }
           if (expense.splitType !== data.splitType) {
             changes.push(`split: ${expense.splitType} → ${data.splitType}`)
+          }
+          if (removed.length > 0 || uploaded.length > 0) {
+            changes.push(`receipts: ${expense.receiptPaths?.length ?? 0} → ${finalPaths.length}`)
           }
 
           // Build previousValues from old expense for undo (uses Firestore field names)

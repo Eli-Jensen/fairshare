@@ -22,6 +22,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-10',
+    emoji: '🧾',
+    title: 'Receipt photos',
+    items: [
+      'Attach up to 3 photos to any expense — snap the receipt right from the form, or pick from your gallery. Photos are compressed on your device before upload, so they’re quick even on hotel wifi.',
+      'A 📷 on the expense card tells you there’s a receipt; tap the expense to view it full-screen.',
+      'New Photos tab on every trip: all the trip’s receipts in one grid, each linking back to its expense.',
+      'Only trip members can see them, they go to Trash with the expense (restore keeps them), and they’re gone for good when the trip is.',
+    ],
+  },
+  {
+    date: '2026-08-10',
     emoji: '✈️',
     title: 'Works properly on plane wifi',
     items: [

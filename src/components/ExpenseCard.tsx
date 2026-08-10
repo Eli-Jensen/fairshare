@@ -96,6 +96,15 @@ export function ExpenseCard({
             </p>
             <p className="text-sm text-text-muted">
               {dateStr}
+              {(expense.receiptPaths?.length ?? 0) > 0 && (
+                <span
+                  className="ml-1.5"
+                  title={`${expense.receiptPaths!.length} receipt photo${expense.receiptPaths!.length === 1 ? '' : 's'}`}
+                  aria-label={`${expense.receiptPaths!.length} receipt photo${expense.receiptPaths!.length === 1 ? '' : 's'}`}
+                >
+                  📷{expense.receiptPaths!.length > 1 ? expense.receiptPaths!.length : ''}
+                </span>
+              )}
               {pending && (
                 <span
                   className="ml-1.5 text-warn-text"
