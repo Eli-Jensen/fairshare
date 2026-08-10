@@ -141,4 +141,6 @@ FCM web push, sent by **Cloud Functions** in `functions/` (Node 22, `firebase-ad
 
 ### Testing
 
-Tests are in `src/lib/__tests__/` plus `functions/src/audience.test.ts`. They cover pure logic only (settlement math, formatting, name disambiguation, sheet round-trips, notification audiences). No component or Firebase integration tests. Run `npm test` before committing — one Vitest run covers both the app and the functions.
+Tests are in `src/lib/__tests__/` plus `functions/src/audience.test.ts`. They cover pure logic only (settlement math, formatting, name disambiguation, sheet round-trips, notification audiences). No component tests. Run `npm test` before committing — one Vitest run covers both the app and the functions.
+
+**Firestore rules tests** live in `rules-tests/` and run via `make test-rules` (`npm run test:rules` with Java on PATH — the script wraps `firebase emulators:exec`, so they need the Firestore emulator and are deliberately NOT part of plain `npm test`; `vite.config.ts` scopes that include to `src/` + `functions/src/`). They lock in the security model: the FCM-token boundary on `/users/x/private/*`, no-enumeration rules, the self-join invite-code echo, the both-trips check on invite-code repointing, invitees-can't-read-expenses, and the purge-order property (trip doc last). CI runs them in the `test` job. **Any change to `firestore.rules` needs a matching test**, and the suite must pass before the rules deploy.

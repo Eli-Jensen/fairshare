@@ -23,6 +23,20 @@ jobs:
 
       - run: npm ci
       - run: npm test
+
+      # Security-rules suite. The firestore emulator needs a JDK; ubuntu-latest
+      # ships one, but pin our own so a runner-image change can't break this.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Cache firestore emulator jar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm run test:rules
+
       - run: npm run build
 
   # Runs either from a direct push to main, or automatically after a dev push

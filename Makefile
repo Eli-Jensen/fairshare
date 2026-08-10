@@ -32,6 +32,10 @@ versions: ## Show what's running on prod and dev vs local HEAD
 test: ## Run the test suite and a production build
 	npm test && npm run build
 
+test-rules: ## Run the Firestore rules tests (needs Java for the emulator)
+	@# Homebrew's openjdk is keg-only (not on PATH); CI provides its own Java.
+	@PATH="/opt/homebrew/opt/openjdk/bin:$$PATH" npm run test:rules
+
 ship: ## Push dev and watch it reach prod. CI promotes on green. MSG="..." commits first.
 	@MSG="$(MSG)" bash scripts/ship.sh
 
