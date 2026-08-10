@@ -13,9 +13,11 @@ export function DeleteModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40"
+      {/* Backdrop — a real button so closing works from the keyboard too */}
+      <button
+        type="button"
+        aria-label="Cancel"
+        className="absolute inset-0 bg-black/40 cursor-default"
         onClick={onCancel}
       />
       {/* Modal */}

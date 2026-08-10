@@ -70,7 +70,7 @@ export function CreateTrip() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Type selector */}
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">Type</label>
+          <span className="block text-sm font-medium text-text-secondary mb-1.5">Type</span>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -124,9 +124,9 @@ export function CreateTrip() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">
+          <span className="block text-sm font-medium text-text-secondary mb-1">
             Settlement currency
-          </label>
+          </span>
           <div className="flex gap-1.5 flex-wrap mb-2">
             {COMMON_SETTLEMENT.map((code) => (
               <button

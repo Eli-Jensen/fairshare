@@ -310,9 +310,10 @@ export function TripInvite() {
 
       {/* Email invite */}
       <div className="mb-6">
-        <label className={label}>Invite by email</label>
+        <label className={label} htmlFor="invite-email">Invite by email</label>
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
+            id="invite-email"
             type="email"
             className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             placeholder="friend@gmail.com"
@@ -583,7 +584,7 @@ export function TripInvite() {
       {/* Invite link */}
       <div className="border-t border-line pt-4">
         <div className="flex items-center justify-between mb-1">
-          <label className="text-sm font-medium text-text-secondary">Invite link</label>
+          <span className="text-sm font-medium text-text-secondary">Invite link</span>
           {resetting ? (
             <span className="text-xs text-text-muted">Resetting…</span>
           ) : (

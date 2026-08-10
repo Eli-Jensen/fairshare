@@ -27,8 +27,22 @@ export function ExpenseCard({
   const isSettlement = expense.isSettlement
 
   return (
+    // role/tabIndex instead of a <button>: the card nests real buttons
+    // (member avatars), and buttons can't contain buttons.
     <div
       onClick={onEdit}
+      role={onEdit ? 'button' : undefined}
+      tabIndex={onEdit ? 0 : undefined}
+      onKeyDown={
+        onEdit
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onEdit()
+              }
+            }
+          : undefined
+      }
       className={`rounded-lg border p-3 ${
         isSettlement
           ? 'bg-accent-soft border-accent/30'

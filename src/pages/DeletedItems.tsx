@@ -149,6 +149,7 @@ export function DeletedItems() {
 
   function timeRemaining(deletedAt: import('firebase/firestore').Timestamp): string {
     if (!deletedAt?.toDate) return ''
+    // eslint-disable-next-line react-hooks/purity -- countdown label; going stale until the next snapshot re-render is deliberate and harmless
     const msLeft = deletedAt.toDate().getTime() + 24 * 60 * 60 * 1000 - Date.now()
     if (msLeft <= 0) return 'Expiring soon'
     const hours = Math.floor(msLeft / (60 * 60 * 1000))

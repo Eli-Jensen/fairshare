@@ -407,8 +407,9 @@ export function ExpenseForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className={label}>Description</label>
+        <label className={label} htmlFor="ef-description">Description</label>
         <input
+          id="ef-description"
           type="text"
           className={input}
           placeholder="Dinner, taxi, drinks..."
@@ -418,12 +419,13 @@ export function ExpenseForm({
       </div>
 
       <div>
-        <label className={label}>
+        <label className={label} htmlFor="ef-amount">
           Amount <span className="font-normal text-text-muted">· “total spent”</span>
         </label>
         {/* Amount number with the currency selector right beside it */}
         <div className="flex items-center gap-2">
           <input
+            id="ef-amount"
             type="number"
             step="0.01"
             min="0"
@@ -493,7 +495,7 @@ export function ExpenseForm({
 
       <div>
         <div className="flex items-center gap-1.5 mb-1">
-          <label className="text-sm font-medium text-text-secondary">How to split</label>
+          <span className="text-sm font-medium text-text-secondary">How to split</span>
           <HelpTip label="How to split">
             <p>Each person's amount in this section is <strong className="text-text">the share of the bill they received — and are therefore responsible for</strong>.</p>
             <p><strong className="text-text">Don't think about who actually paid yet</strong> when entering these — that's the “Paid by” section below.</p>
@@ -524,9 +526,9 @@ export function ExpenseForm({
       </div>
 
       <div>
-        <label className={label}>
+        <span className={label}>
           Split among <span className="font-normal text-text-muted">· “what each person owes”</span>
-        </label>
+        </span>
         <div className="space-y-2">
           {memberUids.map((uid) => (
             <div key={uid} className="flex items-center gap-3">
@@ -631,9 +633,9 @@ export function ExpenseForm({
       {/* Paid by section */}
       <div>
         <div className="flex items-center gap-1.5 mb-1">
-          <label className="text-sm font-medium text-text-secondary">
+          <span className="text-sm font-medium text-text-secondary">
             Paid by
-          </label>
+          </span>
           <HelpTip label="Paid by">
             <p><strong className="text-text">Who actually paid</strong> the bill — usually you. They get paid back by everyone else.</p>
             <p>Two people split the check? Tap <strong className="text-text">+ Multiple payers</strong> to enter how much each paid.</p>
@@ -709,8 +711,9 @@ export function ExpenseForm({
       <div className="border-t border-line-light" />
 
       <div>
-        <label className={label}>Date</label>
+        <label className={label} htmlFor="ef-date">Date</label>
         <input
+          id="ef-date"
           type="date"
           className={input}
           value={form.date}
@@ -733,8 +736,9 @@ export function ExpenseForm({
       />
 
       <div>
-        <label className={label}>Notes <span className="font-normal text-text-muted">(optional)</span></label>
+        <label className={label} htmlFor="ef-notes">Notes <span className="font-normal text-text-muted">(optional)</span></label>
         <textarea
+          id="ef-notes"
           className={input}
           rows={2}
           placeholder="Add a note..."
@@ -782,6 +786,9 @@ export function ExpenseForm({
 const MAX_LABEL_LENGTH = 20
 
 const RANDOM_EMOJIS = ['🏷️','📌','🔖','🎲','💫','⭐','🌟','✨']
+// Module-level so the impure Math.random() call is clearly outside render —
+// it runs in click handlers only (react-hooks/purity).
+const randomEmoji = () => RANDOM_EMOJIS[Math.floor(Math.random() * RANDOM_EMOJIS.length)]
 
 // Module-level so re-renders of the picker don't remount it (losing
 // search text and re-triggering the lazy emoji load)
@@ -853,7 +860,7 @@ function CategoryPicker({
   async function handleSave() {
     const label = newLabel.trim()
     // If no emoji picked, assign a random one
-    const emoji = newEmoji.trim() || RANDOM_EMOJIS[Math.floor(Math.random() * RANDOM_EMOJIS.length)]
+    const emoji = newEmoji.trim() || randomEmoji()
 
     if (!label) {
       setError('Enter a name')
@@ -888,7 +895,7 @@ function CategoryPicker({
   async function handleEditSave(oldId: string) {
     if (!customCategories || !onUpdateCategories) return
     const label = editLabel.trim()
-    const emoji = editEmoji.trim() || RANDOM_EMOJIS[Math.floor(Math.random() * RANDOM_EMOJIS.length)]
+    const emoji = editEmoji.trim() || randomEmoji()
     if (!label) return
 
     const updated = customCategories.map((c) =>
@@ -922,9 +929,9 @@ function CategoryPicker({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <label className="text-sm font-medium text-text-secondary">
+        <span className="text-sm font-medium text-text-secondary">
           Tags <span className="font-normal text-text-muted">(optional)</span>
-        </label>
+        </span>
         {onUpdateCategories && customCategories && customCategories.length > 0 && mode !== 'manage' && (
           <button type="button" onClick={() => setMode('manage')} className="text-xs text-accent-text hover:text-accent-hover">
             Edit

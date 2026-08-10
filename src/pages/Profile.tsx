@@ -104,10 +104,11 @@ export function Profile() {
 
       <form onSubmit={handleSave} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1" htmlFor="profile-name">
             Display Name
           </label>
           <input
+            id="profile-name"
             type="text"
             className={inputClasses}
             value={displayName}

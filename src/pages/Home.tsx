@@ -133,10 +133,10 @@ export function Home() {
           <h1 className="text-3xl font-bold text-text mb-2">fairshare</h1>
           <p className="text-text-secondary mb-4">Split trip expenses with friends and family</p>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md text-sm text-amber-800">
+        <div className="bg-warn-bg border border-warn-border rounded-lg p-4 max-w-md text-sm text-warn-text">
           <p className="font-medium mb-1">Firebase not configured</p>
           <p>
-            Create a <code className="bg-amber-100 px-1 rounded">.env</code> file
+            Create a <code className="bg-warn-border/50 px-1 rounded">.env</code> file
             in the project root with your Firebase config values.
           </p>
         </div>

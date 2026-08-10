@@ -91,17 +91,21 @@ function BalanceLine({
   return (
     <p className={`text-sm font-medium ${textColor}`}>
       {text}
-      <span
-        className="relative inline-block"
-        onClick={() => setShowTooltip(!showTooltip)}
-      >
-        <span className="underline decoration-dotted cursor-help">
+      <span className="relative inline-block">
+        <button
+          type="button"
+          onClick={() => setShowTooltip(!showTooltip)}
+          className="underline decoration-dotted cursor-help font-medium"
+          aria-expanded={showTooltip}
+        >
           {count} trip{count !== 1 ? 's' : ''}
-        </span>
+        </button>
         {showTooltip && (
           <>
-            <span
-              className="fixed inset-0 z-40"
+            <button
+              type="button"
+              aria-label="Close"
+              className="fixed inset-0 z-40 cursor-default"
               onClick={(e) => { e.stopPropagation(); setShowTooltip(false); }}
             />
             <span className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1 bg-card border border-line rounded-lg shadow-lg p-2 z-50 w-48 max-w-[calc(100vw-2rem)] animate-slide-up">

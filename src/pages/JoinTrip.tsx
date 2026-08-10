@@ -24,17 +24,8 @@ export function JoinTrip() {
   const [error, setError] = useState('')
   const [joinType, setJoinType] = useState<TripType>('trip')
 
-  useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      setStatus('loading')
-      return
-    }
-    if (inviteCode) {
-      joinTrip()
-    }
-  }, [user, authLoading, inviteCode])
-
+  // Declared before the effect that calls it (react-hooks lint reads source
+  // order, not hoisting).
   async function joinTrip() {
     if (!user || !inviteCode) return
     setStatus('joining')
@@ -125,6 +116,17 @@ export function JoinTrip() {
       setStatus('error')
     }
   }
+
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      setStatus('loading')
+      return
+    }
+    if (inviteCode) {
+      joinTrip()
+    }
+  }, [user, authLoading, inviteCode])
 
   if (authLoading || status === 'loading') {
     return (

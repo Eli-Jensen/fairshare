@@ -123,9 +123,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
               {menuOpen && (
                 <>
-                {/* Invisible backdrop — catches outside clicks so they don't pass through to trip cards, etc. */}
-                <div
-                  className="fixed inset-0 z-40"
+                {/* Invisible backdrop — catches outside clicks so they don't pass
+                    through to trip cards; a button so Escape-via-tab works too */}
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  className="fixed inset-0 z-40 cursor-default"
                   onClick={() => setMenuOpen(false)}
                 />
                 <div

@@ -98,6 +98,9 @@ export function RestoreFromSheet() {
     )
   }, [describe])
 
+  // Plain dep, not `user?.email` inside the callback — the optional-chain
+  // read is what stopped the React Compiler from preserving this memo.
+  const userEmail = user?.email
   const loadSheet = useCallback(
     async (spreadsheetId: string) => {
       if (!token) return
@@ -113,7 +116,7 @@ export function RestoreFromSheet() {
         }
         setSnapshot(parsed.snapshot)
         setWarnings(parsed.warnings)
-        setPlan(buildRestorePlan(parsed.snapshot, user?.email))
+        setPlan(buildRestorePlan(parsed.snapshot, userEmail))
         setSourceId(spreadsheetId)
         setStage('preview')
       } catch (err) {
@@ -122,7 +125,7 @@ export function RestoreFromSheet() {
         setBusy(false)
       }
     },
-    [token, user?.email, describe]
+    [token, userEmail, describe]
   )
 
   const doRestore = useCallback(async () => {
@@ -219,11 +222,12 @@ export function RestoreFromSheet() {
           )}
 
           <div className="border-t border-line pt-4">
-            <label className="block text-sm font-medium text-text-secondary mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1" htmlFor="restore-link">
               Or paste a sheet link
             </label>
             <div className="flex gap-2">
               <input
+                id="restore-link"
                 type="text"
                 value={manualId}
                 onChange={(e) => setManualId(e.target.value)}

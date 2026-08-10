@@ -293,8 +293,9 @@ export function SettlementView({
               {/* Payer → Payee */}
               <div className="flex items-center gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-text-muted mb-1 block">From</label>
+                  <label className="text-xs text-text-muted mb-1 block" htmlFor="sv-from">From</label>
                   <select
+                    id="sv-from"
                     value={cpFrom}
                     onChange={(e) => {
                       setCpFrom(e.target.value)
@@ -315,8 +316,9 @@ export function SettlementView({
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-text-muted mb-1 block">To</label>
+                  <label className="text-xs text-text-muted mb-1 block" htmlFor="sv-to">To</label>
                   <select
+                    id="sv-to"
                     value={cpTo}
                     onChange={(e) => setCpTo(e.target.value)}
                     className="w-full border border-line rounded-lg px-3 py-2 text-sm bg-input text-text"
@@ -331,8 +333,9 @@ export function SettlementView({
               {/* Amount + Currency */}
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-text-muted mb-1 block">Amount</label>
+                  <label className="text-xs text-text-muted mb-1 block" htmlFor="sv-amount">Amount</label>
                   <input
+                    id="sv-amount"
                     type="number"
                     inputMode="decimal"
                     step="0.01"
@@ -366,7 +369,7 @@ export function SettlementView({
 
               {/* Payment method pills */}
               <div>
-                <label className="text-xs text-text-muted mb-1 block">Method (optional)</label>
+                <span className="text-xs text-text-muted mb-1 block">Method (optional)</span>
                 <div className="flex flex-wrap gap-1.5">
                   {['Cash', 'Venmo', 'Zelle', 'Bank', 'PayPal', 'Other'].map((m) => (
                     <button

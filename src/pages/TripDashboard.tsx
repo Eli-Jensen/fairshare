@@ -250,7 +250,7 @@ export function TripDashboard() {
         </div>
         {editingName && (
           <div className="flex items-center gap-2 mt-2 mb-1">
-            <label className="text-sm text-text-secondary">Settlement currency:</label>
+            <span className="text-sm text-text-secondary">Settlement currency:</span>
             {totalCount > 0 ? (
               // Stored amounts are in this currency — switching would
               // relabel them without converting, corrupting balances
@@ -293,7 +293,12 @@ export function TripDashboard() {
               </button>
               {showExportMenu && (
                 <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  className="fixed inset-0 z-10 cursor-default"
+                  onClick={() => setShowExportMenu(false)}
+                />
                 <div className="absolute right-0 mt-1 bg-card border border-line rounded-lg shadow-lg py-1 z-20 w-48">
                   <Link
                     to={`/trip/${id}/backup`}
