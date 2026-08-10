@@ -1,7 +1,8 @@
 // defineConfig from vitest/config, not vite: it's the same function plus the
 // types for the `test` block below.
 import { defineConfig } from 'vitest/config'
-import { loadEnv } from 'vite'
+import { loadEnv, type PluginOption } from 'vite'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { execSync } from 'node:child_process'
@@ -181,8 +182,34 @@ export default defineConfig(({ mode }) => {
   // env still wins if set, matching Vite's own precedence).
   const env = loadEnv(mode, process.cwd(), '')
   const buildEnv = env.VITE_BUILD_ENV === 'dev' ? 'dev' : 'prod'
+
+  // Source-map upload for readable Sentry stacks — CI-only (the token is a
+  // GH secret). Local builds skip it entirely: no sourcemaps, no upload.
+  // filesToDeleteAfterUpload keeps the maps out of the deployed dist/.
+  const sentryUpload = Boolean(
+    env.SENTRY_AUTH_TOKEN && env.SENTRY_ORG && env.SENTRY_PROJECT
+  )
+  const sentryPlugins: PluginOption[] = sentryUpload
+    ? [
+        sentryVitePlugin({
+          org: env.SENTRY_ORG,
+          project: env.SENTRY_PROJECT,
+          authToken: env.SENTRY_AUTH_TOKEN,
+          release: { name: gitSha() },
+          sourcemaps: { filesToDeleteAfterUpload: ['dist/**/*.map'] },
+        }),
+      ]
+    : []
+
   return {
-    plugins: [react(), tailwindcss(), emitVersionJson(buildEnv), serviceWorker(env)],
+    build: { sourcemap: sentryUpload ? 'hidden' : false },
+    plugins: [
+      react(),
+      tailwindcss(),
+      emitVersionJson(buildEnv),
+      serviceWorker(env),
+      ...sentryPlugins,
+    ],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
       __GIT_SHA__: JSON.stringify(gitSha()),

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { reportError } from '../lib/sentry'
 
 interface Props {
   children: ReactNode
@@ -21,8 +22,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Surface the real error so intermittent crashes are diagnosable from
-    // the console (the UI only shows a generic message).
+    // the console (the UI only shows a generic message)…
     console.error('[fairshare] render error:', error, info.componentStack)
+    // …and report it, because nobody is looking at a stranger's console.
+    reportError(error, { componentStack: info.componentStack })
   }
 
   render() {

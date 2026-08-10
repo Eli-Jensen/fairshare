@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_OAUTH_CLIENT_ID?: string
   /** Public Web Push (VAPID) key. Unset = push notifications are hidden. */
   readonly VITE_FIREBASE_VAPID_KEY?: string
+  /** Sentry DSN (public client key). Unset = crash reporting is off. */
+  readonly VITE_SENTRY_DSN?: string
 }
 
 interface ImportMeta {

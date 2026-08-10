@@ -77,6 +77,14 @@ jobs:
           # Public Web Push key. Unset = push hides itself, same safety
           # property. Per project — the dev key will NOT work here.
           VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+          # Crash reporting. One Sentry project for both sites — the
+          # environment tag (prod/dev) splits them. Unset = feature off.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          # Present = upload hidden sourcemaps so stacks are readable; the
+          # maps are deleted from dist before the hosting deploy.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       # Prod rules and Cloud Functions are NOT deployed here. The prod service
       # account can't read serviceusage (403 on serviceusage.services.get),
@@ -123,6 +131,10 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID_DEV }}
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID_DEV }}
           VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY_DEV }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           VITE_ALLOWED_EMAILS: ${{ secrets.VITE_ALLOWED_EMAILS }}
           VITE_BUILD_ENV: dev
 
