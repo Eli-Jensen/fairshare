@@ -1,4 +1,7 @@
-import { defineConfig, loadEnv } from 'vite'
+// defineConfig from vitest/config, not vite: it's the same function plus the
+// types for the `test` block below.
+import { defineConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { execSync } from 'node:child_process'
@@ -184,6 +187,15 @@ export default defineConfig(({ mode }) => {
       __APP_VERSION__: JSON.stringify(pkg.version),
       __GIT_SHA__: JSON.stringify(gitSha()),
       __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    },
+    test: {
+      // Explicit include, not vitest's repo-wide default: the default glob
+      // has picked up stray copies from throwaway git worktrees under
+      // .claude/, silently running duplicate suites. Rules tests are also
+      // excluded on purpose — they need the Firestore emulator and run via
+      // `npm run test:rules` (vitest.rules.config.ts), never in plain
+      // `npm test`.
+      include: ['src/**/*.test.ts', 'functions/src/**/*.test.ts'],
     },
   }
 })

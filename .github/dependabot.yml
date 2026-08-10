@@ -1,0 +1,33 @@
+# Dependency update PRs. Each PR runs the normal `test` job via the
+# pull_request trigger in deploy.yml; deploys are push-gated to dev/main, so a
+# Dependabot PR can never deploy anything.
+#
+# One update with teeth: a `firebase` bump must be accompanied by bumping the
+# hardcoded compat-SDK version in vite.config.ts (the generated service
+# worker). swVersionSync.test.ts fails the PR until both move together.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Minor + patch bumps arrive as one reviewable PR; majors stay solo so
+      # breaking changes are never buried in a batch.
+      minor-and-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: npm
+    directory: /functions
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

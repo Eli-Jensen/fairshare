@@ -11,6 +11,7 @@ import {
   enablePush,
   getMutedTrips,
   getPushPrefs,
+  isThisDeviceRegistered,
   pushConfigured,
   pushEnabled,
   pushSupported,
@@ -156,7 +157,7 @@ type PushState = 'checking' | 'unsupported' | 'off' | 'on' | 'denied' | 'busy'
 type PushTestState =
   | { phase: 'idle' }
   | { phase: 'sending' }
-  | { phase: 'done'; devices: number; pruned: number }
+  | { phase: 'done'; devices: number; pruned: number; thisDevice: boolean }
   | { phase: 'timeout' }
 
 const switchClasses = (on: boolean) =>
@@ -268,7 +269,13 @@ function PushSettings({ uid }: { uid: string }) {
       const d = snap.data()
       if (!d?.sentAt) return
       testCleanup.current?.()
-      setTest({ phase: 'done', devices: d.devices ?? 0, pruned: d.pruned ?? 0 })
+      const devices = d.devices ?? 0
+      const pruned = d.pruned ?? 0
+      // The count alone can't tell you whether YOUR machine was in it, which
+      // is the only thing you actually want to know when nothing shows up.
+      isThisDeviceRegistered(uid).then((thisDevice) =>
+        setTest({ phase: 'done', devices, pruned, thisDevice })
+      )
     })
     testCleanup.current = () => {
       window.clearTimeout(timer)
@@ -385,9 +392,13 @@ function PushSettings({ uid }: { uid: string }) {
           </button>
           {test.phase === 'done' && (
             <p className="mt-2 text-xs text-text-secondary">
-              {test.devices >= 1
-                ? `✅ Sent to ${test.devices} device${test.devices === 1 ? '' : 's'}. Nothing appeared? Check this device’s notification settings for fairshare.`
-                : '⚠️ No device received it — turn notifications off and back on above to re-register this one.'}
+              {test.devices < 1
+                ? '⚠️ No device received it — turn notifications off and back on above to re-register this one.'
+                : test.thisDevice
+                  ? `✅ Sent to ${test.devices} device${test.devices === 1 ? '' : 's'}, including this one.${
+                      test.devices > 1 ? ` (The other ${test.devices - 1} are your other devices.)` : ''
+                    } Nothing appeared? This device accepted it, so the block is downstream — check that your browser is allowed to show notifications in your computer’s own settings, and that Do Not Disturb is off.`
+                  : `⚠️ Sent to ${test.devices} device${test.devices === 1 ? '' : 's'}, but NOT this one — it isn’t registered. Turn notifications off and back on above to re-register it.`}
               {test.pruned >= 1 &&
                 ` Cleaned up ${test.pruned} dead registration${test.pruned === 1 ? '' : 's'}.`}
             </p>

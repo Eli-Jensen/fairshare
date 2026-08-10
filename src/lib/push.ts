@@ -233,6 +233,30 @@ export async function refreshPushToken(uid: string): Promise<void> {
   }
 }
 
+/**
+ * Whether THIS browser's token is one the server would send to.
+ *
+ * "Sent to 2 devices" is unfalsifiable from where the user is standing: it
+ * counts every registered token on the account, so a laptop that silently
+ * lost its registration still reads as a healthy result while its owner sees
+ * nothing arrive. Comparing the locally stored token against the doc turns
+ * that into a straight answer. Cheap — one read, only on an explicit test.
+ *
+ * A false here is a real finding (this device isn't registered), not an
+ * error, so every failure path returns false rather than throwing.
+ */
+export async function isThisDeviceRegistered(uid: string): Promise<boolean> {
+  try {
+    const local = localStorage.getItem(tokenKey(uid))
+    if (!local) return false
+    const snap = await getDoc(doc(db, 'users', uid, 'private', 'push'))
+    const tokens = (snap.data()?.fcmTokens as string[] | undefined) ?? []
+    return tokens.includes(local)
+  } catch {
+    return false
+  }
+}
+
 /** Ask the server to ping this account's devices now. onPushTestRequested
  *  answers by writing {sentAt, devices, pruned} back onto the same doc; the
  *  full overwrite clears any previous answer. */

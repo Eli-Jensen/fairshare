@@ -118,7 +118,7 @@ Dev and prod are **separate Firebase projects** — separate Firestore data, sep
 
 Both projects are on the **Blaze** plan — required for Cloud Functions, which push notifications cannot work without (a browser can't read another user's FCM token, and holds no send credential). Set a **budget alert** on each; Blaze budgets alert but do not cap, and the practical change from Spark is that a runaway now bills instead of failing.
 
-Costs stay in the free tiers regardless: 50K Firestore reads/day, 20K writes/day, 1GB storage, 2M function invocations/month. Treat those as the budget anyway — the profile cache, the denormalized `cached*` trip fields, and parallel writes (`Promise.all`) are what keep it there. Still no Firebase Storage — profile photos are base64 data URLs in Firestore.
+Costs stay in the free tiers regardless: 50K Firestore reads/day, 20K writes/day, 1GB storage, 2M function invocations/month. Treat those as the budget anyway — the profile cache, the denormalized `cached*` trip fields, and parallel writes (`Promise.all`) are what keep it there. No Firebase Storage yet; avatars are Google photo URLs (the base64 profile-photo cropper was removed in `56446eb` — legacy custom photos still render from Firestore but nothing can create one).
 
 ### Push Notifications
 
