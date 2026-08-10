@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -179,9 +180,26 @@ function PushSettings({ uid }: { uid: string }) {
   const [test, setTest] = useState<PushTestState>({ phase: 'idle' })
   const { trips } = useTrips()
   const testCleanup = useRef<(() => void) | null>(null)
+  const section = useRef<HTMLElement>(null)
 
   // Stop watching the pushTest doc if the page unmounts mid-test.
   useEffect(() => () => testCleanup.current?.(), [])
+
+  // Arrived from the avatar menu's Notifications row, which lands on
+  // /profile#push. This section sits below the profile form, so without the
+  // scroll you'd get the top of a page about display names. A frame's delay
+  // lets the lazily-loaded page finish laying out first; the highlight
+  // explains why the page moved.
+  const { hash } = useLocation()
+  const [flag, setFlag] = useState(false)
+  useEffect(() => {
+    if (hash !== '#push') return
+    const frame = requestAnimationFrame(() => {
+      section.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlag(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [hash])
 
   useEffect(() => {
     if (!pushConfigured()) return
@@ -260,7 +278,11 @@ function PushSettings({ uid }: { uid: string }) {
   }
 
   return (
-    <section className="mt-8 border-t border-line pt-6">
+    <section
+      id="push"
+      ref={section}
+      className={`mt-8 border-t border-line pt-6 scroll-mt-4 ${flag ? 'animate-highlight' : ''}`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-medium text-text">🔔 Push notifications</h2>

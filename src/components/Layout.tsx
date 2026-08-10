@@ -255,6 +255,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     What's New
                     {newStuff && <span className="w-1.5 h-1.5 bg-accent rounded-full" />}
                   </button>
+                  {/* Same page as Edit Profile, but nobody looks for
+                      notification settings under "edit your profile" — the
+                      hash scrolls to the section and flags it. */}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
+                      navigate('/profile#push')
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-card-hover transition-colors"
+                  >
+                    Notifications
+                  </button>
                   <button
                     onClick={() => {
                       setMenuOpen(false)
