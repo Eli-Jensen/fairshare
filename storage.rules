@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// Photos live under trips/{tripId}/… and membership comes from the trip doc
+// via firestore.get — one Firestore read per storage op, the same trust
+// boundary as the expense docs themselves. Any member may add, view, or
+// delete (member content; members can already edit or purge the expense
+// docs the photos hang off).
+//
+// The client only DELETES objects while the trip doc still exists. Purge
+// order is: storage sweep → expenses → activity → invite code → trip doc
+// LAST — once the trip doc is gone, firestore.get fails and every rule here
+// denies, making leftovers permanently undeletable by any client. That is
+// why purgeTrip sweeps storage FIRST.
+//
+// The list blocks are EXACT-DEPTH prefix matches, deliberately not a
+// {p=**} recursive wildcard: a recursive match overlapping the object
+// matches made the emulator deny object ops that a sibling match plainly
+// allowed (rules-tests/storage.rules.test.ts caught it). Each block below
+// matches only a folder depth at which no object lives, so nothing
+// overlaps. They grant list ONLY — the sweep in purgeTrip needs listAll on
+// trips/{id}, its receipts folder, and each per-expense subfolder.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isTripMember(tripId) {
+      return request.auth != null
+        && request.auth.uid in firestore.get(/databases/(default)/documents/trips/$(tripId)).data.memberUids;
+    }
+
+    // Receipt photos: trips/{tripId}/receipts/{expenseId}/{fileName}
+    match /trips/{tripId}/receipts/{expenseId}/{fileName} {
+      allow get: if isTripMember(tripId);
+      allow create, update: if isTripMember(tripId)
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      // Deletes have no request.resource, so they get their own clause.
+      allow delete: if isTripMember(tripId);
+    }
+
+    // Comment photos: trips/{tripId}/comments/{commentId}.jpg (the social
+    // layer). Same contract as receipts.
+    match /trips/{tripId}/comments/{fileName} {
+      allow get: if isTripMember(tripId);
+      allow create, update: if isTripMember(tripId)
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isTripMember(tripId);
+    }
+
+    // Folder listings for the purge sweep — see the header comment.
+    match /trips/{tripId} {
+      allow list: if isTripMember(tripId);
+    }
+    match /trips/{tripId}/receipts {
+      allow list: if isTripMember(tripId);
+    }
+    match /trips/{tripId}/receipts/{expenseId} {
+      allow list: if isTripMember(tripId);
+    }
+    match /trips/{tripId}/comments {
+      allow list: if isTripMember(tripId);
+    }
+  }
+}

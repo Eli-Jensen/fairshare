@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-fairshare \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-fairshare \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
     "@sentry/react": "^10.70.0",

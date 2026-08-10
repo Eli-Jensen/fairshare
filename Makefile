@@ -47,7 +47,7 @@ promote: ## Manually promote — only needed after a [skip promote] commit. CI p
 		echo "Nothing to promote — origin/dev is not ahead of origin/main."; exit 1; fi
 	@echo "Fast-forwarding main to:" && git log --oneline origin/main..origin/dev | sed 's/^/  /'
 	git push origin origin/dev:main
-	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
+	npx firebase deploy --only firestore,storage --project $(PROD_PROJECT) --non-interactive
 	@echo "✅ Prod rules deployed; watching the hosting deploy…"
 	@bash scripts/watch-run.sh main $$(git rev-parse origin/dev)
 
@@ -76,11 +76,11 @@ rollback-prod: ## Rebuild prod hosting from a previous commit (REF=..., default 
 	git worktree remove --force $$TMP; \
 	exit $$STATUS
 
-deploy-rules-dev: ## Deploy Firestore rules + indexes to the DEV project
-	npx firebase deploy --only firestore --project $(DEV_PROJECT) --non-interactive
+deploy-rules-dev: ## Deploy Firestore + Storage rules + indexes to the DEV project
+	npx firebase deploy --only firestore,storage --project $(DEV_PROJECT) --non-interactive
 
-deploy-rules-prod: ## Deploy Firestore rules + indexes to PROD
-	npx firebase deploy --only firestore --project $(PROD_PROJECT) --non-interactive
+deploy-rules-prod: ## Deploy Firestore + Storage rules + indexes to PROD
+	npx firebase deploy --only firestore,storage --project $(PROD_PROJECT) --non-interactive
 
 # A project with no Artifact Registry cleanup policy makes `deploy --only
 # functions` exit 1 AFTER deploying successfully — which would fail CI on
