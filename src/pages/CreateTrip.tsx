@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore'
+import { collection, serverTimestamp, doc, setDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrips } from '../hooks/useTrips'
@@ -9,6 +9,7 @@ import type { TripType } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
 import { generateInviteCode } from '../lib/invite'
 import { writeActivity } from '../lib/activity'
+import { notifyError } from '../lib/errorToast'
 import { MAX_TRIPS } from '../lib/limits'
 
 const COMMON_SETTLEMENT = [DEFAULT_CURRENCY, 'EUR', 'GBP', 'CAD', 'AUD']
@@ -28,13 +29,17 @@ export function CreateTrip() {
 
   const atLimit = trips.length >= MAX_TRIPS
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim() || !user || atLimit) return
 
     setSubmitting(true)
     const inviteCode = generateInviteCode()
-    const ref = await addDoc(collection(db, 'trips'), {
+    // Ref minted synchronously; the write is NOT awaited (offline it would
+    // never resolve and the button would hang at "Creating…" forever —
+    // navigation works fine off the local cache).
+    const ref = doc(collection(db, 'trips'))
+    setDoc(ref, {
       name: name.trim(),
       type: tripType,
       createdBy: user.uid,
@@ -43,6 +48,9 @@ export function CreateTrip() {
       inviteCode,
       settlementCurrency: currency,
       createdAt: serverTimestamp(),
+    }).catch((err) => {
+      console.error('create trip failed:', err)
+      notifyError("The trip didn't save. Check your connection and try again.")
     })
     // Lookup doc that lets invite links resolve a code without reading trips.
     // Best-effort: the dashboard backfills it on view if this write fails.

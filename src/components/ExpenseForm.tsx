@@ -70,8 +70,10 @@ export function ExpenseForm({
     notes?: string
     category?: ExpenseCategory
     categories?: ExpenseCategory[]
-  }) => Promise<void>
-  onDelete?: () => Promise<void>
+    // void return = the caller fired the write and navigated without
+    // awaiting the server ack (the offline-friendly pattern).
+  }) => Promise<void> | void
+  onDelete?: () => Promise<void> | void
   existing?: Expense
 }) {
   const [form, setForm] = useState<ExpenseFormData>(() => {

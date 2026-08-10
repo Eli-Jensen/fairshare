@@ -22,6 +22,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-10',
+    emoji: '✈️',
+    title: 'Works properly on plane wifi',
+    items: [
+      'Adding an expense with no connection now just works — it saves on your device instantly and syncs itself when you’re back online. Before, the Save button would spin forever and you couldn’t tell if anything happened.',
+      'A banner tells you when you’re offline, and anything still waiting to sync shows a little 🕓 on its card until it’s safely uploaded.',
+      'Settling up, deleting, restoring from Trash, renaming — all the same: instant on your device, synced when possible.',
+      'And when something genuinely fails, you now get told on screen instead of it failing silently.',
+    ],
+  },
+  {
+    date: '2026-08-10',
     emoji: '🔕',
     title: 'Fewer notifications about people fixing typos',
     items: [

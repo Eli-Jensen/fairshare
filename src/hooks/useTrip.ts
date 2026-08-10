@@ -28,6 +28,9 @@ export function useTrip(tripId: string | undefined) {
   const [members, setMembers] = useState<Record<string, UserProfile>>({})
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  // Expense ids whose latest write hasn't been acked by the server yet —
+  // offline saves, mostly. Drives the "syncing" glyph on ExpenseCard.
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   // When true the expense listener subscribes without a page limit, so
   // "all expenses" stays live instead of going stale after the first load
   const [allMode, setAllMode] = useState(false)
@@ -103,10 +106,14 @@ export function useTrip(tripId: string | undefined) {
       ? query(base, orderBy('createdAt', 'desc'))
       : query(base, orderBy('createdAt', 'desc'), limit(PAGE_SIZE + 1))
 
-    return onSnapshot(q, (snap) => {
+    // includeMetadataChanges: writes queued offline fire an extra snapshot
+    // with hasPendingWrites — that's what powers the "syncing" glyph on
+    // cards, and the matching snapshot after the ack is what clears it.
+    return onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       const now = Date.now()
 
       const active: Expense[] = []
+      const pending = new Set<string>()
       const toDelete: typeof snap.docs = []
       for (const d of snap.docs) {
         const data = d.data()
@@ -117,8 +124,15 @@ export function useTrip(tripId: string | undefined) {
           }
           continue
         }
+        if (d.metadata.hasPendingWrites) pending.add(d.id)
         active.push(mapExpense({ id: d.id, ...data }))
       }
+      setPendingIds((prev) => {
+        // Referential stability: most snapshots have no pending docs, and a
+        // fresh empty Set every time would re-render every consumer.
+        if (prev.size === 0 && pending.size === 0) return prev
+        return pending
+      })
       if (toDelete.length > 0) {
         Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
       }
@@ -244,5 +258,5 @@ export function useTrip(tripId: string | undefined) {
   // Real members + guests — the id set used for splits, payers, balances
   const participants = trip ? participantIds(trip) : []
 
-  return { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, participants, activityLog, loading }
+  return { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, participants, activityLog, loading, pendingIds }
 }

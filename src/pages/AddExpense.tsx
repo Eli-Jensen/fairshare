@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { collection, addDoc, serverTimestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore'
+import { collection, serverTimestamp, doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { writeActivity } from '../lib/activity'
+import { notifyError } from '../lib/errorToast'
 import type { CustomCategory } from '../lib/types'
 import { DEFAULT_CURRENCY } from '../lib/types'
 
@@ -37,20 +38,28 @@ export function AddExpense() {
         onUpdateCategories={async (cats: CustomCategory[]) => {
           await updateDoc(doc(db!, 'trips', id!), { customCategories: cats })
         }}
-        onSubmit={async (data) => {
-          // Run all writes in parallel — they're independent
+        onSubmit={(data) => {
+          // Deliberately NOT awaited: with offline persistence the write is
+          // durable the moment the SDK accepts it, but the promise doesn't
+          // settle until the SERVER acks — awaiting it pinned the Save
+          // spinner forever on a plane. addDoc's ref (and id) is minted
+          // synchronously, so the activity link and navigation don't need
+          // the ack either. A rejection (rules, bad data) online surfaces
+          // through the global error toast.
           const tripUpdate: Record<string, unknown> = { lastCurrency: data.currency }
           if (data.currency !== (trip.settlementCurrency ?? DEFAULT_CURRENCY)) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
-          const [expenseRef] = await Promise.all([
-            addDoc(collection(db!, 'trips', id!, 'expenses'), {
-              ...data,
-              createdBy: user.uid,
-              createdAt: serverTimestamp(),
-            }),
-            updateDoc(doc(db!, 'trips', id!), tripUpdate),
-          ])
+          const expenseRef = doc(collection(db!, 'trips', id!, 'expenses'))
+          setDoc(expenseRef, {
+            ...data,
+            createdBy: user.uid,
+            createdAt: serverTimestamp(),
+          }).catch((err) => {
+            console.error('add expense failed:', err)
+            notifyError("The expense didn't save. Check your connection and try again.")
+          })
+          updateDoc(doc(db!, 'trips', id!), tripUpdate).catch(() => {})
           // Activity log is fire-and-forget — don't block navigation
           writeActivity(id!, {
             action: 'expense_added',

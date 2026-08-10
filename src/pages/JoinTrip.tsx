@@ -28,6 +28,13 @@ export function JoinTrip() {
   // order, not hoisting).
   async function joinTrip() {
     if (!user || !inviteCode) return
+    // The join path reads code docs and runs a placeholder-claim transaction
+    // — server-only work that would sit on "Joining…" forever offline.
+    if (!navigator.onLine) {
+      setError('Joining needs an internet connection — open this link again once you’re back online.')
+      setStatus('error')
+      return
+    }
     setStatus('joining')
 
     try {

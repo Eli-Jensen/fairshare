@@ -9,12 +9,15 @@ export function ExpenseCard({
   onEdit,
   settlementCurrency,
   customCategories,
+  pending,
 }: {
   expense: Expense
   members: Record<string, UserProfile>
   onEdit?: () => void
   settlementCurrency?: string
   customCategories?: CustomCategory[]
+  /** Latest write not yet acked by the server (offline save). */
+  pending?: boolean
 }) {
   const payer = members[expense.paidBy]
   const sc = settlementCurrency ?? DEFAULT_CURRENCY
@@ -91,7 +94,18 @@ export function ExpenseCard({
                 </span>
               )}
             </p>
-            <p className="text-sm text-text-muted">{dateStr}</p>
+            <p className="text-sm text-text-muted">
+              {dateStr}
+              {pending && (
+                <span
+                  className="ml-1.5 text-warn-text"
+                  title="Saved on this device — will sync when online"
+                  aria-label="Waiting to sync"
+                >
+                  🕓
+                </span>
+              )}
+            </p>
           </div>
           {!isSettlement && (
             <p className="text-sm text-text-muted mt-0.5">

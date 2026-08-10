@@ -18,6 +18,7 @@ import { purgeTrip } from '../hooks/useTrips'
 import { formatMoney, mapExpense } from '../lib/types'
 import type { Trip, Expense } from '../lib/types'
 import { writeActivity } from '../lib/activity'
+import { notifyError } from '../lib/errorToast'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -38,7 +39,6 @@ export function DeletedItems() {
   const [deletedTrips, setDeletedTrips] = useState<DeletedTrip[]>([])
   const [deletedExpenses, setDeletedExpenses] = useState<DeletedExpense[]>([])
   const [loading, setLoading] = useState(true)
-  const [restoring, setRestoring] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -113,11 +113,15 @@ export function DeletedItems() {
     }
   }, [user?.uid])
 
-  async function restoreTrip(tripId: string) {
-    setRestoring(tripId)
+  // Restores are fire-and-forget: awaiting the server ack froze the row in
+  // its "restoring" state offline, for a write that's already durable.
+  function restoreTrip(tripId: string) {
     const trip = deletedTrips.find((t) => t.id === tripId)
-    await updateDoc(doc(db, 'trips', tripId), {
+    updateDoc(doc(db, 'trips', tripId), {
       deletedAt: deleteField(),
+    }).catch((err) => {
+      console.error('restore trip failed:', err)
+      notifyError("The restore didn't go through. Check your connection and try again.")
     })
     if (user) {
       writeActivity(tripId, {
@@ -126,14 +130,15 @@ export function DeletedItems() {
         targetDescription: trip?.name,
       })
     }
-    setRestoring(null)
   }
 
-  async function restoreExpense(tripId: string, expenseId: string) {
-    setRestoring(expenseId)
+  function restoreExpense(tripId: string, expenseId: string) {
     const exp = deletedExpenses.find((e) => e.id === expenseId)
-    await updateDoc(doc(db, 'trips', tripId, 'expenses', expenseId), {
+    updateDoc(doc(db, 'trips', tripId, 'expenses', expenseId), {
       deletedAt: deleteField(),
+    }).catch((err) => {
+      console.error('restore expense failed:', err)
+      notifyError("The restore didn't go through. Check your connection and try again.")
     })
     if (user) {
       writeActivity(tripId, {
@@ -144,7 +149,6 @@ export function DeletedItems() {
         targetExpenseId: expenseId,
       })
     }
-    setRestoring(null)
   }
 
   function timeRemaining(deletedAt: import('firebase/firestore').Timestamp): string {
@@ -191,7 +195,6 @@ export function DeletedItems() {
                   <DeletedSection
                     label={`Deleted Trips (${trips.length})`}
                     items={trips}
-                    restoring={restoring}
                     onRestore={restoreTrip}
                     timeRemaining={timeRemaining}
                   />
@@ -200,7 +203,6 @@ export function DeletedItems() {
                   <DeletedSection
                     label={`Deleted Groups (${groups.length})`}
                     items={groups}
-                    restoring={restoring}
                     onRestore={restoreTrip}
                     timeRemaining={timeRemaining}
                   />
@@ -231,10 +233,9 @@ export function DeletedItems() {
                     </div>
                     <button
                       onClick={() => restoreExpense(exp.tripId, exp.id)}
-                      disabled={restoring === exp.id}
-                      className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors disabled:opacity-50"
+                      className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors"
                     >
-                      {restoring === exp.id ? 'Restoring...' : 'Restore'}
+                      Restore
                     </button>
                   </div>
                 ))}
@@ -262,13 +263,11 @@ export function DeletedItems() {
 function DeletedSection({
   label,
   items,
-  restoring,
   onRestore,
   timeRemaining,
 }: {
   label: string
   items: DeletedTrip[]
-  restoring: string | null
   onRestore: (id: string) => void
   timeRemaining: (d: import('firebase/firestore').Timestamp) => string
 }) {
@@ -294,10 +293,9 @@ function DeletedSection({
             </div>
             <button
               onClick={() => onRestore(trip.id)}
-              disabled={restoring === trip.id}
-              className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors disabled:opacity-50"
+              className="text-sm font-medium text-accent-text hover:text-accent-hover px-3 py-1.5 rounded-lg hover:bg-accent-soft transition-colors"
             >
-              {restoring === trip.id ? 'Restoring...' : 'Restore'}
+              Restore
             </button>
           </div>
         ))}

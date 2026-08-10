@@ -23,6 +23,7 @@ import { Spinner } from '../components/Spinner'
 import type { Trip, UserProfile } from '../lib/types'
 import { getMemberName } from '../lib/types'
 import { writeActivity } from '../lib/activity'
+import { notifyError } from '../lib/errorToast'
 import { claimPlaceholdersOnJoin } from '../lib/claim'
 
 export function Home() {
@@ -63,10 +64,14 @@ export function Home() {
     }
   }, [location.state])
 
-  const handleUndoTrip = useCallback(async () => {
+  const handleUndoTrip = useCallback(() => {
     if (!undoTrip || !user) return
-    await updateDoc(doc(db, 'trips', undoTrip.id), {
+    // Fire-and-dismiss — awaiting the ack pinned the toast open offline.
+    updateDoc(doc(db, 'trips', undoTrip.id), {
       deletedAt: deleteField(),
+    }).catch((err) => {
+      console.error('undo trip delete failed:', err)
+      notifyError("The undo didn't go through. Restore it from Trash instead.")
     })
     writeActivity(undoTrip.id, {
       action: 'trip_restored',
@@ -103,6 +108,12 @@ export function Home() {
 
   async function joinTrip(tripId: string) {
     if (!user) return
+    // Joining runs a transaction (placeholder claim), and transactions are
+    // server-only — offline this would hang the button forever. Say so.
+    if (!navigator.onLine) {
+      notifyError('Joining needs a connection — try again once you’re back online.')
+      return
+    }
     setJoiningTrip(tripId)
     await updateDoc(doc(db, 'trips', tripId), {
       memberUids: arrayUnion(user.uid),
@@ -119,10 +130,13 @@ export function Home() {
     setJoiningTrip(null)
   }
 
-  async function declineInvite(tripId: string) {
+  function declineInvite(tripId: string) {
     if (!user) return
-    await updateDoc(doc(db, 'trips', tripId), {
+    updateDoc(doc(db, 'trips', tripId), {
       invitedEmails: arrayRemove(user.email!.toLowerCase()),
+    }).catch((err) => {
+      console.error('decline invite failed:', err)
+      notifyError("The decline didn't go through. Check your connection and try again.")
     })
   }
 

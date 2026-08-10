@@ -17,7 +17,8 @@ import { DeleteModal } from '../components/DeleteModal'
 import { tripToCsv, downloadCsv } from '../lib/export'
 import { CurrencyPicker } from '../components/CurrencyPicker'
 import { writeActivity } from '../lib/activity'
-import { arrayRemove, addDoc, collection, Timestamp } from 'firebase/firestore'
+import { notifyError } from '../lib/errorToast'
+import { arrayRemove, collection, Timestamp } from 'firebase/firestore'
 
 type Tab = 'expenses' | 'settle' | 'activity'
 
@@ -28,7 +29,7 @@ const ensuredInviteCodes = new Set<string>()
 export function TripDashboard() {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
-  const { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, participants, activityLog, loading } = useTrip(id)
+  const { trip, expenses, allExpenses, hasMore, loadAllExpenses, members, participants, activityLog, loading, pendingIds } = useTrip(id)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>(() => {
@@ -94,8 +95,12 @@ export function TripDashboard() {
 
   const handleUndo = useCallback(async () => {
     if (!undoInfo || !id) return
-    await updateDoc(doc(db!, 'trips', id, 'expenses', undoInfo.id), {
+    // Fire-and-dismiss — awaiting the ack pinned the toast open offline.
+    updateDoc(doc(db!, 'trips', id, 'expenses', undoInfo.id), {
       deletedAt: deleteField(),
+    }).catch((err) => {
+      console.error('undo delete failed:', err)
+      notifyError("The undo didn't go through. Restore it from Trash instead.")
     })
     setUndoInfo(null)
   }, [undoInfo, id])
@@ -106,11 +111,15 @@ export function TripDashboard() {
   // Trash — they net to $0, so balances stay settled. Offers a one-tap undo.
   async function clearSettledHistory() {
     if (!id || !user) return
+    // loadAllExpenses resolves from the local cache — safe to await offline.
     const all = await loadAllExpenses()
     if (all.length === 0) return
-    await Promise.all(
+    Promise.all(
       all.map((e) => updateDoc(doc(db, 'trips', id, 'expenses', e.id), { deletedAt: serverTimestamp() })),
-    )
+    ).catch((err) => {
+      console.error('clear history failed:', err)
+      notifyError("Clearing didn't finish. Check Trash to see what moved.")
+    })
     writeActivity(id, {
       action: 'history_cleared',
       actorUid: user.uid,
@@ -119,11 +128,14 @@ export function TripDashboard() {
     setClearUndo({ ids: all.map((e) => e.id), count: all.length })
   }
 
-  const handleClearUndo = useCallback(async () => {
+  const handleClearUndo = useCallback(() => {
     if (!clearUndo || !id) return
-    await Promise.all(
+    Promise.all(
       clearUndo.ids.map((eid) => updateDoc(doc(db, 'trips', id, 'expenses', eid), { deletedAt: deleteField() })),
-    )
+    ).catch((err) => {
+      console.error('undo clear failed:', err)
+      notifyError("The undo didn't finish. Anything still cleared is in Trash.")
+    })
     setClearUndo(null)
   }, [clearUndo, id])
 
@@ -149,14 +161,17 @@ export function TripDashboard() {
     setEditingName(true)
   }
 
-  async function saveName() {
+  function saveName() {
     const trimmed = nameValue.trim()
     if (!trimmed || !id) {
       setEditingName(false)
       return
     }
     const oldName = trip?.name
-    await updateDoc(doc(db, 'trips', id), { name: trimmed })
+    updateDoc(doc(db, 'trips', id), { name: trimmed }).catch((err) => {
+      console.error('rename failed:', err)
+      notifyError("The rename didn't save. Check your connection and try again.")
+    })
     if (oldName && oldName !== trimmed) {
       writeActivity(id, {
         action: 'trip_renamed',
@@ -569,6 +584,7 @@ export function TripDashboard() {
                       expense={exp} settlementCurrency={sc}
                       members={members}
                       customCategories={trip.customCategories}
+                      pending={pendingIds.has(exp.id)}
                       onEdit={() =>
                         navigate(`/trip/${id}/expense/${exp.id}`)
                       }
@@ -610,7 +626,11 @@ export function TripDashboard() {
             const fromName = getMemberName(from, members)
             const toName = getMemberName(to, members)
             const desc = `${fromName} paid ${toName}${method ? ` via ${method}` : ''}`
-            const ref = await addDoc(collection(db, 'trips', id!, 'expenses'), {
+            // Ref minted synchronously; the writes are NOT awaited so the
+            // confirm row / Settle All / payment form resolve instantly —
+            // offline, the acks never come and every one of those hung.
+            const ref = doc(collection(db, 'trips', id!, 'expenses'))
+            setDoc(ref, {
               description: desc,
               amount,
               currency: cur,
@@ -623,13 +643,16 @@ export function TripDashboard() {
               isSettlement: true,
               createdBy: user!.uid,
               createdAt: serverTimestamp(),
+            }).catch((err) => {
+              console.error('record settlement failed:', err)
+              notifyError("The payment didn't record. Check your connection and try again.")
             })
             // Save rate for future use if it's a foreign currency
             if (cur !== sc) {
-              await updateDoc(doc(db, 'trips', id!), {
+              updateDoc(doc(db, 'trips', id!), {
                 [`lastRates.${cur}`]: rate,
                 lastCurrency: cur,
-              })
+              }).catch(() => {})
             }
             writeActivity(id!, {
               action: 'settlement_recorded',
@@ -660,10 +683,15 @@ export function TripDashboard() {
           title={`Delete this ${tl} for everyone?`}
           message={`"${trip.name}" and all expenses will be moved to trash for 24 hours, then permanently removed for all members.`}
           onCancel={() => setShowDeleteModal(false)}
-          onConfirm={async () => {
+          onConfirm={() => {
             setShowDeleteModal(false)
-            await updateDoc(doc(db, 'trips', id!), {
+            // Fire-and-navigate — soft delete is durable locally; awaiting
+            // the ack left you staring at the dashboard of a deleted trip.
+            updateDoc(doc(db, 'trips', id!), {
               deletedAt: serverTimestamp(),
+            }).catch((err) => {
+              console.error('delete trip failed:', err)
+              notifyError("The delete didn't go through. Check your connection and try again.")
             })
             writeActivity(id!, {
               action: 'trip_deleted',
@@ -782,9 +810,12 @@ export function TripDashboard() {
       {undoSettlement && (
         <UndoToast
           message={`Payment recorded: ${undoSettlement.description}`}
-          onUndo={async () => {
-            await updateDoc(doc(db, 'trips', id!, 'expenses', undoSettlement.id), {
+          onUndo={() => {
+            updateDoc(doc(db, 'trips', id!, 'expenses', undoSettlement.id), {
               deletedAt: serverTimestamp(),
+            }).catch((err) => {
+              console.error('undo settlement failed:', err)
+              notifyError("The undo didn't go through. Delete the payment from the expense list instead.")
             })
             setUndoSettlement(null)
           }}

@@ -9,6 +9,8 @@ import { hasUnseenActivity } from '../lib/activityNotification'
 import { refreshPushToken, startForegroundNotifications, type ForegroundNote } from '../lib/push'
 import { hasUnseenChangelog } from '../lib/changelog'
 import { useAutoUpdate } from '../hooks/useAutoUpdate'
+import { useOnline } from '../hooks/useOnline'
+import { useErrorNote, clearError } from '../lib/errorToast'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth()
@@ -30,6 +32,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // A deploy landing while this tab is open reloads it, rather than letting old
   // code keep writing to Firestore.
   useAutoUpdate()
+  const online = useOnline()
+  const errorNote = useErrorNote()
 
   // Close menu on navigation, re-check unseen activity
   useEffect(() => {
@@ -325,11 +329,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
+        {/* Firestore queues writes silently while offline — SAY so, or taps
+            that never visibly confirm read as broken. */}
+        {!online && (
+          <div className="border-t border-warn-border bg-warn-bg px-4 py-1.5 text-center text-xs font-medium text-warn-text">
+            📡 You’re offline — changes will save and sync when you’re back.
+          </div>
+        )}
       </header>
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         {children}
       </main>
+
+      {/* Global failure toast — fire-and-forget writes that fail ONLINE
+          (rules denial, bad data) reject fast and surface here instead of
+          dying in the console. */}
+      {errorNote && (
+        <div
+          role="alert"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[min(24rem,calc(100vw-2rem))] bg-card border border-danger-border rounded-lg shadow-lg px-4 py-3 animate-slide-up flex items-start gap-2"
+        >
+          <p className="flex-1 text-sm text-text">{errorNote.message}</p>
+          <button
+            type="button"
+            onClick={clearError}
+            aria-label="Dismiss"
+            className="shrink-0 text-text-muted hover:text-text"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* In-page mirror of a push that arrived while this tab was focused —
           the only reliable signal on iOS, which suppresses system banners for

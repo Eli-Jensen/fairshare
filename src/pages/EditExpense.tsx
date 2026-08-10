@@ -9,6 +9,7 @@ import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { writeActivity } from '../lib/activity'
+import { notifyError } from '../lib/errorToast'
 import { getMemberName, formatMoney, DEFAULT_CURRENCY, BALANCE_THRESHOLD } from '../lib/types'
 
 function relativeTime(date: Date): string {
@@ -30,7 +31,6 @@ export function EditExpense() {
   const { trip, expenses, members, participants, loading } = useTrip(id)
   const navigate = useNavigate()
   const [commentText, setCommentText] = useState('')
-  const [addingComment, setAddingComment] = useState(false)
   const [fetchedExpense, setFetchedExpense] = useState<Expense | null>(null)
   const [fetchFailed, setFetchFailed] = useState(false)
 
@@ -61,32 +61,42 @@ export function EditExpense() {
     return <div className="text-center py-10 text-text-secondary">Expense not found</div>
   }
 
-  async function addComment() {
+  function addComment() {
     if (!commentText.trim() || !user || !id || !eid || !expense) return
-    setAddingComment(true)
-    try {
-      await updateDoc(doc(db, 'trips', id, 'expenses', eid), {
-        comments: arrayUnion({
-          uid: user.uid,
-          text: commentText.trim(),
-          createdAt: Timestamp.now(),
-        }),
-      })
-      writeActivity(id, {
-        action: 'comment_added',
-        actorUid: user.uid,
-        targetDescription: expense.description,
-        targetExpenseId: eid,
-      })
-      setCommentText('')
-      if (!isListed) {
-        // No live listener covers this expense — refresh it directly
-        const snap = await getDoc(doc(db, 'trips', id, 'expenses', eid))
-        if (snap.exists()) setFetchedExpense(mapExpense({ id: snap.id, ...snap.data() }))
+    const text = commentText.trim()
+    const entry = { uid: user.uid, text, createdAt: Timestamp.now() }
+    // Not awaited: offline, the ack never comes and the Post button would
+    // hang at '...' with the text stranded in the box. The write is durable
+    // once the SDK takes it; an online rejection surfaces via the toast.
+    updateDoc(doc(db, 'trips', id, 'expenses', eid), {
+      comments: arrayUnion(entry),
+    }).then(
+      async () => {
+        if (!isListed) {
+          // No live listener covers this expense — refresh it directly
+          const snap = await getDoc(doc(db, 'trips', id, 'expenses', eid))
+          if (snap.exists()) setFetchedExpense(mapExpense({ id: snap.id, ...snap.data() }))
+        }
+      },
+      (err) => {
+        console.error('add comment failed:', err)
+        notifyError("The comment didn't post. Check your connection and try again.")
       }
-    } finally {
-      setAddingComment(false)
+    )
+    writeActivity(id, {
+      action: 'comment_added',
+      actorUid: user.uid,
+      targetDescription: expense.description,
+      targetExpenseId: eid,
+    })
+    // Optimistic local echo for the no-listener case, so the comment appears
+    // even before (or without) the server ack.
+    if (!isListed) {
+      setFetchedExpense((prev) =>
+        prev ? { ...prev, comments: [...(prev.comments ?? []), entry] } : prev
+      )
     }
+    setCommentText('')
   }
 
   return (
@@ -109,7 +119,7 @@ export function EditExpense() {
           await updateDoc(doc(db!, 'trips', id!), { customCategories: cats })
         }}
         existing={expense}
-        onSubmit={async (data) => {
+        onSubmit={(data) => {
           // updateDoc merges, so optional fields the user cleared have to
           // be deleted explicitly or stale values keep driving balances
           const expenseUpdate: Record<string, unknown> = { ...data }
@@ -132,10 +142,13 @@ export function EditExpense() {
           if (data.currency !== (trip.settlementCurrency ?? DEFAULT_CURRENCY)) {
             tripUpdate[`lastRates.${data.currency}`] = data.exchangeRate
           }
-          await Promise.all([
-            updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), expenseUpdate),
-            updateDoc(doc(db!, 'trips', id!), tripUpdate),
-          ])
+          // Not awaited — see AddExpense. Durable locally; the ack can
+          // arrive after we've navigated away.
+          updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), expenseUpdate).catch((err) => {
+            console.error('edit expense failed:', err)
+            notifyError("The changes didn't save. Check your connection and try again.")
+          })
+          updateDoc(doc(db!, 'trips', id!), tripUpdate).catch(() => {})
 
           // Compute what changed for the activity log
           const sc = trip.settlementCurrency ?? DEFAULT_CURRENCY
@@ -192,9 +205,12 @@ export function EditExpense() {
           })
           navigate(`/trip/${id}`)
         }}
-        onDelete={async () => {
-          await updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), {
+        onDelete={() => {
+          updateDoc(doc(db!, 'trips', id!, 'expenses', eid!), {
             deletedAt: serverTimestamp(),
+          }).catch((err) => {
+            console.error('delete expense failed:', err)
+            notifyError("The delete didn't go through. Check your connection and try again.")
           })
           // Fire-and-forget
           writeActivity(id!, {
@@ -256,10 +272,10 @@ export function EditExpense() {
           />
           <button
             onClick={addComment}
-            disabled={!commentText.trim() || addingComment}
+            disabled={!commentText.trim()}
             className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors shrink-0"
           >
-            {addingComment ? '...' : 'Post'}
+            Post
           </button>
         </div>
       </div>
