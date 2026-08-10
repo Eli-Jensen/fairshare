@@ -400,6 +400,151 @@ describe('activity log', () => {
   })
 })
 
+// ── Comments subcollection (the social layer) ───────────────────────────────
+
+describe('comments', () => {
+  const cPath = (cid: string) => `${tripPath}/expenses/e1/comments/${cid}`
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), cPath('c-alice')), {
+        authorUid: ALICE,
+        text: 'great dinner',
+        createdAt: new Date(),
+      })
+    })
+  })
+
+  it('member creates a comment as themselves', async () => {
+    await assertSucceeds(
+      setDoc(doc(bob(), cPath('c-bob')), {
+        authorUid: BOB,
+        text: 'agreed!',
+        createdAt: new Date(),
+      })
+    )
+  })
+
+  it('cannot forge someone else as the author', async () => {
+    await assertFails(
+      setDoc(doc(bob(), cPath('c-forged')), {
+        authorUid: ALICE,
+        text: 'I said this',
+        createdAt: new Date(),
+      })
+    )
+  })
+
+  it('strangers cannot create or read', async () => {
+    await assertFails(
+      setDoc(doc(stranger(), cPath('c-x')), {
+        authorUid: STRANGER,
+        text: 'hi',
+        createdAt: new Date(),
+      })
+    )
+    await assertFails(getDoc(doc(stranger(), cPath('c-alice'))))
+    await assertFails(getDocs(collection(stranger(), `${tripPath}/expenses/e1/comments`)))
+  })
+
+  it('member reads and lists', async () => {
+    await assertSucceeds(getDoc(doc(bob(), cPath('c-alice'))))
+    await assertSucceeds(getDocs(collection(bob(), `${tripPath}/expenses/e1/comments`)))
+  })
+
+  it('text bounds: 501 chars and empty string both refused', async () => {
+    await assertFails(
+      setDoc(doc(bob(), cPath('c-long')), {
+        authorUid: BOB,
+        text: 'x'.repeat(501),
+        createdAt: new Date(),
+      })
+    )
+    await assertFails(
+      setDoc(doc(bob(), cPath('c-empty')), {
+        authorUid: BOB,
+        text: '',
+        createdAt: new Date(),
+      })
+    )
+  })
+
+  it('content required — but a GIF alone is content', async () => {
+    await assertFails(
+      setDoc(doc(bob(), cPath('c-nothing')), { authorUid: BOB, createdAt: new Date() })
+    )
+    await assertSucceeds(
+      setDoc(doc(bob(), cPath('c-gif')), {
+        authorUid: BOB,
+        gifUrl: 'https://cdn.example/g.gif',
+        gifWidth: 200,
+        gifHeight: 150,
+        createdAt: new Date(),
+      })
+    )
+  })
+
+  it('author edits their own text', async () => {
+    await assertSucceeds(
+      updateDoc(doc(alice(), cPath('c-alice')), { text: 'GREAT dinner', editedAt: new Date() })
+    )
+  })
+
+  it('non-author cannot edit the text', async () => {
+    await assertFails(updateDoc(doc(bob(), cPath('c-alice')), { text: 'terrible dinner' }))
+  })
+
+  it('authorUid is immutable — no laundering', async () => {
+    await assertFails(updateDoc(doc(alice(), cPath('c-alice')), { authorUid: BOB }))
+  })
+
+  it('non-author may toggle exactly their own reaction key', async () => {
+    await assertSucceeds(
+      updateDoc(doc(bob(), cPath('c-alice')), { [`reactions.${BOB}`]: '😂' })
+    )
+    await assertFails(
+      updateDoc(doc(bob(), cPath('c-alice')), { [`reactions.${ALICE}`]: '💀' })
+    )
+    // …and cannot smuggle a text edit into the reaction patch
+    await assertFails(
+      updateDoc(doc(bob(), cPath('c-alice')), { [`reactions.${BOB}`]: '😂', text: 'sneaky' })
+    )
+  })
+
+  it('any member may delete (Trash/trip purge run as whoever triggers them)', async () => {
+    await assertSucceeds(deleteDoc(doc(bob(), cPath('c-alice'))))
+  })
+
+  it('strangers cannot delete', async () => {
+    await assertFails(deleteDoc(doc(stranger(), cPath('c-alice'))))
+  })
+})
+
+describe('expense social fields ride the wholesale member rule', () => {
+  it('member patches own reaction key on the expense doc', async () => {
+    await assertSucceeds(
+      updateDoc(doc(bob(), `${tripPath}/expenses/e1`), { [`reactions.${BOB}`]: '👍' })
+    )
+  })
+
+  it('member moves the comment denorms (the writeBatch shape)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(bob(), `${tripPath}/expenses/e1`), {
+        commentCount: 1,
+        commenterUids: [BOB],
+      })
+    )
+  })
+
+  it('stranger gets nothing, reactions included', async () => {
+    await assertFails(
+      updateDoc(doc(stranger(), `${tripPath}/expenses/e1`), {
+        [`reactions.${STRANGER}`]: '🔥',
+      })
+    )
+  })
+})
+
 // ── Purge order ─────────────────────────────────────────────────────────────
 
 describe('purge order', () => {

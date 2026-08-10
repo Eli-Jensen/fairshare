@@ -95,10 +95,58 @@ service cloud.firestore {
       allow update: if isMember() || isInviteeJoinOrDecline() || isSelfJoin();
       allow delete: if isMember();
 
-      // Expenses — only trip members can read/write
+      // Expenses — only trip members can read/write. This is a WHOLESALE
+      // member write on purpose: the social fields (reactions{}, commentCount,
+      // commenterUids[]) deliberately ride the same rule. An own-key-only
+      // reactions carve-out would only mean something if every OTHER expense
+      // write were restricted away from those fields — which would break
+      // whole-doc paths (placeholder claim reconciliation, undo restore,
+      // sheet restore) to protect integrity nobody needs: any member can
+      // already rewrite the amount itself.
       match /expenses/{expenseId} {
         allow read, write: if isAuthed()
           && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
+
+        // Comments — one doc each (the embedded comments[] array on the
+        // expense doc is legacy, frozen, rendered read-only). Members read;
+        // authors create as themselves (text ≤ 500 chars, and optional only
+        // when a GIF or photo carries the content); the author edits their
+        // own comment, while everyone else may only toggle their OWN key in
+        // the reactions map; ANY member may delete — the UI offers it on
+        // your own comments only, but the Trash purge and trip purge run as
+        // whichever member triggers them and must delete other people's
+        // docs.
+        match /comments/{commentId} {
+          function isTripMember() {
+            return isAuthed()
+              && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
+          }
+          function textOk(d) {
+            return !('text' in d)
+              || (d.text is string && d.text.size() >= 1 && d.text.size() <= 500);
+          }
+          allow read: if isTripMember();
+          allow create: if isTripMember()
+            && request.resource.data.authorUid == request.auth.uid
+            && textOk(request.resource.data)
+            && ('text' in request.resource.data
+                || 'gifUrl' in request.resource.data
+                || 'photoPath' in request.resource.data);
+          allow update: if isTripMember()
+            && request.resource.data.authorUid == resource.data.authorUid
+            && textOk(request.resource.data)
+            && (
+              // the author edits their own comment…
+              resource.data.authorUid == request.auth.uid
+              // …anyone else may only patch their own reaction key
+              || (request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['reactions'])
+                  && request.resource.data.get('reactions', {})
+                       .diff(resource.data.get('reactions', {}))
+                       .affectedKeys().hasOnly([request.auth.uid]))
+            );
+          allow delete: if isTripMember();
+        }
       }
 
       // Activity log — only trip members can read/write
