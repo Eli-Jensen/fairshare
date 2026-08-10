@@ -15,6 +15,9 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_VAPID_KEY?: string
   /** Sentry DSN (public client key). Unset = crash reporting is off. */
   readonly VITE_SENTRY_DSN?: string
+  /** KLIPY GIF-search content key (public, rate-limited). Unset = the GIF
+   *  button hides itself. */
+  readonly VITE_KLIPY_API_KEY?: string
 }
 
 interface ImportMeta {

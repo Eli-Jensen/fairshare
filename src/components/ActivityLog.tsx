@@ -1,23 +1,10 @@
+import { relativeTime } from '../lib/dates'
 import { useState } from 'react'
 import type { ActivityLogEntry, UserProfile, TripType } from '../lib/types'
 import { formatMoney, getMemberName, tripLabel, DEFAULT_CURRENCY } from '../lib/types'
 import { getUndoAction, executeUndo } from '../lib/activityUndo'
 import type { UndoAction } from '../lib/activityUndo'
 import { MemberAvatar } from './MemberAvatar'
-
-function relativeTime(date: Date): string {
-  const now = Date.now()
-  const diff = now - date.getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'yesterday'
-  if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString()
-}
 
 function describeAction(entry: ActivityLogEntry, members: Record<string, UserProfile>, settlementCurrency: string, type?: TripType): string {
   const tl = tripLabel(type)

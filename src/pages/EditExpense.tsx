@@ -1,58 +1,50 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { doc, getDoc, updateDoc, deleteField, serverTimestamp, arrayUnion, Timestamp } from 'firebase/firestore'
+import { doc, onSnapshot, updateDoc, deleteField, serverTimestamp, arrayUnion } from 'firebase/firestore'
 import type { CustomCategory, Expense } from '../lib/types'
 import { getExpenseCategories, mapExpense } from '../lib/types'
 import { db } from '../lib/firebase'
 import { useAuth } from '../hooks/useAuth'
 import { useTrip } from '../hooks/useTrip'
 import { ExpenseForm } from '../components/ExpenseForm'
-import { MemberAvatar } from '../components/MemberAvatar'
+import { ReactionBar } from '../components/ReactionBar'
+import { CommentsSection } from '../components/CommentsSection'
 import { writeActivity } from '../lib/activity'
 import { notifyError } from '../lib/errorToast'
 import { uploadReceipt, deleteReceiptObjects } from '../lib/image'
 import { getMemberName, formatMoney, DEFAULT_CURRENCY, BALANCE_THRESHOLD } from '../lib/types'
-
-function relativeTime(date: Date): string {
-  const diff = Date.now() - date.getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'yesterday'
-  if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString()
-}
 
 export function EditExpense() {
   const { id, eid } = useParams<{ id: string; eid: string }>()
   const { user } = useAuth()
   const { trip, expenses, members, participants, loading } = useTrip(id)
   const navigate = useNavigate()
-  const [commentText, setCommentText] = useState('')
   const [fetchedExpense, setFetchedExpense] = useState<Expense | null>(null)
   const [fetchFailed, setFetchFailed] = useState(false)
 
   // The paginated listener only covers the newest expenses — older ones
-  // (deep links, post-"show all" clicks) need a direct read
+  // (deep links, post-"show all" clicks) need their own DOC LISTENER, not a
+  // one-shot read: reactions and comment counts land on this doc and must
+  // update live even when the page-window listener doesn't cover it.
   const listed = expenses.find((e) => e.id === eid)
-  const expense = listed ?? fetchedExpense ?? undefined
   const isListed = Boolean(listed)
 
   useEffect(() => {
     if (loading || isListed || !id || !eid) return
-    getDoc(doc(db, 'trips', id, 'expenses', eid))
-      .then((snap) => {
+    return onSnapshot(
+      doc(db, 'trips', id, 'expenses', eid),
+      (snap) => {
         if (snap.exists() && !snap.data().deletedAt) {
           setFetchedExpense(mapExpense({ id: snap.id, ...snap.data() }))
         } else {
           setFetchFailed(true)
         }
-      })
-      .catch(() => setFetchFailed(true))
+      },
+      () => setFetchFailed(true)
+    )
   }, [loading, isListed, id, eid])
+
+  const expense = listed ?? fetchedExpense ?? undefined
 
   if (loading || !trip || !user || (!expense && !fetchFailed)) {
     return <div className="text-center py-10 text-text-muted">Loading...</div>
@@ -60,44 +52,6 @@ export function EditExpense() {
 
   if (!expense) {
     return <div className="text-center py-10 text-text-secondary">Expense not found</div>
-  }
-
-  function addComment() {
-    if (!commentText.trim() || !user || !id || !eid || !expense) return
-    const text = commentText.trim()
-    const entry = { uid: user.uid, text, createdAt: Timestamp.now() }
-    // Not awaited: offline, the ack never comes and the Post button would
-    // hang at '...' with the text stranded in the box. The write is durable
-    // once the SDK takes it; an online rejection surfaces via the toast.
-    updateDoc(doc(db, 'trips', id, 'expenses', eid), {
-      comments: arrayUnion(entry),
-    }).then(
-      async () => {
-        if (!isListed) {
-          // No live listener covers this expense — refresh it directly
-          const snap = await getDoc(doc(db, 'trips', id, 'expenses', eid))
-          if (snap.exists()) setFetchedExpense(mapExpense({ id: snap.id, ...snap.data() }))
-        }
-      },
-      (err) => {
-        console.error('add comment failed:', err)
-        notifyError("The comment didn't post. Check your connection and try again.")
-      }
-    )
-    writeActivity(id, {
-      action: 'comment_added',
-      actorUid: user.uid,
-      targetDescription: expense.description,
-      targetExpenseId: eid,
-    })
-    // Optimistic local echo for the no-listener case, so the comment appears
-    // even before (or without) the server ack.
-    if (!isListed) {
-      setFetchedExpense((prev) =>
-        prev ? { ...prev, comments: [...(prev.comments ?? []), entry] } : prev
-      )
-    }
-    setCommentText('')
   }
 
   return (
@@ -264,56 +218,18 @@ export function EditExpense() {
         }}
       />
 
-      {/* Comments section */}
-      <div className="mt-6 pt-6 border-t border-line">
-        <h3 className="text-sm font-medium text-text-secondary mb-3">
-          Comments {expense.comments?.length ? `(${expense.comments.length})` : ''}
-        </h3>
-
-        {expense.comments && expense.comments.length > 0 && (
-          <div className="space-y-3 mb-4">
-            {expense.comments.map((c, i) => {
-              const time = c.createdAt?.toDate?.()
-              return (
-                <div key={i} className="flex gap-2">
-                  <MemberAvatar member={members[c.uid]} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-medium text-text">
-                        {getMemberName(c.uid, members)}
-                      </span>
-                      {time && (
-                        <span className="text-xs text-text-muted">{relativeTime(time)}</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-text-secondary mt-0.5">{c.text}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-input text-text focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Add a comment..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && commentText.trim()) addComment()
-            }}
-          />
-          <button
-            onClick={addComment}
-            disabled={!commentText.trim()}
-            className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors shrink-0"
-          >
-            Post
-          </button>
-        </div>
+      {/* React to the expense itself */}
+      <div className="mt-6">
+        <ReactionBar
+          tripId={id!}
+          expenseId={expense.id}
+          reactions={expense.reactions}
+          meUid={user.uid}
+        />
       </div>
+
+      {/* Thread: frozen legacy rows + live comment docs + composer */}
+      <CommentsSection tripId={id!} expense={expense} members={members} meUid={user.uid} />
     </div>
   )
 }

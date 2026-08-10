@@ -166,6 +166,19 @@ describe('commentParticipants', () => {
     ).toEqual(['bob', 'carol'])
     expect(commentParticipants({})).toEqual([])
   })
+
+  it('reads the commenterUids denorm (subcollection comments)', () => {
+    expect(commentParticipants({ commenterUids: ['dave', 'erin'] })).toEqual(['dave', 'erin'])
+  })
+
+  it('unions denorm with legacy embedded commenters, deduped', () => {
+    expect(
+      commentParticipants({
+        commenterUids: ['bob', 'dave'],
+        comments: [{ uid: 'bob' }, { uid: 'carol' }],
+      }).sort()
+    ).toEqual(['bob', 'carol', 'dave'])
+  })
 })
 
 describe('settlementAudience', () => {
@@ -304,6 +317,17 @@ describe('allowsPush', () => {
 
 describe('noteFor', () => {
   const ctx = { actorName: 'Alice', trip: TRIP }
+
+  it('comment copy: text, GIF-only, and photo-only each say what happened', () => {
+    const base = { action: 'comment_added' as const, targetDescription: 'Dinner' }
+    expect(noteFor(entry(base), ctx)?.body).toBe('Alice commented on Dinner')
+    expect(noteFor(entry({ ...base, commentMedia: 'gif' }), ctx)?.body).toBe(
+      'Alice sent a GIF on Dinner'
+    )
+    expect(noteFor(entry({ ...base, commentMedia: 'photo' }), ctx)?.body).toBe(
+      'Alice sent a photo on Dinner'
+    )
+  })
 
   it('titles with the trip name', () => {
     const n = noteFor(entry({ action: 'expense_added', targetDescription: 'Dinner', targetAmount: 40 }), ctx)

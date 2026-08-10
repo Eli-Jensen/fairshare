@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Timestamp } from 'firebase/firestore'
 import type { Expense, UserProfile, ExpenseCategory, CustomCategory } from '../lib/types'
 import { getMemberName, formatMoney, getAllCategories, categoryExists, getExpenseCategories, AMOUNT_TOLERANCE, DEFAULT_CURRENCY } from '../lib/types'
@@ -12,8 +12,7 @@ import { splitEqually, splitByPercentages, splitByShares, derivePercentages, der
 import { todayString, parseDateString, timestampToDateString } from '../lib/dates'
 import { ReceiptSection, type ReceiptState } from './ReceiptSection'
 
-import type { Theme as EmojiTheme } from 'emoji-picker-react'
-const EmojiPicker = lazy(() => import('emoji-picker-react'))
+import { EmojiGrid } from './EmojiGrid'
 
 interface ExpenseFormData {
   description: string
@@ -801,27 +800,10 @@ const RANDOM_EMOJIS = ['🏷️','📌','🔖','🎲','💫','⭐','🌟','✨']
 // it runs in click handlers only (react-hooks/purity).
 const randomEmoji = () => RANDOM_EMOJIS[Math.floor(Math.random() * RANDOM_EMOJIS.length)]
 
-// Module-level so re-renders of the picker don't remount it (losing
-// search text and re-triggering the lazy emoji load)
-function EmojiGrid({ onPick }: { selected: string; onPick: (e: string) => void }) {
-  const isDark = document.documentElement.classList.contains('dark')
-  return (
-    <div className="mt-1 rounded-lg overflow-hidden [&_.epr-main]:!border-line [&_.epr-search-container_input]:!bg-input [&_.epr-search-container_input]:!border-line">
-      <Suspense fallback={<div className="h-[350px] flex items-center justify-center text-text-muted text-sm">Loading...</div>}>
-        <EmojiPicker
-          onEmojiClick={(emojiData) => onPick(emojiData.emoji)}
-          width="100%"
-          height={350}
-          theme={(isDark ? 'dark' : 'light') as EmojiTheme}
-          searchPlaceholder="Search emojis..."
-          previewConfig={{ showPreview: false }}
-          skinTonesDisabled
-          lazyLoadEmojis
-        />
-      </Suspense>
-    </div>
-  )
-}
+// EmojiGrid moved to its own shared component (./EmojiGrid) — the social
+// layer's reaction pickers use the same grid, and one module-level lazy()
+// keeps the whole app on a single emoji-picker chunk. Fun fact: the sibling
+// good-boy-points app extracted it FROM this file; this is the round trip.
 
 function CategoryPicker({
   categories,
@@ -1013,7 +995,7 @@ function CategoryPicker({
             </button>
           </div>
           {showEmojiGrid && (
-            <EmojiGrid selected={newEmoji} onPick={(e) => { setNewEmoji(e); setShowEmojiGrid(false); labelRef.current?.focus() }} />
+            <EmojiGrid onPick={(e) => { setNewEmoji(e); setShowEmojiGrid(false); labelRef.current?.focus() }} />
           )}
           {!newEmoji && !showEmojiGrid && (
             <p className="text-xs text-text-muted">Tap the emoji to pick one, or leave blank for a random one</p>
@@ -1077,7 +1059,7 @@ function CategoryPicker({
               )}
               {editingId === cat.id && editEmojiGrid && (
                 <div className="w-full">
-                  <EmojiGrid selected={editEmoji} onPick={(e) => { setEditEmoji(e); setEditEmojiGrid(false) }} />
+                  <EmojiGrid onPick={(e) => { setEditEmoji(e); setEditEmojiGrid(false) }} />
                 </div>
               )}
             </div>

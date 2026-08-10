@@ -76,6 +76,8 @@ export interface ActivityEntry {
   editDetails?: string[]
   /** Set by undo paths so a retraction doesn't push a contradiction. */
   suppressPush?: boolean
+  /** comment_added only: media-with-no-text comments get truthful copy. */
+  commentMedia?: 'gif' | 'photo'
 }
 
 export interface TripFacts {
@@ -142,7 +144,11 @@ export interface ExpenseFacts {
   paidBy?: string
   paidByAmounts?: Record<string, number>
   splits?: Record<string, number>
+  /** LEGACY embedded comments — frozen since the subcollection shipped. */
   comments?: { uid?: string }[]
+  /** Append-only denorm written by the comment writeBatch — the live
+   *  source of "who's in this conversation". */
+  commenterUids?: string[]
 }
 
 /**
@@ -159,9 +165,15 @@ export function expenseParticipants(e: ExpenseFacts): string[] {
   return [...ids]
 }
 
-/** Prior commenters on an expense — they're in the conversation. */
+/** Prior commenters on an expense — they're in the conversation. Union of
+ *  the commenterUids denorm (new comments) and the frozen legacy embedded
+ *  array, deduped — pre-migration commenters must stay in the loop. */
 export function commentParticipants(e: ExpenseFacts): string[] {
-  return (e.comments ?? []).map((c) => c.uid).filter((u): u is string => Boolean(u))
+  const ids = new Set<string>(e.commenterUids ?? [])
+  for (const c of e.comments ?? []) {
+    if (c.uid) ids.add(c.uid)
+  }
+  return [...ids]
 }
 
 /**
@@ -306,7 +318,16 @@ export function noteFor(
       return { title, body: `💸 ${desc}${amt ? ` — ${amt}` : ''}${method}` }
     }
     case 'comment_added':
-      return { title, body: `${actorName} commented on ${desc}` }
+      // Media-only comments say what actually happened (gbp precedent).
+      return {
+        title,
+        body:
+          entry.commentMedia === 'gif'
+            ? `${actorName} sent a GIF on ${desc}`
+            : entry.commentMedia === 'photo'
+              ? `${actorName} sent a photo on ${desc}`
+              : `${actorName} commented on ${desc}`,
+      }
     case 'member_joined':
       return { title, body: `${actorName} joined the ${tl}` }
     case 'member_left':

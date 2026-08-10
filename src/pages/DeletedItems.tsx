@@ -20,6 +20,7 @@ import type { Trip, Expense } from '../lib/types'
 import { writeActivity } from '../lib/activity'
 import { notifyError } from '../lib/errorToast'
 import { deleteReceiptObjects } from '../lib/image'
+import { purgeExpenseComments } from '../lib/comments'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -88,8 +89,10 @@ export function DeletedItems() {
           const data = d.data()
           const deletedTime = data.deletedAt?.toDate?.()
           if (deletedTime && now - deletedTime.getTime() > DAY_MS) {
-            // Photos go with the doc (trip doc still exists → rules allow)
+            // Photos and comment docs go with the expense (trip doc still
+            // exists → rules allow both)
             deleteReceiptObjects(data.receiptPaths)
+            purgeExpenseComments(trip.id, d.id).catch(() => {})
             deleteDoc(d.ref).catch(() => {})
             continue
           }

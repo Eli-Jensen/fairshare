@@ -1,6 +1,7 @@
 import type { Expense, UserProfile, CustomCategory } from '../lib/types'
 import { formatMoney, getMemberName, getCategoryInfo, getExpenseCategories, DEFAULT_CURRENCY } from '../lib/types'
 import { formatDateOnly } from '../lib/dates'
+import { groupReactions } from '../lib/reactions'
 import { MemberAvatar } from './MemberAvatar'
 
 export function ExpenseCard({
@@ -22,6 +23,9 @@ export function ExpenseCard({
   const payer = members[expense.paidBy]
   const sc = settlementCurrency ?? DEFAULT_CURRENCY
   const dateStr = formatDateOnly(expense.date)
+  // Live subcollection count + frozen legacy array
+  const commentTotal = (expense.commentCount ?? 0) + (expense.comments?.length ?? 0)
+  const reactionGroups = groupReactions(expense.reactions)
 
   const expenseCategories = getExpenseCategories(expense)
     .map((c) => getCategoryInfo(c, customCategories))
@@ -126,9 +130,18 @@ export function ExpenseCard({
               {expense.notes}
             </p>
           )}
-          {expense.comments && expense.comments.length > 0 && (
+          {commentTotal > 0 && (
             <p className="text-sm text-accent-text mt-0.5">
-              {expense.comments.length} comment{expense.comments.length !== 1 && 's'}
+              {commentTotal} comment{commentTotal !== 1 && 's'}
+            </p>
+          )}
+          {reactionGroups.length > 0 && (
+            // Read-only pills — the data is already on the listener doc, so
+            // this costs nothing; tap the card to react on the detail page.
+            <p className="text-sm text-text-muted mt-0.5">
+              {reactionGroups
+                .map((g) => `${g.emoji}${g.count > 1 ? g.count : ''}`)
+                .join(' ')}
             </p>
           )}
         </div>

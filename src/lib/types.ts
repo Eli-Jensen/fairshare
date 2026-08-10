@@ -98,7 +98,20 @@ export interface Expense {
   category?: ExpenseCategory        // legacy single category
   categories?: ExpenseCategory[]    // multi-tag categories (preferred)
   isSettlement?: boolean
+  /** LEGACY embedded comments (pre-social-layer). Frozen — no write path
+   *  remains; rendered read-only at the top of the thread. New comments are
+   *  docs in the expense's comments subcollection. */
   comments?: Array<{ uid: string; text: string; createdAt: Timestamp }>
+  /** Subcollection size, moved atomically by the addComment/deleteComment
+   *  writeBatches. Card badge = commentCount + legacy comments.length. */
+  commentCount?: number
+  /** Append-only commenter uids — lets the push function compute the
+   *  conversation audience from the expense doc it already reads (deleting
+   *  a comment does NOT remove the uid; over-notifying an ex-commenter
+   *  beats under-notifying a current one). */
+  commenterUids?: string[]
+  /** uid → emoji, one reaction per member. See src/lib/reactions.ts. */
+  reactions?: Record<string, string>
   /** Storage paths under trips/{tripId}/receipts/{expenseId}/… — always
    *  paths, never download URLs (URLs embed tokens that rotate). Absent =
    *  no photos; never written as an empty array. */
@@ -240,7 +253,29 @@ export interface ActivityLogEntry {
   // notification that already went out seconds earlier — so the Cloud Function
   // skips these entirely. They still appear in the activity log.
   suppressPush?: boolean
+  /** comment_added only: set when the comment is media with no text, so the
+   *  push/feed copy says "sent a GIF/photo" instead of "commented". Keep in
+   *  sync with functions/src/audience.ts. */
+  commentMedia?: 'gif' | 'photo'
   createdAt: Timestamp
+}
+
+/** One comment on an expense — a doc at
+ *  /trips/{tripId}/expenses/{expenseId}/comments/{commentId}. Author-pinned
+ *  by rules; non-authors may only touch their own reactions key. */
+export interface Comment {
+  id: string
+  authorUid: string
+  /** 1-500 chars (rules-enforced); absent on media-only comments. */
+  text?: string
+  /** trips/{tripId}/comments/{commentId}.jpg */
+  photoPath?: string
+  gifUrl?: string
+  gifWidth?: number
+  gifHeight?: number
+  reactions?: Record<string, string>
+  createdAt: Timestamp
+  editedAt?: Timestamp
 }
 
 /**

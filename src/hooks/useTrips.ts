@@ -12,6 +12,7 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from './useAuth'
 import { purgeTripReceipts } from '../lib/image'
+import { purgeExpenseComments } from '../lib/comments'
 import type { Trip } from '../lib/types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -86,6 +87,8 @@ export async function purgeTrip(tripId: string, inviteCode?: string) {
       (d) => (d.data().receiptPaths as string[] | undefined) ?? []
     )
     await purgeTripReceipts(tripId, receiptPaths)
+    // Comment subcollections while the trip doc still authorizes us
+    await Promise.all(expSnap.docs.map((d) => purgeExpenseComments(tripId, d.id)))
     await Promise.all([
       ...expSnap.docs.map((d) => deleteDoc(d.ref)),
       ...actSnap.docs.map((d) => deleteDoc(d.ref)),

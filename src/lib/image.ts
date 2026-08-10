@@ -67,18 +67,21 @@ function randomId(): string {
   return [...bytes].map((b) => chars[b % chars.length]).join('')
 }
 
-/** Resize + upload one receipt photo. Returns the storage path. THROWS on
- *  failure (offline, oversized after fallback) — callers allSettled. */
-export async function uploadReceipt(tripId: string, expenseId: string, file: File): Promise<string> {
+/** Resize + upload an image to an explicit path (comment photos). Returns
+ *  the path. THROWS on failure — callers decide how to degrade. */
+export async function uploadImage(path: string, file: File): Promise<string> {
   const blob = await resizeToBlob(file)
   if (blob.size >= MAX_RECEIPT_BYTES) {
-    // Only reachable via the undecodable-file pass-through; the rules would
-    // deny it anyway, this error is just friendlier than a rules denial.
     throw new Error('That photo is too large even after compression (2MB limit).')
   }
-  const path = `trips/${tripId}/receipts/${expenseId}/${randomId()}.jpg`
   await uploadBytes(storageRef(storage, path), blob, { contentType: 'image/jpeg' })
   return path
+}
+
+/** Resize + upload one receipt photo. Returns the storage path. THROWS on
+ *  failure (offline, oversized after fallback) — callers allSettled. */
+export function uploadReceipt(tripId: string, expenseId: string, file: File): Promise<string> {
+  return uploadImage(`trips/${tripId}/receipts/${expenseId}/${randomId()}.jpg`, file)
 }
 
 // Lists and detail pages render the same thumbnails — dedupe the

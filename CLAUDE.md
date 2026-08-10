@@ -51,8 +51,9 @@ One consequence worth knowing: **nothing forces a human to look at the dev site*
 /users/{uid}/private/pushTest — the "send test notification" handshake ({ requestedAt } → { sentAt, devices, pruned })
 /inviteCodes/{code}           — invite-link lookup ({ tripId, type }); get-only for authed users, no list
 /trips/{tripId}               — Trip (name, type, memberUids[], inviteCode, invitedEmails[], settlementCurrency, lastRates{}, lastActivityAt, lastActivityBy, cached* fields, ...)
-/trips/{tripId}/expenses      — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, categories?, notes?, comments[], isSettlement?, deletedAt?)
-/trips/{tripId}/activity      — ActivityLogEntry (action, actorUid, targetDescription?, editDetails?)
+/trips/{tripId}/expenses      — Expense (amount, currency, exchangeRate, amountUSD, paidBy, paidByAmounts?, splits{}, categories?, notes?, isSettlement?, deletedAt?, receiptPaths[]?, reactions{uid→emoji}?, commentCount?, commenterUids[]?, comments[] LEGACY-frozen)
+/trips/{tripId}/expenses/{id}/comments — Comment (authorUid, text? 1-500, gifUrl/gifWidth/gifHeight?, photoPath?, reactions{uid→emoji}?, createdAt, editedAt?) — author-pinned by rules; non-authors may only patch their own reactions key; delete is any-member (purges need it)
+/trips/{tripId}/activity      — ActivityLogEntry (action, actorUid, targetDescription?, editDetails?, commentMedia?)
 ```
 
 The `amountUSD` field stores the amount in the trip's **settlement currency** (not necessarily USD — legacy naming). All balances and settlements are computed in this currency. The settlement currency is **locked once a trip has expenses** (stored amounts are never converted).

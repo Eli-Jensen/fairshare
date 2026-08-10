@@ -80,6 +80,9 @@ jobs:
           # Crash reporting. One Sentry project for both sites — the
           # environment tag (prod/dev) splits them. Unset = feature off.
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          # KLIPY GIF search (comments). One public content key serves both
+          # sites — not project-bound. Unset = the GIF button hides itself.
+          VITE_KLIPY_API_KEY: ${{ secrets.VITE_KLIPY_API_KEY }}
           # Present = upload hidden sourcemaps so stacks are readable; the
           # maps are deleted from dist before the hosting deploy.
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -132,6 +135,7 @@ jobs:
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID_DEV }}
           VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY_DEV }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_KLIPY_API_KEY: ${{ secrets.VITE_KLIPY_API_KEY }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}

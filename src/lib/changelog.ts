@@ -22,6 +22,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-10',
+    emoji: '💬',
+    title: 'Reactions, GIFs, and photos on expenses',
+    items: [
+      'Tap 😀＋ on any expense — or on any comment — to react with any emoji. Tap someone else’s reaction to pile on; tap your own to take it back.',
+      'Comments grew up: attach a photo, drop in a GIF (search built in), or both. And you can finally edit or delete your own comments.',
+      'Reactions are deliberately quiet — nobody gets a notification for a 👍. Comments still notify the people in the split and anyone already in the conversation.',
+      'Your old comments are all still there, right where you left them.',
+    ],
+  },
+  {
+    date: '2026-08-10',
     emoji: '🧾',
     title: 'Receipt photos',
     items: [
