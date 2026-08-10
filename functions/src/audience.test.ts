@@ -10,6 +10,9 @@ import {
   allowsPush,
   noteFor,
   linkFor,
+  shouldPushEdit,
+  EDIT_GRACE_MS,
+  EDIT_DEBOUNCE_MS,
   type ActivityAction,
   type ActivityEntry,
   type TripFacts,
@@ -212,6 +215,70 @@ describe('settlementAudience', () => {
       recordedBy: 'alice',
     })
     expect(settlementAudience(e, memberUids)).toEqual([])
+  })
+})
+
+describe('shouldPushEdit', () => {
+  const T0 = 1_800_000_000_000 // fixed clock; Date.now() would make these flaky
+
+  it('stays quiet while the expense is still fresh', () => {
+    // The case this exists for: add it, spot the wrong amount, fix it.
+    expect(
+      shouldPushEdit({ editedAtMs: T0 + 40_000, expenseCreatedAtMs: T0 })
+    ).toBe(false)
+    expect(
+      shouldPushEdit({ editedAtMs: T0 + EDIT_GRACE_MS - 1, expenseCreatedAtMs: T0 })
+    ).toBe(false)
+  })
+
+  it('notifies once the expense has settled down', () => {
+    expect(shouldPushEdit({ editedAtMs: T0 + EDIT_GRACE_MS, expenseCreatedAtMs: T0 })).toBe(true)
+    expect(shouldPushEdit({ editedAtMs: T0 + 86_400_000, expenseCreatedAtMs: T0 })).toBe(true)
+  })
+
+  it('collapses a burst of edits into the first one', () => {
+    const old = T0 - 86_400_000 // yesterday's expense, so grace is irrelevant
+    // First edit of the day: nothing prior, so it goes out.
+    expect(shouldPushEdit({ editedAtMs: T0, expenseCreatedAtMs: old })).toBe(true)
+    // Three more corrections over the next few minutes: all silent.
+    for (const gap of [30_000, 120_000, EDIT_DEBOUNCE_MS - 1]) {
+      expect(
+        shouldPushEdit({ editedAtMs: T0 + gap, expenseCreatedAtMs: old, priorEditAtMs: T0 })
+      ).toBe(false)
+    }
+  })
+
+  it('speaks up again once the burst is over', () => {
+    const old = T0 - 86_400_000
+    expect(
+      shouldPushEdit({
+        editedAtMs: T0 + EDIT_DEBOUNCE_MS,
+        expenseCreatedAtMs: old,
+        priorEditAtMs: T0,
+      })
+    ).toBe(true)
+  })
+
+  it('fails open on missing data', () => {
+    // No createdAt (legacy or sheet-restored) and no prior edit: notify.
+    expect(shouldPushEdit({ editedAtMs: T0 })).toBe(true)
+    expect(shouldPushEdit({ editedAtMs: T0, priorEditAtMs: T0 - 86_400_000 })).toBe(true)
+  })
+
+  it('treats a backwards clock as fresh rather than ancient', () => {
+    // Skew must not turn into "this expense is from the future, so notify".
+    expect(shouldPushEdit({ editedAtMs: T0 - 5_000, expenseCreatedAtMs: T0 })).toBe(false)
+  })
+
+  it('applies grace even when a prior edit is long past', () => {
+    // Both windows are checked; neither shadows the other.
+    expect(
+      shouldPushEdit({
+        editedAtMs: T0 + 60_000,
+        expenseCreatedAtMs: T0,
+        priorEditAtMs: T0 - 86_400_000,
+      })
+    ).toBe(false)
   })
 })
 

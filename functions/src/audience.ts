@@ -183,6 +183,62 @@ export function settlementAudience(entry: ActivityEntry, memberUids: readonly st
   return filterAudience(both, { actorUid: entry.recordedBy, memberUids })
 }
 
+// ── Edit noise ──────────────────────────────────────────────────────────────
+
+/**
+ * An edit within this long of the expense being created is silent. The common
+ * shape is add → notice the amount is wrong → fix it, all inside a minute; the
+ * add notification already told everyone, and the correction is the same news
+ * arriving twice.
+ */
+export const EDIT_GRACE_MS = 30 * 60 * 1000
+
+/**
+ * Having pushed one edit, stay quiet about further edits to the same expense
+ * for this long. People correct several small things in a row — one "Alex
+ * edited Dinner" covers the lot.
+ */
+export const EDIT_DEBOUNCE_MS = 10 * 60 * 1000
+
+/**
+ * Whether an `expense_edited` entry is worth interrupting anyone for.
+ *
+ * Both windows fail OPEN: an expense with no `createdAt` (pre-dating the
+ * field, or restored from a sheet) and an expense with no prior edit both
+ * notify, so missing data can never silence a real change.
+ *
+ * Note the debounce anchors on the previous EDIT, not on the last edit we
+ * actually pushed — the function stores no per-expense state, and reading one
+ * would cost a write on a path that currently writes nowhere but push docs
+ * (see the loop-safety note in index.ts). The visible consequence is that a
+ * long chain of edits spaced under EDIT_DEBOUNCE_MS apart produces one
+ * notification rather than one per window. That is the direction we want to
+ * err in, but it is a real property, not an accident.
+ *
+ * Suppression is push-only. The activity log still records every edit, so the
+ * trip's history stays complete and the undo path is untouched.
+ */
+export function shouldPushEdit(input: {
+  /** When the edit happened. */
+  editedAtMs: number
+  /** The expense's createdAt, if it has one. */
+  expenseCreatedAtMs?: number
+  /** The most recent PRIOR expense_edited for this expense, if any. */
+  priorEditAtMs?: number
+}): boolean {
+  const { editedAtMs, expenseCreatedAtMs, priorEditAtMs } = input
+
+  // Clock skew can make an edit look older than the expense; negative age is
+  // as "fresh" as it gets, so the comparison holds without a special case.
+  if (expenseCreatedAtMs !== undefined && editedAtMs - expenseCreatedAtMs < EDIT_GRACE_MS) {
+    return false
+  }
+  if (priorEditAtMs !== undefined && editedAtMs - priorEditAtMs < EDIT_DEBOUNCE_MS) {
+    return false
+  }
+  return true
+}
+
 // ── Preferences ─────────────────────────────────────────────────────────────
 export interface PushDoc {
   fcmTokens?: string[]

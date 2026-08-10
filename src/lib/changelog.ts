@@ -21,6 +21,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-10',
+    emoji: '🔕',
+    title: 'Fewer notifications about people fixing typos',
+    items: [
+      'Correcting an expense in the first half hour after adding it no longer notifies anyone. The “added” notification already went out, and everyone got told twice for one dinner.',
+      'Fixing several things in a row now sends one notification instead of one per save.',
+      'Notification settings also moved somewhere you might actually find them: there’s a Notifications row in the menu under your picture.',
+      'None of this changes the trip’s history — every edit is still listed in Activity.',
+    ],
+  },
+  {
     date: '2026-08-07',
     emoji: '✨',
     title: 'No more quietly running last week’s app',
