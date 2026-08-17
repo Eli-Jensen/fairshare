@@ -202,8 +202,12 @@ export function settlementAudience(entry: ActivityEntry, memberUids: readonly st
  * shape is add → notice the amount is wrong → fix it, all inside a minute; the
  * add notification already told everyone, and the correction is the same news
  * arriving twice.
+ *
+ * An hour rather than the original half: the correction often waits for the
+ * receipt, the card charge, or getting back to the table, and the whole point
+ * is that nobody hears about a number the trip never saw.
  */
-export const EDIT_GRACE_MS = 30 * 60 * 1000
+export const EDIT_GRACE_MS = 60 * 60 * 1000
 
 /**
  * Having pushed one edit, stay quiet about further edits to the same expense

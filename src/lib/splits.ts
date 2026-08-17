@@ -78,6 +78,34 @@ export function splitByPercentages(
   return splits
 }
 
+/**
+ * Recover per-person form inputs in the ORIGINAL currency from splits that
+ * were stored in the settlement currency.
+ *
+ * Not `split / rate` per person, which is the obvious version and is wrong.
+ * Stored splits are settlement-currency cents, so dividing back multiplies any
+ * rounding by 1/rate — at a JPY rate of ~0.0067 one settlement cent becomes
+ * ~1.5 yen, and a three-way split reopened in the edit form no longer added up
+ * to its own total. The form then refused to save an edit that changed nothing
+ * about the money ("Split total doesn't match expense").
+ *
+ * Distributing the original amount by the stored splits as weights keeps the
+ * proportions and makes the parts sum EXACTLY to `amount` at any scale, so a
+ * reopened expense always adds up.
+ */
+export function deriveOriginalAmounts(
+  splits: Record<string, number>,
+  amount: number
+): Record<string, number> {
+  const out = splitProportionally(amount, splits)
+  // Every split is zero (or the amount is): weights carry no information, so
+  // there is nothing to distribute — answer 0 rather than an empty map.
+  if (Object.keys(out).length === 0) {
+    return Object.fromEntries(Object.keys(splits).map((uid) => [uid, 0]))
+  }
+  return out
+}
+
 /** Recover percentage form inputs from stored splits (2 decimal places). */
 export function derivePercentages(
   splits: Record<string, number>,

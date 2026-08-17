@@ -6,6 +6,7 @@ import {
   splitByPercentages,
   derivePercentages,
   deriveShares,
+  deriveOriginalAmounts,
 } from '../splits'
 
 const sum = (splits: Record<string, number>) =>
@@ -127,5 +128,42 @@ describe('deriveShares', () => {
 
   it('marks zero-amount members with zero shares', () => {
     expect(deriveShares({ a: 50, b: 50, c: 0 })).toEqual({ a: '1', b: '1', c: '0' })
+  })
+})
+
+describe('deriveOriginalAmounts', () => {
+  it('recovers the amounts that produced the splits', () => {
+    // 87.40 EUR at 1.0842 split three ways
+    const splits = splitEqually(87.4 * 1.0842, ['a', 'b', 'c'])
+    expect(sum(deriveOriginalAmounts(splits, 87.4))).toBe(87.4)
+  })
+
+  it('adds up to the total for a low-value currency', () => {
+    // The reported bug: 10000 JPY in a USD trip, exact three-way split.
+    // Per-person `split / rate` sums to 10001.49 — over the total by enough to
+    // block an edit that changed nothing about the money.
+    const rate = 0.006723
+    const typed = { a: 3400, b: 3300, c: 3300 }
+    const stored = splitProportionally(10000 * rate, typed)
+    expect(sum(deriveOriginalAmounts(stored, 10000))).toBe(10000)
+  })
+
+  it('keeps the proportions, not just the total', () => {
+    const stored = splitProportionally(100, { a: 2, b: 1, c: 1 })
+    expect(deriveOriginalAmounts(stored, 12500)).toEqual({ a: 6250, b: 3125, c: 3125 })
+  })
+
+  it('leaves people out of the split at zero', () => {
+    const derived = deriveOriginalAmounts({ a: 33.33, b: 33.34, c: 0 }, 9000)
+    expect(derived.c).toBe(0)
+    expect(sum(derived)).toBe(9000)
+  })
+
+  it('answers zero for every member when nothing was split', () => {
+    expect(deriveOriginalAmounts({ a: 0, b: 0 }, 500)).toEqual({ a: 0, b: 0 })
+  })
+
+  it('answers zero rather than dividing by a zero total', () => {
+    expect(deriveOriginalAmounts({ a: 10, b: 10 }, 0)).toEqual({ a: 0, b: 0 })
   })
 })

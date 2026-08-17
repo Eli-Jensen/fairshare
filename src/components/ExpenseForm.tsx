@@ -8,7 +8,7 @@ import { MemberDropdown } from './MemberDropdown'
 import { ExchangeRateField } from './ExchangeRateField'
 import { getCurrency } from '../lib/currencies'
 import { fetchRates, getCrossRate } from '../lib/rates'
-import { splitEqually, splitByPercentages, splitByShares, derivePercentages, deriveShares } from '../lib/splits'
+import { splitEqually, splitByPercentages, splitByShares, splitProportionally, derivePercentages, deriveShares, deriveOriginalAmounts } from '../lib/splits'
 import { todayString, parseDateString, timestampToDateString } from '../lib/dates'
 import { ReceiptSection, type ReceiptState } from './ReceiptSection'
 
@@ -91,14 +91,21 @@ export function ExpenseForm({
     }
 
     if (existing) {
-      const exactAmounts: Record<string, string> = {}
-      const paidByAmounts: Record<string, string> = {}
-      const rate = existing.exchangeRate || 1
-      for (const uid of memberUids) {
-        // Convert splits from settlement currency back to original for display
-        const splitVal = existing.splits[uid] ?? 0
-        exactAmounts[uid] = (rate !== 1 ? Math.round((splitVal / rate) * 100) / 100 : splitVal).toString()
-        paidByAmounts[uid] = ''
+      const paidByAmounts: Record<string, string> = Object.fromEntries(
+        memberUids.map((uid) => [uid, ''])
+      )
+      // Splits are stored in the settlement currency; the inputs are in the
+      // expense's own currency. deriveOriginalAmounts does that conversion by
+      // distribution, so the parts still sum to the total (see splits.ts).
+      //
+      // Keyed by everyone the expense names, not just current participants: a
+      // removed member stays in `splits` for the balance math, and an input
+      // they had no row for counted as zero — enough on its own to make the
+      // total "not add up" and block every later edit.
+      const inOriginal = deriveOriginalAmounts(existing.splits, existing.amount)
+      const exactAmounts: Record<string, string> = {
+        ...Object.fromEntries(memberUids.map((uid) => [uid, '0'])),
+        ...Object.fromEntries(Object.entries(inOriginal).map(([uid, amt]) => [uid, amt.toString()])),
       }
 
       // Recover percentage/share inputs from the stored splits so an
@@ -114,11 +121,11 @@ export function ExpenseForm({
 
       const hasMultiPayer = existing.paidByAmounts && Object.keys(existing.paidByAmounts).length > 0
       if (hasMultiPayer) {
-        const rate = existing.exchangeRate || 1
-        for (const [uid, amt] of Object.entries(existing.paidByAmounts!)) {
-          // Convert from settlement currency back to original currency for display
-          const inOriginal = rate !== 1 ? Math.round((amt / rate) * 100) / 100 : amt
-          paidByAmounts[uid] = inOriginal.toString()
+        // Same conversion-by-distribution as the splits above: what each payer
+        // put in, back in the expense's currency, still summing to the total.
+        const paidInOriginal = deriveOriginalAmounts(existing.paidByAmounts!, existing.amount)
+        for (const [uid, amt] of Object.entries(paidInOriginal)) {
+          paidByAmounts[uid] = amt.toString()
         }
       }
 
@@ -232,18 +239,34 @@ export function ExpenseForm({
 
   const amountSettled = form.amount * form.exchangeRate
 
+  /**
+   * AMOUNT_TOLERANCE is a settlement-currency figure (two cents), but the paid
+   * and exact-split inputs are typed in the expense's own currency, where two
+   * settlement cents can be several units — a yen is worth well under a cent.
+   * Compared raw, a sum that is off by no real money gets rejected. Floored at
+   * the flat tolerance so this is never STRICTER than before for a strong
+   * currency.
+   */
+  const originalTolerance =
+    form.exchangeRate > 0
+      ? Math.max(AMOUNT_TOLERANCE, AMOUNT_TOLERANCE / form.exchangeRate)
+      : AMOUNT_TOLERANCE
+
   function computeSplits(): Record<string, number> {
     if (form.splitType === 'equal') {
       return splitEqually(amountSettled, form.splitAmong)
     }
     if (form.splitType === 'exact') {
-      const splits: Record<string, number> = {}
-      for (const uid of form.splitAmong) {
-        const val = parseFloat(form.exactAmounts[uid] || '0') || 0
-        // Convert from original currency to settlement currency
-        splits[uid] = Math.round(val * form.exchangeRate * 100) / 100
-      }
-      return splits
+      // Typed in the expense's currency, stored in the settlement one. Convert
+      // by distribution, not value by value: rounding each on its own lets the
+      // stored splits miss amountSettled by a cent, which is a balance nothing
+      // in the expense can explain — and it drifts again on every re-save.
+      return splitProportionally(
+        amountSettled,
+        Object.fromEntries(
+          form.splitAmong.map((uid) => [uid, parseFloat(form.exactAmounts[uid] || '0') || 0])
+        )
+      )
     }
     if (form.splitType === 'percentage') {
       return splitByPercentages(
@@ -263,13 +286,15 @@ export function ExpenseForm({
 
   function computePaidByAmounts(): Record<string, number> | undefined {
     if (!form.multiPayer) return undefined
-    const amounts: Record<string, number> = {}
-    for (const uid of memberUids) {
-      const val = parseFloat(form.paidByAmounts[uid] || '0') || 0
-      // Convert from original currency to settlement currency
-      if (val > 0) amounts[uid] = Math.round(val * form.exchangeRate * 100) / 100
+    const weights: Record<string, number> = {}
+    for (const [uid, raw] of Object.entries(form.paidByAmounts)) {
+      const val = parseFloat(raw || '0') || 0
+      if (val > 0) weights[uid] = val
     }
-    return Object.keys(amounts).length > 0 ? amounts : undefined
+    if (Object.keys(weights).length === 0) return undefined
+    // Distributed, for the same reason as the exact splits above: what the
+    // payers put in has to add up to the expense, to the cent.
+    return splitProportionally(amountSettled, weights)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -295,14 +320,14 @@ export function ExpenseForm({
 
     // Validate multi-payer amounts (in original currency, before conversion)
     if (form.multiPayer) {
-      const rawPaidTotal = memberUids.reduce(
+      const rawPaidTotal = Object.keys(form.paidByAmounts).reduce(
         (sum, uid) => sum + (parseFloat(form.paidByAmounts[uid] || '0') || 0), 0
       )
       if (rawPaidTotal <= 0) {
         setError('Enter how much each person paid')
         return
       }
-      if (Math.abs(rawPaidTotal - form.amount) > AMOUNT_TOLERANCE) {
+      if (Math.abs(rawPaidTotal - form.amount) > originalTolerance) {
         setError(
           `Paid amounts total (${rawPaidTotal.toFixed(2)}) doesn't match expense (${form.amount.toFixed(2)})`
         )
@@ -316,7 +341,7 @@ export function ExpenseForm({
       const rawSplitTotal = form.splitAmong.reduce(
         (sum, uid) => sum + (parseFloat(form.exactAmounts[uid] || '0') || 0), 0
       )
-      if (Math.abs(rawSplitTotal - form.amount) > AMOUNT_TOLERANCE) {
+      if (Math.abs(rawSplitTotal - form.amount) > originalTolerance) {
         setError(
           `Split total (${rawSplitTotal.toFixed(2)}) doesn't match expense (${form.amount.toFixed(2)})`
         )
@@ -393,7 +418,9 @@ export function ExpenseForm({
 
   // Compute paid total for multi-payer display (in original currency)
   const paidTotal = form.multiPayer
-    ? memberUids.reduce((sum, uid) => sum + (parseFloat(form.paidByAmounts[uid] || '0') || 0), 0)
+    ? Object.keys(form.paidByAmounts).reduce(
+        (sum, uid) => sum + (parseFloat(form.paidByAmounts[uid] || '0') || 0), 0
+      )
     : 0
   const paidRemaining = form.multiPayer ? form.amount - paidTotal : 0
   const currencySymbol = getCurrency(form.currency)?.symbol ?? form.currency
@@ -618,8 +645,8 @@ export function ExpenseForm({
             </div>
           ))}
           {form.splitType === 'exact' && form.splitAmong.length > 0 && form.amount > 0 && (
-            <p className={`text-xs ${Math.abs(exactRemaining) < AMOUNT_TOLERANCE ? 'text-success-text' : 'text-warn-text'}`}>
-              {Math.abs(exactRemaining) < AMOUNT_TOLERANCE
+            <p className={`text-xs ${Math.abs(exactRemaining) < originalTolerance ? 'text-success-text' : 'text-warn-text'}`}>
+              {Math.abs(exactRemaining) < originalTolerance
                 ? 'Amounts add up to the total'
                 : exactRemaining > 0
                   ? `${currencySymbol}${exactRemaining.toFixed(2)} left to assign`
@@ -678,8 +705,8 @@ export function ExpenseForm({
               </div>
             ))}
             {form.amount > 0 && (
-              <p className={`text-xs ${Math.abs(paidRemaining) < AMOUNT_TOLERANCE ? 'text-success-text' : 'text-warn-text'}`}>
-                {Math.abs(paidRemaining) < AMOUNT_TOLERANCE
+              <p className={`text-xs ${Math.abs(paidRemaining) < originalTolerance ? 'text-success-text' : 'text-warn-text'}`}>
+                {Math.abs(paidRemaining) < originalTolerance
                   ? 'Paid amounts match total'
                   : paidRemaining > 0
                     ? `${currencySymbol}${paidRemaining.toFixed(2)} remaining to assign`

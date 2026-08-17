@@ -21,6 +21,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-17',
+    emoji: '🔕',
+    title: 'A longer quiet window for corrections',
+    items: [
+      'Fixing an expense now stays silent for a full hour after it was added, up from half an hour. Corrections often wait for the receipt or the card charge, and nobody needs a second buzz about a number the trip never saw.',
+      'As before, every edit still shows up in Activity — it just doesn’t light up anyone’s phone.',
+    ],
+  },
+  {
+    date: '2026-08-17',
+    emoji: '💱',
+    title: 'Editing a foreign-currency expense adds up again',
+    items: [
+      'Reopening an expense split by exact amounts — a ¥10,000 dinner, say — could show per-person amounts that no longer added up to the total, and then refuse to save so much as a new tag. The amounts are now worked back out so they always sum to what was spent.',
+      'The “doesn’t match” check is measured against the expense’s own currency, so a rounding difference worth a fraction of a cent no longer blocks a save.',
+      'An expense that includes someone who has since left the trip keeps their share instead of quietly dropping it.',
+      'Editing an expense still uses the exchange rate it was saved with — today’s rate never reaches back and changes what you already recorded.',
+    ],
+  },
+  {
     date: '2026-08-10',
     emoji: '💬',
     title: 'Reactions, GIFs, and photos on expenses',

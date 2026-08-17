@@ -234,6 +234,14 @@ describe('settlementAudience', () => {
 describe('shouldPushEdit', () => {
   const T0 = 1_800_000_000_000 // fixed clock; Date.now() would make these flaky
 
+  it('holds the quiet window at an hour', () => {
+    // Every other case here is written relative to the constants and would
+    // pass at any value. How long the app stays quiet is a product decision,
+    // so it gets pinned on its own.
+    expect(EDIT_GRACE_MS).toBe(60 * 60 * 1000)
+    expect(EDIT_DEBOUNCE_MS).toBe(10 * 60 * 1000)
+  })
+
   it('stays quiet while the expense is still fresh', () => {
     // The case this exists for: add it, spot the wrong amount, fix it.
     expect(
