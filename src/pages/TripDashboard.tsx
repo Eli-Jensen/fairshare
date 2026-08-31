@@ -40,6 +40,13 @@ export function TripDashboard() {
     return 'expenses'
   })
   const [undoInfo, setUndoInfo] = useState<{ id: string; description: string } | null>(null)
+  // Set by the long-press menu on a card; the confirm modal reads it
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string
+    description: string
+    amountSettled: number
+    isSettlement?: boolean
+  } | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -589,6 +596,14 @@ export function TripDashboard() {
                       onEdit={() =>
                         navigate(`/trip/${id}/expense/${exp.id}`)
                       }
+                      onDelete={() =>
+                        setDeleteTarget({
+                          id: exp.id,
+                          description: exp.description,
+                          amountSettled: exp.amountSettled,
+                          isSettlement: exp.isSettlement,
+                        })
+                      }
                     />
                   ))}
               </div>
@@ -688,6 +703,34 @@ export function TripDashboard() {
         <div className="min-w-0">
           <ActivityLog entries={activityLog} members={members} settlementCurrency={sc} tripType={trip.type} tripId={id} currentUserUid={user?.uid} />
         </div>
+      )}
+
+      {deleteTarget && (
+        <DeleteModal
+          title={deleteTarget.isSettlement ? 'Delete this payment?' : 'Delete this expense?'}
+          message={`"${deleteTarget.description}" (${formatMoney(deleteTarget.amountSettled, sc)}) moves to Trash, where you can restore it for 24 hours.`}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            const target = deleteTarget
+            setDeleteTarget(null)
+            // Fire-and-forget like the edit-page delete — the soft delete is
+            // durable locally, and awaiting the ack would hang offline.
+            updateDoc(doc(db, 'trips', id!, 'expenses', target.id), {
+              deletedAt: serverTimestamp(),
+            }).catch((err) => {
+              console.error('delete expense failed:', err)
+              notifyError("The delete didn't go through. Check your connection and try again.")
+            })
+            writeActivity(id!, {
+              action: 'expense_deleted',
+              actorUid: user!.uid,
+              targetDescription: target.description,
+              targetAmount: target.amountSettled,
+              targetExpenseId: target.id,
+            })
+            setUndoInfo({ id: target.id, description: target.description })
+          }}
+        />
       )}
 
       {showDeleteModal && (

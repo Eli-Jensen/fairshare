@@ -21,6 +21,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-30',
+    emoji: '🗑️',
+    title: 'Delete an expense right from the list',
+    items: [
+      'Press and hold an expense (or right-click on a computer) to get a small menu: Edit opens it as before, and Delete removes it after a quick confirmation — no more digging into the expense just to delete it.',
+      'Deleted expenses still land in Trash with a one-tap Undo, so a slip of the thumb costs nothing.',
+    ],
+  },
+  {
     date: '2026-08-17',
     emoji: '🔕',
     title: 'A longer quiet window for corrections',
