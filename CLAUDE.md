@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run build          # TypeScript check + Vite production build (output: dist/)
-npm run dev            # Dev server (port 5174, configured in parent .claude/launch.json)
-npm test               # Run Vitest test suite (~120 tests)
+npm run dev            # Dev server (port 5173, configured in .claude/launch.json)
+npm test               # Run Vitest test suite (~360 tests)
 npm run test:watch     # Vitest in watch mode
 npm run lint           # ESLint
 ```
@@ -37,7 +37,7 @@ One consequence worth knowing: **nothing forces a human to look at the dev site*
 
 ## Architecture
 
-**Stack**: React 19 + TypeScript + Vite + Tailwind CSS v4 + Firebase (Auth, Firestore, Hosting)
+**Stack**: React 19 + TypeScript + Vite + Tailwind CSS v4 + Firebase (Auth, Firestore, Storage, Cloud Functions, Hosting)
 
 **Production**: https://fairshare-split.web.app (project `fairshare-4c9a2`) | **Dev**: https://dev-fairshare-split.web.app (separate project `fairshare-split-dev`) | **Repo**: github.com/Eli-Jensen/fairshare
 
@@ -127,7 +127,7 @@ Dev and prod are **separate Firebase projects** — separate Firestore data, sep
 
 Both projects are on the **Blaze** plan — required for Cloud Functions, which push notifications cannot work without (a browser can't read another user's FCM token, and holds no send credential). Set a **budget alert** on each; Blaze budgets alert but do not cap, and the practical change from Spark is that a runaway now bills instead of failing.
 
-Costs stay in the free tiers regardless: 50K Firestore reads/day, 20K writes/day, 1GB storage, 2M function invocations/month. Treat those as the budget anyway — the profile cache, the denormalized `cached*` trip fields, and parallel writes (`Promise.all`) are what keep it there. No Firebase Storage yet; avatars are Google photo URLs (the base64 profile-photo cropper was removed in `56446eb` — legacy custom photos still render from Firestore but nothing can create one).
+Costs stay in the free tiers regardless: 50K Firestore reads/day, 20K writes/day, 1GB Firestore storage, 5GB GCS storage (regional — why the buckets are `us-central1`), 2M function invocations/month. Treat those as the budget anyway — the profile cache, the denormalized `cached*` trip fields, and parallel writes (`Promise.all`) are what keep it there. Firebase Storage holds receipt and comment photos (see **Storage images** above); avatars are still Google photo URLs (the base64 profile-photo cropper was removed in `56446eb` — legacy custom photos still render from Firestore but nothing can create one).
 
 ### Push Notifications
 
@@ -151,5 +151,7 @@ FCM web push, sent by **Cloud Functions** in `functions/` (Node 22, `firebase-ad
 ### Testing
 
 Tests are in `src/lib/__tests__/` plus `functions/src/audience.test.ts`. They cover pure logic only (settlement math, formatting, name disambiguation, sheet round-trips, notification audiences). No component tests. Run `npm test` before committing — one Vitest run covers both the app and the functions.
+
+**Secrets never live in the repo** — config arrives via env vars locally (`.env*` is gitignored; `.env.example` documents the shape) and GitHub secrets in CI. CI's `test` job runs a gitleaks scan over the full git history, so a committed secret fails the pipeline before anything deploys; a false positive gets an allowlist entry in `.gitleaks.toml`, not a removed step.
 
 **Firestore rules tests** live in `rules-tests/` and run via `make test-rules` (`npm run test:rules` with Java on PATH — the script wraps `firebase emulators:exec`, so they need the Firestore emulator and are deliberately NOT part of plain `npm test`; `vite.config.ts` scopes that include to `src/` + `functions/src/`). They lock in the security model: the FCM-token boundary on `/users/x/private/*`, no-enumeration rules, the self-join invite-code echo, the both-trips check on invite-code repointing, invitees-can't-read-expenses, and the purge-order property (trip doc last). CI runs them in the `test` job. **Any change to `firestore.rules` needs a matching test**, and the suite must pass before the rules deploy.

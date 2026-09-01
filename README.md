@@ -1,92 +1,80 @@
 # fairshare
 
-A web app for splitting group trip expenses among friends and family. Think Splitwise, but self-hosted on Firebase.
+Split group expenses with friends and family — trips and ongoing groups, multiple currencies, receipts, comments, push notifications, and a settle-up engine that minimizes who pays whom. Think Splitwise, self-hosted on Firebase and designed to run entirely within its free tiers.
 
-**Live:** [fairshare-4c9a2.web.app](https://fairshare-4c9a2.web.app)
+**Live:** [fairshare-split.web.app](https://fairshare-split.web.app) · **Staging:** [dev-fairshare-split.web.app](https://dev-fairshare-split.web.app) (email-gated)
 
 ## Features
 
-- **Google sign-in** — no account creation needed
-- **Trip management** — create trips, invite members by email or shareable link, edit/delete with undo
-- **Multi-currency expenses** — 160+ ISO 4217 currencies with searchable picker, auto-populated exchange rates from live API, per-trip rate memory
-- **Flexible splitting** — equal, exact amounts, percentages, or shares
-- **Settlement engine** — greedy debt simplification algorithm minimizes the number of payments needed
-- **Soft delete everywhere** — deleted trips, expenses, and removed members are recoverable for 24 hours
-- **Export** — download CSV or open in Google Sheets with full expense breakdown, balances, and settlements
-- **Dark mode** — follows system preference with manual light/dark/system toggle
-- **Editable profiles** — custom display names and avatars, with original Google identity visible on click
-- **Duplicate name handling** — members with the same name are disambiguated with email
-- **Mobile-responsive** — works on phones and desktops
+- **Google sign-in** — no account creation; guests without accounts can still be participants
+- **Trips & groups** — a trip ends and settles up; a group runs indefinitely with a one-tap "clear settled history"
+- **Multi-currency** — 150+ currencies, live exchange rates (cached 6h), per-trip rate memory, and settling up at the rate you actually got (built-in fee-aware rate calculator)
+- **Flexible splits** — equal, exact amounts, percentages, or shares; multiple payers per expense; integer-cent math that always sums exactly to the total
+- **Settlement engine** — greedy debt simplification minimizes the number of payments needed
+- **Invites that count immediately** — invite by email or shareable link; invitees are participants before they've signed up, and their history merges onto their account when they join. Links can be revoked.
+- **Receipt photos** — up to 3 compressed photos per expense, plus a per-trip Photos tab
+- **Comments, reactions, GIFs** — comments with photo and GIF attachments, emoji reactions on expenses and comments
+- **Push notifications** — web push sent by Cloud Functions, scoped to the people actually in the split, mutable per category and per trip
+- **Offline-first PWA** — installable; expenses added on plane wifi save instantly and sync later, pending writes are flagged, and open tabs update themselves onto new releases
+- **Google Sheets backup & restore** — mirror a trip into a spreadsheet in your own Drive (`drive.file` scope only — the app can't see the rest of your Drive), and rebuild a trip from one
+- **Activity log with undo** — every change recorded; soft delete everywhere with a 24-hour Trash
+- **CSV export**, dark mode, five accent colors, nine text sizes, and an in-app changelog at `/whats-new`
 
-## Tech Stack
+## Tech stack
 
-- **Frontend:** React 18 + TypeScript + Vite
-- **Styling:** Tailwind CSS v4
-- **Routing:** React Router v6
-- **Backend:** Firebase (Auth, Cloud Firestore, Hosting)
-- **Exchange rates:** [open.er-api.com](https://open.er-api.com) (free, no key, cached 6 hours)
+- **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, React Router v7
+- **Backend:** Firebase — Auth, Cloud Firestore, Storage, Hosting, and Cloud Functions (push notifications, Node 22)
+- **Exchange rates:** [open.er-api.com](https://open.er-api.com) (free, no key)
+- **Crash reporting:** Sentry (optional — inert unless configured)
+- **Tests:** Vitest unit tests plus Firestore/Storage security-rules tests against the emulator
 
-## Project Structure
+## Project structure
 
 ```
 src/
-  components/    # Reusable UI (TripCard, ExpenseCard, CurrencyPicker, etc.)
-  pages/         # Route-level pages (Home, TripDashboard, AddExpense, etc.)
-  hooks/         # React hooks (useAuth, useTrip, useTrips, useTheme)
-  lib/           # Utilities (firebase, types, settlement, currencies, rates, export)
+  components/    # Reusable UI (ExpenseCard, CurrencyPicker, CommentsSection, …)
+  pages/         # Route-level pages (Home, TripDashboard, AddExpense, …)
+  hooks/         # React hooks (useAuth, useTrip, useProfileCache, …)
+  lib/           # Pure logic + Firebase glue (settlement, splits, rates, sheets, …)
+  lib/__tests__/ # Unit tests
+functions/       # Cloud Functions (push notification sender)
+rules-tests/     # Firestore + Storage security-rules tests (run in the emulator)
+scripts/         # Ship/watch helpers driven by the Makefile
 ```
+
+The full architecture notes — data model, security rules, offline conventions, deployment pipeline — live in [CLAUDE.md](CLAUDE.md).
 
 ## Setup
 
 ### Prerequisites
 
-- Node.js 18+
-- A Firebase project with Authentication (Google) and Firestore enabled
+- Node.js 20.19+ (Cloud Functions target Node 22)
+- A Firebase project with Google Auth, Firestore, and Storage enabled — Blaze plan only if you want push notifications; everything else fits the free tier
+- Java, only if you run the rules tests (the Firestore emulator needs it)
 
-### Local Development
+### Local development
 
 ```bash
 git clone https://github.com/Eli-Jensen/fairshare.git
 cd fairshare
 npm install
-```
-
-Create a `.env` file with your Firebase config:
-
-```
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-VITE_FIREBASE_APP_ID=your-app-id
-```
-
-```bash
+cp .env.example .env.development   # then fill in your Firebase web config
 npm run dev
 ```
 
-### Deploy
+Optional features hide themselves when their env var is unset: Google Sheets backup (`VITE_GOOGLE_OAUTH_CLIENT_ID`), push notifications (`VITE_FIREBASE_VAPID_KEY`), GIF search (`VITE_KLIPY_API_KEY`), crash reporting (`VITE_SENTRY_DSN`). [.env.example](.env.example) documents each one.
+
+### Tests
 
 ```bash
-npm run build
-npx firebase deploy
+npm test          # unit tests — app + functions in one run
+make test-rules   # security-rules tests against the Firestore emulator (needs Java)
+npm run lint
 ```
 
-## Firestore Data Model
+## Deployment
 
-```
-/users/{uid}
-  displayName, email, photoURL, googleDisplayName, googlePhotoURL, recentContacts[]
-
-/trips/{tripId}
-  name, createdBy, memberUids[], inviteCode, invitedEmails[],
-  removedMembers[], lastRates{}, deletedAt?, createdAt
-
-/trips/{tripId}/expenses/{expenseId}
-  description, amount, currency, exchangeRate, amountUSD,
-  paidBy, splitType, splits{}, date, deletedAt?, createdAt
-```
+Dev and prod are **separate Firebase projects**, so staging can never touch production data. Shipping is continuous: `make ship` pushes the `dev` branch, and CI tests, deploys to staging, runs Lighthouse, then fast-forwards `main` and deploys prod — all in one run, stopping before prod at any failing step. `make help` lists the rest (rollback, manual promote, rules/functions deploys, live-version check).
 
 ## License
 

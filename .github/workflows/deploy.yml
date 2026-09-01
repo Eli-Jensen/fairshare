@@ -15,6 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history so the secret scan below covers every commit,
+          # not just the tip.
+          fetch-depth: 0
+
+      # A committed secret should stop the pipeline before anything deploys.
+      # This is the only secret scanning we have — GitHub's own push
+      # protection needs Advanced Security on a private repo. Free for
+      # personal accounts (orgs would need GITLEAKS_LICENSE). The full
+      # history was scanned clean when this was added (2026-08-31); a false
+      # positive later gets an allowlist entry in .gitleaks.toml, not a
+      # removal of this step.
+      - name: Scan git history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v5
         with:
