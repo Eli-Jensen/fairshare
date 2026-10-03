@@ -21,6 +21,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-03',
+    emoji: '🔑',
+    title: 'Signing in shows that it’s working',
+    items: [
+      'After you pick your Google account, the sign-in button now spins and reads “Signing in…” until you’re in. Before, it sat there looking untouched for a second or two — long enough that a second tap seemed necessary, and that second tap could undo the sign-in that had just worked.',
+      'If your browser blocks the Google sign-in window, you now get a note saying so instead of nothing happening at all.',
+    ],
+  },
+  {
     date: '2026-08-30',
     emoji: '🗑️',
     title: 'Delete an expense right from the list',
