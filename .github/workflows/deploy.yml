@@ -48,7 +48,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - name: Cache firestore emulator jar
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/firebase/emulators
           key: firebase-emulators-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
