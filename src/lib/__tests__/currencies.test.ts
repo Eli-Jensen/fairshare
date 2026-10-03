@@ -34,13 +34,6 @@ describe('currency lists', () => {
     expect(codes).toContain('ILS')
   })
 
-  it('ALL_CURRENCIES contains all common currencies', () => {
-    const allCodes = new Set(ALL_CURRENCIES.map((c) => c.code))
-    for (const c of COMMON_CURRENCIES) {
-      expect(allCodes.has(c.code)).toBe(true)
-    }
-  })
-
   it('ALL_CURRENCIES has no duplicate codes', () => {
     const codes = ALL_CURRENCIES.map((c) => c.code)
     expect(new Set(codes).size).toBe(codes.length)

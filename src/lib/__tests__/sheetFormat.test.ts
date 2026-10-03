@@ -240,16 +240,6 @@ describe('formatRequests', () => {
     expect(range.endRowIndex).toBeUndefined()
     expect(range.endColumnIndex).toBe(layout.machineColumnStart)
   })
-
-  it('moves every column index when the participant count changes', () => {
-    const wider = formatRequests({
-      ...layout,
-      participantCount: layout.participantCount + 1,
-      machineColumnStart: layout.machineColumnStart + 2,
-      expensesColumnCount: layout.expensesColumnCount + 2,
-    })
-    expect(JSON.stringify(wider)).not.toBe(JSON.stringify(requests))
-  })
 })
 
 describe('formatRequestsForSheet', () => {

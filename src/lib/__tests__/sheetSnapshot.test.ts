@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { Timestamp } from 'firebase/firestore'
 import {
   buildSnapshot,
   currencyNumberPattern,
@@ -363,12 +362,5 @@ describe('toBalanceInput', () => {
     })
     expect(input.paidBy).toBe('bob')
     expect(input.paidByAmounts).toEqual({ alice: 4, bob: 6 })
-  })
-})
-
-// Guards the Timestamp import being genuinely exercised by the fixture
-describe('fixture sanity', () => {
-  it('uses real Timestamps for expense dates', () => {
-    expect(expensesFixture()[0].date).toBeInstanceOf(Timestamp)
   })
 })

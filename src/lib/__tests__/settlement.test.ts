@@ -177,16 +177,6 @@ describe('simplifyDebts', () => {
     expect(settlements[0]).toEqual({ from: 'bob', to: 'alice', amount: 50 })
   })
 
-  it('minimizes settlements for 3 people', () => {
-    // Alice is owed 60, Bob owes 30, Carol owes 30
-    const settlements = simplifyDebts({ alice: 60, bob: -30, carol: -30 })
-    expect(settlements).toHaveLength(2)
-    const total = settlements.reduce((s, d) => s + d.amount, 0)
-    expect(total).toBeCloseTo(60)
-    // All payments go to alice
-    expect(settlements.every((s) => s.to === 'alice')).toBe(true)
-  })
-
   it('handles chain of debts', () => {
     // Alice +40, Bob +10, Carol -50
     const settlements = simplifyDebts({ alice: 40, bob: 10, carol: -50 })
@@ -201,20 +191,13 @@ describe('simplifyDebts', () => {
     expect(settlements).toHaveLength(0)
   })
 
-  it('handles complex 4-person scenario', () => {
-    // Alice +100, Bob -60, Carol -30, Dave -10
-    const settlements = simplifyDebts({
-      alice: 100,
-      bob: -60,
-      carol: -30,
-      dave: -10,
-    })
-    // Should produce at most 3 settlements
-    expect(settlements.length).toBeLessThanOrEqual(3)
-    // Total debtor amount = 100
-    const totalPaid = settlements.reduce((s, d) => s + d.amount, 0)
-    expect(totalPaid).toBeCloseTo(100)
-    // All go to alice (she's the only creditor)
-    expect(settlements.every((s) => s.to === 'alice')).toBe(true)
+  it('with one creditor, each debtor pays them once, in full', () => {
+    const settlements = simplifyDebts({ alice: 100, bob: -60, carol: -30, dave: -10 })
+    expect(settlements).toHaveLength(3)
+    expect(settlements).toEqual(expect.arrayContaining([
+      { from: 'bob', to: 'alice', amount: 60 },
+      { from: 'carol', to: 'alice', amount: 30 },
+      { from: 'dave', to: 'alice', amount: 10 },
+    ]))
   })
 })

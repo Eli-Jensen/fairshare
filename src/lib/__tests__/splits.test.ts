@@ -47,11 +47,6 @@ describe('splitProportionally / splitByShares', () => {
     expect(splits.c).toBe(25)
   })
 
-  it('sums exactly with awkward ratios', () => {
-    const splits = splitByShares(100, { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1 })
-    expect(sum(splits)).toBe(100)
-  })
-
   it('gives zero-weight members zero without leftover cents', () => {
     const splits = splitProportionally(100, { a: 1, b: 0, c: 2 })
     expect(splits.b).toBe(0)

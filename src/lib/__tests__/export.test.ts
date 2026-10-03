@@ -28,10 +28,26 @@ function expense(overrides: Partial<Expense> = {}): Expense {
   }
 }
 
+// The expense row for `description`, as cells. Test descriptions and payer
+// labels contain no commas, so a plain split is safe here.
+function rowFor(csv: string, description: string): string[] {
+  const row = csv.split('\n').map((l) => l.split(',')).find((cells) => cells[3] === description)
+  if (!row) throw new Error(`no row for ${description}`)
+  return row
+}
+
 describe('tripToCsv', () => {
-  it('generates CSV with trip name header', () => {
-    const csv = tripToCsv('Beach Trip', [], members, ['alice', 'bob'])
-    expect(csv).toContain('Trip: Beach Trip')
+  it('writes the trip header and every section', () => {
+    const csv = tripToCsv('Beach Trip', [expense()], members, ['alice', 'bob'])
+    for (const heading of [
+      'Trip: Beach Trip',
+      'Per-Person Spending',
+      'Total Paid',
+      'Balances',
+      'Remaining Settlements',
+    ]) {
+      expect(csv).toContain(heading)
+    }
   })
 
   it('includes expense rows', () => {
@@ -58,35 +74,29 @@ describe('tripToCsv', () => {
     expect(totalLine).toContain('$100.00')
   })
 
-  it('labels settlements correctly', () => {
+  // Asserts on the row's Type cell: the word "Settlement" is always somewhere
+  // in the file (the "Remaining Settlements" heading), so a whole-file
+  // toContain could never fail.
+  it('labels settlement rows as settlements and expense rows as expenses', () => {
     const csv = tripToCsv('Trip', [
-      expense({ isSettlement: true, description: 'Payment' }),
+      expense({ id: 'e1', description: 'Lunch' }),
+      expense({ id: 'e2', isSettlement: true, description: 'Payment' }),
     ], members, ['alice', 'bob'])
-    expect(csv).toContain('Settlement')
+    expect(rowFor(csv, 'Lunch')[1]).toBe('Expense')
+    expect(rowFor(csv, 'Payment')[1]).toBe('Settlement')
   })
 
-  it('handles multi-payer expenses', () => {
+  // Asserts on the Paid By cell: both names are always in the column headers.
+  it('lists every payer and their amount for multi-payer expenses', () => {
     const csv = tripToCsv('Trip', [
       expense({ paidByAmounts: { alice: 60, bob: 40 } }),
     ], members, ['alice', 'bob'])
-    expect(csv).toContain('Alice')
-    expect(csv).toContain('Bob')
+    expect(rowFor(csv, 'Lunch')[8]).toBe('Alice $60.00 + Bob $40.00')
   })
 
-  it('includes per-person spending section', () => {
-    const csv = tripToCsv('Trip', [expense()], members, ['alice', 'bob'])
-    expect(csv).toContain('Per-Person Spending')
-    expect(csv).toContain('Total Paid')
-  })
-
-  it('includes balances section', () => {
-    const csv = tripToCsv('Trip', [expense()], members, ['alice', 'bob'])
-    expect(csv).toContain('Balances')
-  })
-
-  it('includes remaining settlements section', () => {
-    const csv = tripToCsv('Trip', [expense()], members, ['alice', 'bob'])
-    expect(csv).toContain('Remaining Settlements')
+  it('names the single payer when there is no paidByAmounts', () => {
+    const csv = tripToCsv('Trip', [expense({ paidBy: 'bob' })], members, ['alice', 'bob'])
+    expect(rowFor(csv, 'Lunch')[8]).toBe('Bob')
   })
 
   it('escapes CSV values with commas', () => {

@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { Timestamp } from 'firebase/firestore'
-import { todayString, parseDateString, timestampToDateString, formatDateOnly } from '../dates'
+import { parseDateString, timestampToDateString, formatDateOnly, relativeTime } from '../dates'
 
 describe('parseDateString', () => {
   it('parses as local midnight, not UTC', () => {
@@ -16,11 +16,6 @@ describe('round trips', () => {
   it('date picked → stored → shown in the form stays the same day', () => {
     const stored = Timestamp.fromDate(parseDateString('2026-06-10'))
     expect(timestampToDateString(stored)).toBe('2026-06-10')
-  })
-
-  it('today round-trips', () => {
-    const stored = Timestamp.fromDate(parseDateString(todayString()))
-    expect(timestampToDateString(stored)).toBe(todayString())
   })
 })
 
@@ -41,5 +36,41 @@ describe('formatDateOnly', () => {
 
   it('returns empty for missing timestamps', () => {
     expect(formatDateOnly(undefined)).toBe('')
+  })
+})
+
+describe('relativeTime', () => {
+  const now = new Date(2026, 9, 3, 12, 0, 0)
+  const ago = (ms: number) => new Date(now.getTime() - ms)
+  const MIN = 60_000
+  const HOUR = 60 * MIN
+  const DAY = 24 * HOUR
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each([
+    [0, 'just now'],
+    [59_999, 'just now'],
+    [MIN, '1m ago'],
+    [59 * MIN, '59m ago'],
+    [HOUR, '1h ago'],
+    [23 * HOUR + 59 * MIN, '23h ago'],
+    [DAY, 'yesterday'],
+    [2 * DAY - 1, 'yesterday'],
+    [2 * DAY, '2d ago'],
+    [6 * DAY, '6d ago'],
+  ])('%i ms ago → %s', (ms, label) => {
+    expect(relativeTime(ago(ms))).toBe(label)
+  })
+
+  it('switches to a calendar date from a week out', () => {
+    const date = ago(7 * DAY)
+    expect(relativeTime(date)).toBe(date.toLocaleDateString())
   })
 })

@@ -178,16 +178,6 @@ describe('rejections', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toContain(`more than the ${MAX_RESTORE_EXPENSES}`)
   })
-
-  it('rejects expenses that do not net to zero', () => {
-    // Alice paid 100 but the shares only account for 60
-    const result = parseGrids(grids([row({ shareAlice: 10, shareBob: 50 })]))
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.error).toContain("don't balance")
-      expect(result.error).toContain('40')
-    }
-  })
 })
 
 describe('row selection', () => {
@@ -248,11 +238,14 @@ describe('amounts', () => {
     expect(result.warnings.join(' ')).toContain('shares add up to 99.97')
   })
 
-  it('reports a large drift and blocks the restore', () => {
+  it('reports a large drift and blocks the restore, saying by how much', () => {
     const result = parseGrids(grids([row({ shareAlice: 50, shareBob: 45 })]))
     expect(result.ok).toBe(false)
     expect(result.warnings.join(' ')).toContain('shares add up to 95')
-    if (!result.ok) expect(result.error).toContain("don't balance")
+    if (!result.ok) {
+      expect(result.error).toContain("don't balance")
+      expect(result.error).toContain('off by 5 ')
+    }
   })
 
   it('keeps the settled amount authoritative when the rate disagrees', () => {

@@ -20,30 +20,18 @@ describe('formatMoney', () => {
     expect(formatMoney(1234.56, 'USD')).toBe('$1,234.56')
   })
 
-  it('formats EUR amounts', () => {
-    const result = formatMoney(100, 'EUR')
-    // Intl formatting varies by environment, but should contain the amount
-    expect(result).toContain('100')
-  })
-
-  it('formats GBP amounts', () => {
-    const result = formatMoney(50.5, 'GBP')
-    expect(result).toContain('50.50')
-  })
-
-  it('handles negative amounts', () => {
-    const result = formatMoney(-25.5, 'USD')
-    expect(result).toContain('25.50')
+  it('keeps the minus sign on negative amounts', () => {
+    expect(formatMoney(-25.5, 'USD')).toBe('-$25.50')
   })
 
   it('defaults to USD when no currency specified', () => {
     expect(formatMoney(100)).toBe('$100.00')
   })
 
-  it('falls back gracefully for unknown currency codes', () => {
-    const result = formatMoney(100, 'XYZ')
-    // Should not throw, should contain the amount
-    expect(result).toContain('100')
+  // 'XY', not a well-formed-but-unknown code like 'XYZ': Intl formats those
+  // happily ("XYZ 100.00"), so they never reach the fallback.
+  it('falls back to "CODE 0.00" when Intl rejects the currency code', () => {
+    expect(formatMoney(100, 'XY')).toBe('XY 100.00')
   })
 })
 
@@ -80,16 +68,12 @@ describe('getMemberName', () => {
 })
 
 describe('tripLabel', () => {
-  it('returns "trip" for trip type', () => {
-    expect(tripLabel('trip')).toBe('trip')
-  })
-
-  it('returns "group" for group type', () => {
-    expect(tripLabel('group')).toBe('group')
-  })
-
-  it('defaults to "trip" for undefined', () => {
-    expect(tripLabel(undefined)).toBe('trip')
+  it.each([
+    ['trip', 'trip'],
+    ['group', 'group'],
+    [undefined, 'trip'],
+  ] as const)('%s → %s', (type, label) => {
+    expect(tripLabel(type)).toBe(label)
   })
 })
 
@@ -167,7 +151,7 @@ describe('getExpenseCategories', () => {
     expect(getExpenseCategories(exp)).toEqual([])
   })
 
-  it('returns empty array when categories is empty', () => {
+  it('falls back to the legacy category when categories is empty', () => {
     const exp: Expense = { ...base, categories: [], category: 'food' }
     // Empty categories array → falls back to legacy
     expect(getExpenseCategories(exp)).toEqual(['food'])

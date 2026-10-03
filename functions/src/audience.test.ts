@@ -49,12 +49,6 @@ describe('KIND_BY_ACTION', () => {
     expect(Object.keys(KIND_BY_ACTION).sort()).toEqual([...ALL_ACTIONS].sort())
   })
 
-  it('maps each action to a kind or explicit null', () => {
-    for (const a of ALL_ACTIONS) {
-      expect(KIND_BY_ACTION[a] === null || typeof KIND_BY_ACTION[a] === 'string').toBe(true)
-    }
-  })
-
   it('keeps exactly the five housekeeping actions silent', () => {
     const silent = ALL_ACTIONS.filter((a) => KIND_BY_ACTION[a] === null)
     expect(silent.sort()).toEqual(
@@ -390,13 +384,8 @@ describe('noteFor', () => {
     expect(noteFor(e, { ...ctx, recipientUid: 'bob', inviteeUid: 'dave' })?.body).toBe(
       'Alice invited dave@example.com'
     )
-  })
-
-  it('tells members plainly when the invited email has no account', () => {
-    const e = entry({ action: 'member_invited', targetDescription: 'nobody@example.com' })
-    expect(noteFor(e, { ...ctx, recipientUid: 'bob' })?.body).toBe(
-      'Alice invited nobody@example.com'
-    )
+    // Same wording when the email has no account (no inviteeUid at all)
+    expect(noteFor(e, { ...ctx, recipientUid: 'bob' })?.body).toBe('Alice invited dave@example.com')
   })
 
   it('returns null for the silent actions', () => {

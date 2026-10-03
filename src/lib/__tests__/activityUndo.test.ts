@@ -14,86 +14,28 @@ function entry(overrides: Partial<ActivityLogEntry>): ActivityLogEntry {
 }
 
 describe('getUndoAction', () => {
-  // Expense actions
-  it('returns soft-delete for expense_added with targetExpenseId', () => {
-    expect(getUndoAction(entry({ action: 'expense_added', targetExpenseId: 'e1' }))).toBe('soft-delete')
-  })
-
-  it('returns null for expense_added without targetExpenseId', () => {
-    expect(getUndoAction(entry({ action: 'expense_added' }))).toBeNull()
-  })
-
-  it('returns soft-delete for settlement_recorded with targetExpenseId', () => {
-    expect(getUndoAction(entry({ action: 'settlement_recorded', targetExpenseId: 'e1' }))).toBe('soft-delete')
-  })
-
-  it('returns restore for expense_deleted with targetExpenseId', () => {
-    expect(getUndoAction(entry({ action: 'expense_deleted', targetExpenseId: 'e1' }))).toBe('restore')
-  })
-
-  it('returns soft-delete for expense_restored', () => {
-    expect(getUndoAction(entry({ action: 'expense_restored', targetExpenseId: 'e1' }))).toBe('soft-delete')
-  })
-
-  it('returns revert-edit for expense_edited with previousValues', () => {
-    expect(getUndoAction(entry({
-      action: 'expense_edited',
-      targetExpenseId: 'e1',
-      previousValues: { amount: 50 },
-    }))).toBe('revert-edit')
-  })
-
-  it('returns null for expense_edited without previousValues', () => {
-    expect(getUndoAction(entry({ action: 'expense_edited', targetExpenseId: 'e1' }))).toBeNull()
-  })
-
-  // Member actions
-  it('returns re-add-member for member_removed', () => {
-    expect(getUndoAction(entry({ action: 'member_removed', targetMemberUid: 'u2' }))).toBe('re-add-member')
-  })
-
-  it('returns remove-member for member_joined', () => {
-    expect(getUndoAction(entry({ action: 'member_joined', targetMemberUid: 'u2' }))).toBe('remove-member')
-  })
-
-  it('returns uninvite for member_invited', () => {
-    expect(getUndoAction(entry({ action: 'member_invited', targetDescription: 'test@test.com' }))).toBe('uninvite')
-  })
-
-  it('returns null for member_left', () => {
-    expect(getUndoAction(entry({ action: 'member_left' }))).toBeNull()
-  })
-
-  // Trip actions
-  it('returns revert-rename for trip_renamed with previousValues', () => {
-    expect(getUndoAction(entry({
-      action: 'trip_renamed',
-      previousValues: { name: 'Old Name' },
-    }))).toBe('revert-rename')
-  })
-
-  it('returns revert-currency for currency_changed', () => {
-    expect(getUndoAction(entry({
-      action: 'currency_changed',
-      previousValues: { settlementCurrency: 'EUR' },
-    }))).toBe('revert-currency')
-  })
-
-  it('returns restore-trip for trip_deleted', () => {
-    expect(getUndoAction(entry({ action: 'trip_deleted' }))).toBe('restore-trip')
-  })
-
-  it('returns re-delete-trip for trip_restored', () => {
-    expect(getUndoAction(entry({ action: 'trip_restored' }))).toBe('re-delete-trip')
-  })
-
-  // Non-undoable
-  it('returns null for trip_created', () => {
-    expect(getUndoAction(entry({ action: 'trip_created' }))).toBeNull()
-  })
-
-  it('returns null for comment_added', () => {
-    expect(getUndoAction(entry({ action: 'comment_added' }))).toBeNull()
+  // [what, entry, expected undo]. Each undoable action needs the field its
+  // undo acts on; without it the entry is a record only.
+  it.each([
+    ['expense added', { action: 'expense_added', targetExpenseId: 'e1' }, 'soft-delete'],
+    ['expense added, no target', { action: 'expense_added' }, null],
+    ['payment recorded', { action: 'settlement_recorded', targetExpenseId: 'e1' }, 'soft-delete'],
+    ['expense deleted', { action: 'expense_deleted', targetExpenseId: 'e1' }, 'restore'],
+    ['expense restored', { action: 'expense_restored', targetExpenseId: 'e1' }, 'soft-delete'],
+    ['expense edited', { action: 'expense_edited', targetExpenseId: 'e1', previousValues: { amount: 50 } }, 'revert-edit'],
+    ['expense edited, no previous values', { action: 'expense_edited', targetExpenseId: 'e1' }, null],
+    ['member removed', { action: 'member_removed', targetMemberUid: 'u2' }, 're-add-member'],
+    ['member joined', { action: 'member_joined', targetMemberUid: 'u2' }, 'remove-member'],
+    ['member invited', { action: 'member_invited', targetDescription: 'test@test.com' }, 'uninvite'],
+    ['member left', { action: 'member_left' }, null],
+    ['trip renamed', { action: 'trip_renamed', previousValues: { name: 'Old Name' } }, 'revert-rename'],
+    ['currency changed', { action: 'currency_changed', previousValues: { settlementCurrency: 'EUR' } }, 'revert-currency'],
+    ['trip deleted', { action: 'trip_deleted' }, 'restore-trip'],
+    ['trip restored', { action: 'trip_restored' }, 're-delete-trip'],
+    ['trip created', { action: 'trip_created' }, null],
+    ['comment added', { action: 'comment_added' }, null],
+  ] as [string, Partial<ActivityLogEntry>, string | null][])('%s → %s', (_what, overrides, expected) => {
+    expect(getUndoAction(entry(overrides))).toBe(expected)
   })
 
   describe('undo window', () => {
