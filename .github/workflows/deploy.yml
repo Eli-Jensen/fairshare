@@ -56,20 +56,25 @@ jobs:
 
       - run: npm run build
 
-  # Runs either from a direct push to main, or automatically after a dev push
-  # has deployed, passed Lighthouse, and fast-forwarded main. The `always()` is
-  # what lets one job serve both: on a main push the dev-side jobs are skipped
-  # rather than successful, and a plain `needs` would skip this too.
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: [test, promote]
+  # The prod bundle, built while deploy-dev and Lighthouse are still running
+  # instead of after promote — it used to be ~40s of install + build at the
+  # very end of the critical path. Runs only when this run can reach prod: a
+  # direct push to main, or a dev push without the skip-promote marker (same
+  # test as the promote job). Building early is harmless if a later gate
+  # fails: deploy-production still waits on promote, and an unused artifact
+  # just expires.
+  build-production:
     if: >-
-      always()
-      && needs.test.result == 'success'
+      github.event_name == 'push'
       && (
-        (github.ref == 'refs/heads/main' && github.event_name == 'push')
-        || needs.promote.result == 'success'
+        github.ref == 'refs/heads/main'
+        || (
+          github.ref == 'refs/heads/dev'
+          && !startsWith(github.event.head_commit.message, '[skip promote]')
+        )
       )
+    runs-on: ubuntu-latest
+    needs: test
     steps:
       - uses: actions/checkout@v5
 
@@ -105,6 +110,46 @@ jobs:
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
+      # Sourcemaps are already uploaded to Sentry and deleted by the build, so
+      # this is exactly what gets served.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-production
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
+
+  # Runs either from a direct push to main, or automatically after a dev push
+  # has deployed, passed Lighthouse, and fast-forwarded main. The `always()` is
+  # what lets one job serve both: on a main push the dev-side jobs are skipped
+  # rather than successful, and a plain `needs` would skip this too.
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [test, build-production, promote]
+    if: >-
+      always()
+      && needs.test.result == 'success'
+      && needs.build-production.result == 'success'
+      && (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push')
+        || needs.promote.result == 'success'
+      )
+    steps:
+      # For firebase.json / .firebaserc (hosting targets) and the lockfile
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-production
+          path: dist/
+
+      # No npm ci: the only thing needed is the Firebase CLI, and the npm
+      # cache restored here already holds the lockfile's copy of it.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
       # Prod rules and Cloud Functions are NOT deployed here. The prod service
       # account can't read serviceusage (403 on serviceusage.services.get),
       # which the Firebase CLI calls before either deploy — the dev service
@@ -117,13 +162,20 @@ jobs:
       #   roles/cloudfunctions.admin, roles/run.admin, roles/eventarc.admin,
       #   roles/artifactregistry.admin, roles/iam.serviceAccountUser
       #                                             (functions only)
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: fairshare-4c9a2
-          target: app
+      #
+      # Hosting deploys with the repo's own firebase-tools version (the one the
+      # rules/functions deploys use), not FirebaseExtended/action-hosting-deploy,
+      # which downloaded firebase-tools@latest on every run — slower, and a
+      # new CLI release could change a deploy with no commit behind it.
+      - name: Deploy hosting to prod
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa.json"
+          FIREBASE_TOOLS=$(node -p "require('./package-lock.json').packages['node_modules/firebase-tools'].version")
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" \
+            npx --yes --prefer-offline "firebase-tools@$FIREBASE_TOOLS" \
+            deploy --only hosting:app --project fairshare-4c9a2 --non-interactive
 
   deploy-dev:
     if: >-
@@ -177,19 +229,23 @@ jobs:
           printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" make deploy-functions-dev
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
-          channelId: live
-          projectId: fairshare-split-dev
-          target: dev
+      # The firebase-tools npm ci already installed (see deploy-production).
+      - name: Deploy hosting to dev
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
+        run: |
+          printf '%s' "$FIREBASE_SA" > "$RUNNER_TEMP/firebase-sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json" \
+            npx firebase deploy --only hosting:dev --project fairshare-split-dev --non-interactive
 
   # Audits the real deployed artifact on real hosting, rather than a local
   # preview — so it sees the actual bundle, headers and network the site ships
   # with. It can only reach the signed-out landing page (the app itself is
   # behind Google sign-in), so treat this as a guard on the shell: bundle
   # weight, accessibility of the entry point, and metadata.
+  # One run, not three (lighthouserc.json): accessibility is the only failing
+  # assertion and it's deterministic; the median of three only steadied
+  # warn-only performance scores, for ~30s a run.
   lighthouse:
     if: >-
       github.ref == 'refs/heads/dev'

@@ -29,7 +29,7 @@ make deploy-functions-prod # Deploy them to prod — manual, same reason as the 
 make watch             # Watch the latest CI run, then report what it deployed + live versions
 ```
 
-**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (rules + functions + hosting) → lighthouse → promote (fast-forward main) → deploy-production (hosting)`, all in one workflow run. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
+**Shipping is continuous: a push to `dev` reaches prod on its own.** The pipeline is `test → deploy-dev (rules + functions + hosting) → lighthouse → promote (fast-forward main) → deploy-production (hosting)`, all in one workflow run, with `build-production` building the prod bundle in parallel after `test` so deploy-production only uploads it. Any failing step stops it before prod is touched, and prod/dev always report the same sha.
 
 To hold something back, start the commit subject with **`[skip promote]`** (it must be at the very start — a mere mention in the body would be too easy to trip over); it deploys to dev only, and `make promote` sends it on when you're ready. `make ship` just pushes and watches — CI does the promoting.
 
