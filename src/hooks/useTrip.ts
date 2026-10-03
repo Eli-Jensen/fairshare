@@ -217,7 +217,11 @@ export function useTrip(tripId: string | undefined) {
     getProfiles,
   ])
 
-  // Activity log subscription
+  // Activity log subscription. History is kept for the life of the trip
+  // (same as good-boy-points); limit() is what bounds the reads. This used to
+  // delete entries older than 7-14 days on every open, which left any trip
+  // quiet for a week saying "No activity yet". Undo keeps its old window via
+  // getUndoAction, so old entries are read-only.
   useEffect(() => {
     if (!tripId) return
 
@@ -227,33 +231,8 @@ export function useTrip(tripId: string | undefined) {
       limit(50)
     )
 
-    const WEEK_MS = 7 * DAY_MS
-    const TWO_WEEKS_MS = 14 * DAY_MS
-
     return onSnapshot(q, (snap) => {
-      const now = Date.now()
-      const active: ActivityLogEntry[] = []
-      const toDelete: typeof snap.docs = []
-
-      for (const d of snap.docs) {
-        const data = d.data()
-        const createdTime = data.createdAt?.toDate?.()
-        if (createdTime) {
-          const age = now - createdTime.getTime()
-          const isSettlement = data.action === 'settlement_recorded'
-          const maxAge = isSettlement ? TWO_WEEKS_MS : WEEK_MS
-          if (age > maxAge) {
-            toDelete.push(d)
-            continue
-          }
-        }
-        active.push({ id: d.id, ...data } as ActivityLogEntry)
-      }
-
-      setActivityLog(active)
-      if (toDelete.length > 0) {
-        Promise.all(toDelete.map((d) => deleteDoc(d.ref))).catch(() => {})
-      }
+      setActivityLog(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ActivityLogEntry))
     }, (err) => {
       console.error('useTrip activity listener error:', err)
     })

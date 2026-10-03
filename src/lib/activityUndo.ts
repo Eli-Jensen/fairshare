@@ -22,11 +22,29 @@ export type UndoAction =
   | 'restore-trip'     // trip_deleted
   | 're-delete-trip'   // trip_restored
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * How long an entry stays undoable: a week, or two for payments. Undo writes
+ * the entry's snapshot back verbatim (revert-edit restores previousValues
+ * wholesale), so on an old entry it would silently clobber everything changed
+ * since. These are the ages at which entries used to be deleted outright,
+ * which is what kept Undo off old history until the history started being kept.
+ */
+export function undoWindowMs(action: ActivityLogEntry['action']): number {
+  return (action === 'settlement_recorded' ? 14 : 7) * DAY_MS
+}
+
 /**
  * Determine what undo action applies to a given activity entry.
- * Returns null if the action is not undoable.
+ * Returns null if the action is not undoable, or no longer is.
  */
-export function getUndoAction(entry: ActivityLogEntry): UndoAction | null {
+export function getUndoAction(entry: ActivityLogEntry, now = Date.now()): UndoAction | null {
+  // No createdAt yet = a local write still awaiting its server timestamp,
+  // which is as fresh as an entry gets.
+  const created = entry.createdAt?.toMillis?.()
+  if (created !== undefined && now - created > undoWindowMs(entry.action)) return null
+
   switch (entry.action) {
     // Expense actions
     case 'expense_added':

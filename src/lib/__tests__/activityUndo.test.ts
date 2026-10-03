@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getUndoAction } from '../activityUndo'
+import { getUndoAction, undoWindowMs } from '../activityUndo'
 import type { ActivityLogEntry } from '../types'
 import { Timestamp } from 'firebase/firestore'
 
@@ -94,5 +94,36 @@ describe('getUndoAction', () => {
 
   it('returns null for comment_added', () => {
     expect(getUndoAction(entry({ action: 'comment_added' }))).toBeNull()
+  })
+
+  describe('undo window', () => {
+    const DAY = 24 * 60 * 60 * 1000
+    const now = Date.UTC(2026, 9, 3, 12)
+    const aged = (days: number, overrides: Partial<ActivityLogEntry> = {}) =>
+      entry({ createdAt: Timestamp.fromMillis(now - days * DAY), ...overrides })
+
+    it('keeps undo on entries inside a week', () => {
+      expect(getUndoAction(aged(6.9, { targetExpenseId: 'e1' }), now)).toBe('soft-delete')
+    })
+
+    it('drops undo on entries older than a week — history stays, but read-only', () => {
+      expect(getUndoAction(aged(7.1, { targetExpenseId: 'e1' }), now)).toBeNull()
+      expect(getUndoAction(aged(30, {
+        action: 'expense_edited', targetExpenseId: 'e1', previousValues: { amount: 50 },
+      }), now)).toBeNull()
+      expect(getUndoAction(aged(30, { action: 'trip_deleted' }), now)).toBeNull()
+    })
+
+    it('gives payments two weeks', () => {
+      const pay = (days: number) => aged(days, { action: 'settlement_recorded', targetExpenseId: 'e1' })
+      expect(getUndoAction(pay(13.9), now)).toBe('soft-delete')
+      expect(getUndoAction(pay(14.1), now)).toBeNull()
+      expect(undoWindowMs('settlement_recorded')).toBe(14 * DAY)
+    })
+
+    it('treats an entry still awaiting its server timestamp as fresh', () => {
+      expect(getUndoAction(entry({ targetExpenseId: 'e1', createdAt: undefined }), now)).toBe('soft-delete')
+      expect(getUndoAction(entry({ targetExpenseId: 'e1', createdAt: null as never }), now)).toBe('soft-delete')
+    })
   })
 })

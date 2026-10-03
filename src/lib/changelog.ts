@@ -22,6 +22,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-03',
+    emoji: '📜',
+    title: 'Activity keeps its history',
+    items: [
+      'A trip’s Activity tab used to clear out anything older than a week (two for payments), so a trip that had gone quiet showed “No activity yet” even with plenty of expenses in it. From now on, history stays for the life of the trip.',
+      'Anything that was already cleared out can’t come back, but nothing will be cleared from here on.',
+      'Undo still works on the last week of activity (two weeks for payments). Older entries are just a record, so undoing something from a month ago can’t quietly wipe out every change made since.',
+    ],
+  },
+  {
+    date: '2026-10-03',
     emoji: '🔑',
     title: 'Signing in shows that it’s working',
     items: [
