@@ -26,6 +26,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Signing in shows that it’s working',
     items: [
       'After you pick your Google account, the sign-in button now spins and reads “Signing in…” until you’re in. Before, it sat there looking untouched for a second or two — long enough that a second tap seemed necessary, and that second tap could undo the sign-in that had just worked.',
+      'And if the Google window gets left behind — say you switched back without finishing — the button offers to start over after a few seconds, instead of leaving you stuck.',
       'If your browser blocks the Google sign-in window, you now get a note saying so instead of nothing happening at all.',
     ],
   },
