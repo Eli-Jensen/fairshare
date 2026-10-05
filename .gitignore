@@ -27,3 +27,41 @@ functions/lib
 *.njsproj
 *.sln
 *.sw?
+
+# --- secrets & credentials: never commit (use .env.example / CI secrets) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*service-account*.json
+*-sa.json
+credentials*.json
+client_secret*.json
+secrets.*
+.netrc
+
+# --- local tool / AI-assistant state ---
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# --- Firebase / build extras ---
+.runtimeconfig.json
+functions/.runtimeconfig.json
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+coverage/
+.lighthouseci/
+*.tsbuildinfo
