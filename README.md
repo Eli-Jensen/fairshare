@@ -10,6 +10,10 @@ on Firebase and is designed to stay within Firebase's free tiers.
 **Use it:** [fairshare-split.web.app](https://fairshare-split.web.app). Sign in with Google;
 no separate account needed.
 
+| A trip's expenses | Settle up in the fewest payments | Adding an expense in euros |
+| :---: | :---: | :---: |
+| ![Lisbon 2026 trip: five expenses in euros, tagged Food, Transport, Housing and Fun, shown in USD](docs/screenshots/trip.jpg) | ![Settle Up view: three payments zero everyone out, with each person's total spent](docs/screenshots/settle-up.jpg) | ![Expense form: €132.40 dinner converted to USD at the trip's rate, split equally four ways, paid by one person](docs/screenshots/add-expense.jpg) |
+
 ## How to use it
 
 1. **Sign in with Google** at [fairshare-split.web.app](https://fairshare-split.web.app).
